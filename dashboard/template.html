@@ -307,6 +307,17 @@
   .tl-legend span { display: inline-flex; align-items: center; gap: 7px; }
   .tl-legend i { display: inline-block; width: 9px; height: 9px; }
   .hl-card .barlist { margin-top: 4px; }
+  /* proposal: line chart for submissions over time */
+  .lc { width: 100%; display: block; overflow: visible; }
+  .lc .grid { stroke: var(--line); stroke-width: 1; }
+  .lc .axis { stroke: var(--line-strong); stroke-width: 1; }
+  .lc text { fill: var(--ink-faint); font-size: 11px; font-family: inherit; font-variant-numeric: tabular-nums; }
+  .lc .ln { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .lc .completed { stroke: var(--mark); } .lc .pt.completed { fill: var(--mark); stroke: none; }
+  .lc .partial { stroke: var(--mark-muted); } .lc .pt.partial { fill: var(--mark-muted); stroke: none; }
+  .lc .exited { stroke: var(--mark-muted); stroke-dasharray: 4 4; } .lc .pt.exited { fill: var(--surface); stroke: var(--mark-muted); stroke-width: 1.5; stroke-dasharray: none; }
+  .tl-legend .dash { width: 16px; height: 0; border-top: 2px dashed var(--mark-muted); background: none; }
+  .tl-legend .line { width: 16px; height: 2px; }
   .hl-scale { display: flex; justify-content: space-between; font-size: 0.66rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
 
   footer.page-foot { color: var(--ink-faint); font-size: 0.76rem; padding: 36px 0 10px; }
@@ -1310,25 +1321,41 @@ function renderTabD(main){
       const days = []; const cur = new Date(keys[0] + 'T00:00:00'); const end = new Date(keys[keys.length-1] + 'T00:00:00');
       while (cur <= end && days.length < 400){ days.push(dayKey(cur.getTime())); cur.setDate(cur.getDate()+1); }
       const max = Math.max(...days.map(k => { const b = byDay.get(k); return b ? b.completed + b.partial + b.exited : 0; }), 1);
-      card.appendChild(el('div','tl-legend','<span><i style="background:var(--mark)"></i>Completed</span><span><i style="background:var(--mark-muted)"></i>Partly filled</span><span><i style="box-shadow:inset 0 0 0 1px var(--mark-muted)"></i>Exited at screening</span>'));
-      const tl = el('div','tl'), lab = el('div','tl-days');
-      const every = Math.ceil(days.length / 14);
-      days.forEach((k, i) => {
-        const b = byDay.get(k) || { completed:0, partial:0, exited:0 };
-        const tot = b.completed + b.partial + b.exited;
-        const col = el('div','tl-col');
-        col.title = `${k}: ${b.completed} completed, ${b.partial} partly filled, ${b.exited} exited`;
-        if (tot) col.appendChild(el('span','n', String(tot)));
-        ['exited','partial','completed'].forEach(kind => { if (!b[kind]) return; const seg = el('div','tl-seg ' + kind); seg.style.height = (100*b[kind]/max) + '%'; col.appendChild(seg); });
-        tl.appendChild(col);
-        const d = new Date(k + 'T00:00:00');
-        lab.appendChild(el('span','', i % every === 0 ? esc(d.toLocaleDateString(undefined, { month:'short', day:'numeric' })) : ''));
+      card.appendChild(el('div','tl-legend','<span><i class="line" style="background:var(--mark)"></i>Completed</span><span><i class="line" style="background:var(--mark-muted)"></i>Partly filled</span><span><i class="dash"></i>Exited at screening</span>'));
+      act.appendChild(card);   // attach first so the chart can size itself to the card
+      const every = Math.ceil(days.length / 12);   // label at most ~12 days on the axis
+      const series = ['completed','partial','exited'];
+      const vals = k => byDay.get(k) || { completed:0, partial:0, exited:0 };
+      const maxV = Math.max(1, ...days.flatMap(k => series.map(t => vals(k)[t])));
+      const step = maxV <= 5 ? 1 : Math.ceil(maxV / 5);
+      const top = Math.ceil(maxV / step) * step;
+      const W = Math.max(280, card.clientWidth - 44), H = 220, L = 30, R = 14, T = 12, B = 28;
+      const X = i => days.length === 1 ? (L + (W - L - R) / 2) : L + i * (W - L - R) / (days.length - 1);
+      const Y = v => T + (H - T - B) * (1 - v / top);
+      const NS = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('class','lc'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+      svg.setAttribute('role','img'); svg.setAttribute('aria-label', 'Sessions per day: ' + days.map(k => `${k} ${vals(k).completed} completed, ${vals(k).partial} partly filled, ${vals(k).exited} exited`).join('; '));
+      const mk = (tag, attrs, text) => { const e = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([a2, v]) => e.setAttribute(a2, v)); if (text != null) e.textContent = text; svg.appendChild(e); return e; };
+      for (let v = 0; v <= top; v += step){
+        mk('line', { x1: L, x2: W - R, y1: Y(v), y2: Y(v), class: v === 0 ? 'axis' : 'grid' });
+        mk('text', { x: L - 8, y: Y(v) + 4, 'text-anchor': 'end' }, String(v));
+      }
+      days.forEach((k, i) => { if (i % every === 0) mk('text', { x: X(i), y: H - 8, 'text-anchor': 'middle' }, new Date(k + 'T00:00:00').toLocaleDateString(undefined, { month:'short', day:'numeric' })); });
+      series.slice().reverse().forEach(t => {
+        if (days.length > 1) mk('polyline', { class: 'ln ' + t, points: days.map((k, i) => `${X(i).toFixed(1)},${Y(vals(k)[t]).toFixed(1)}`).join(' ') });
+        days.forEach((k, i) => {
+          const r = mk('rect', { class: 'pt ' + t, x: (X(i) - 3.5).toFixed(1), y: (Y(vals(k)[t]) - 3.5).toFixed(1), width: 7, height: 7 });
+          const tt = document.createElementNS(NS, 'title');
+          tt.textContent = `${new Date(k + 'T00:00:00').toLocaleDateString(undefined, { month:'short', day:'numeric' })}: ${vals(k)[t]} ${t === 'partial' ? 'partly filled' : t === 'exited' ? 'exited' : 'completed'}`;
+          r.appendChild(tt);
+        });
       });
-      card.appendChild(tl); card.appendChild(lab);
+      card.appendChild(svg);
       const busiest = days.reduce((a, k) => { const b = byDay.get(k); const t = b ? b.completed + b.partial + b.exited : 0; return t > a.t ? { k, t } : a; }, { k:null, t:0 });
       card.appendChild(el('div','hl-text', `<b>${all.length}</b> session${all.length===1?'':'s'} over ${days.length} day${days.length===1?'':'s'}, counted on the day each person started. The busiest day was <b>${esc(new Date(busiest.k + 'T00:00:00').toLocaleDateString(undefined, { month:'short', day:'numeric' }))}</b> with ${busiest.t}.`));
     }
-    act.appendChild(card); }
+    if (!card.parentNode) act.appendChild(card); }
 
   /* Where partial sessions stopped */
   { const card = el('div','hl-card wide');
