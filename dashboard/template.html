@@ -249,6 +249,23 @@
   .hl-stat { font-weight: 600; font-size: 2.3rem; color: var(--ink); letter-spacing: -0.025em; line-height: 1; font-variant-numeric: tabular-nums; }
   .hl-text { font-size: 0.88rem; color: var(--ink-soft); line-height: 1.5; }
   .hl-text b { color: var(--ink); font-weight: 600; }
+  /* Highlights: grouped by kind of finding. Secondary colours only mark the group (Wine = pain, Verdigris = opportunity). */
+  .hl-group { margin-top: 30px; }
+  .hl-group:first-of-type { margin-top: 8px; }
+  .hl-group-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .hl-group-head i { display: inline-block; width: 9px; height: 9px; background: var(--tone); }
+  .hl-group-head h3 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.012em; margin: 0; }
+  .hl-group-head span { font-size: 0.8rem; color: var(--ink-faint); }
+  .tone-hurt { --tone: var(--scale-high); }
+  .tone-help { --tone: var(--scale-low); }
+  .tone-ink { --tone: var(--mark); }
+  .hl-card { border-top: 2px solid var(--tone); }
+  .hl-meter { position: relative; height: 9px; margin: 4px 0 2px; }
+  .hl-meter::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 1px; background: var(--line); }
+  .hl-meter .fill { position: absolute; left: 0; top: 4px; height: 1px; background: var(--tone); }
+  .hl-meter .pt { position: absolute; top: 0; width: 9px; height: 9px; margin-left: -4.5px; background: var(--tone); }
+  .hl-meter .pt.point { background: var(--point); }
+  .hl-scale { display: flex; justify-content: space-between; font-size: 0.66rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
 
   footer.page-foot { color: var(--ink-faint); font-size: 0.76rem; padding: 36px 0 10px; }
 
@@ -286,9 +303,9 @@
 
   <div class="controlbar-sticky">
     <div class="tabs" id="tabs" role="tablist">
+      <button class="tab-btn" data-tab="c" type="button">Highlights</button>
       <button class="tab-btn" data-tab="a" type="button">Research Questions</button>
       <button class="tab-btn" data-tab="b" type="button">Full Survey</button>
-      <button class="tab-btn" data-tab="c" type="button">Highlights</button>
     </div>
     <div class="filterbar">
       <label class="fl" for="fSize">Company size</label>
@@ -521,13 +538,13 @@ function mergeSessions(rows){
 }
 
 /* ================= state ================= */
-const state = { size: 'all', role: 'all', years: 'all', tab: 'a', showTests: false, autoTests: false };
+const state = { size: 'all', role: 'all', years: 'all', tab: 'c', showTests: false, autoTests: false };
 let DATA = null;           // { rows, sessions, noSession, fetchedAt }
 let LIVE = { status: 'idle', error: null };
 let SOURCE = 'snapshot';
 let SNAP_DATA = null, LIVE_DATA = null;
 
-try { const t = localStorage.getItem('smd_tab'); if (t && 'abc'.includes(t)) state.tab = t; } catch(e){}
+try { const t = localStorage.getItem('smd_tab_v2'); if (t && 'abc'.includes(t)) state.tab = t; } catch(e){}
 if (['a','b','c'].includes((location.hash||'').slice(1))) state.tab = location.hash.slice(1);
 
 function sessionsAll(){ return DATA ? DATA.sessions : []; }
@@ -1080,51 +1097,78 @@ function addWriteIns(body, rows, field){
 }
 
 /* ================= TAB C ================= */
-function hlCard(grid, eyebrow, stat, text, point){
+function hlCard(grid, o){
   const c = el('div','hl-card');
-  c.appendChild(el('div','hl-eyebrow', (point ? '<span class="sq point"></span>' : '') + esc(eyebrow)));
-  c.appendChild(el('div','hl-stat', esc(stat)));
-  c.appendChild(el('div','hl-text', text));
+  c.appendChild(el('div','hl-eyebrow', (o.point ? '<span class="sq point"></span>' : '') + esc(o.eyebrow)));
+  c.appendChild(el('div','hl-stat', esc(o.stat)));
+  if (o.meter != null && !isNaN(o.meter)){
+    const f = Math.max(0, Math.min(1, o.meter));
+    const m = el('div','hl-meter');
+    m.innerHTML = `<span class="fill" style="width:${(f*100).toFixed(1)}%"></span><span class="pt${o.point ? ' point' : ''}" style="left:${(f*100).toFixed(1)}%"></span>`;
+    c.appendChild(m);
+    c.appendChild(el('div','hl-scale', `<span>${esc(o.scale ? o.scale[0] : '0%')}</span><span>${esc(o.scale ? o.scale[1] : '100%')}</span>`));
+  }
+  c.appendChild(el('div','hl-text', o.text));
   grid.appendChild(c);
 }
+function hlGroup(parent, title, note, tone){
+  const g = el('div','hl-group tone-' + tone);
+  const head = el('div','hl-group-head');
+  head.appendChild(el('i',''));
+  head.appendChild(el('h3','', esc(title)));
+  if (note) head.appendChild(el('span','', esc(note)));
+  g.appendChild(head);
+  const grid = el('div','hl-grid');
+  g.appendChild(grid);
+  parent.appendChild(g);
+  return grid;
+}
+
 function renderTabC(main){
   const s = bandSection('Highlights.', 'The short version, for the same filtered segment as the other tabs.');
   main.appendChild(s);
-  const grid = el('div','hl-grid');
-  s.appendChild(grid);
   const rows = filteredResponses();
   const n = rows.length;
   const owners = rows.filter(isOwner);
   const NA = 'Not enough responses in this segment yet.';
 
-  hlCard(grid, 'Sample', String(n), `People in view who got past screening (${rows.filter(r=>r.complete).length} completed, ${rows.filter(r=>!r.complete).length} partial), out of <b>${baseResponses().length}</b> in total${state.showTests ? ', <b>including test rows</b>' : ''}.`);
-
+  /* Where it hurts */
+  const hurt = hlGroup(s, 'Where it hurts.', 'Frustrations, who carries them, and the time they take', 'hurt');
   { const st = likertStats(AREAS, owners, 'owner');
-    if (st.length) hlCard(grid, 'Top frustration', st[0].mean.toFixed(1)+' / 7', `<b>${esc(st[0].name)}</b> is the most frustrating area for owners; ${pct(st[0].high, st[0].n)}% of ${st[0].n} rated it 5 or higher.`, true);
-    else hlCard(grid, 'Top frustration', '–', NA); }
-
+    if (st.length) hlCard(hurt, { eyebrow:'Top frustration', stat: st[0].mean.toFixed(1)+' / 7', point: true, meter: (st[0].mean-1)/6, scale:['1','7'],
+      text: `<b>${esc(st[0].name)}</b> is the most frustrating area for owners; ${pct(st[0].high, st[0].n)}% of ${st[0].n} rated it 5 or higher.` });
+    else hlCard(hurt, { eyebrow:'Top frustration', stat:'–', text: NA }); }
   { const dd = deepDiveRows(rows).filter(d => d.handler);
     const o = dd.filter(d => d.handler==='you').length;
-    hlCard(grid, 'The owner handles it', dd.length ? pct(o, dd.length)+'%' : '–', dd.length ? `of deep-dive areas are handled by the owner or managing partner personally (${o} of ${dd.length}).` : NA); }
-
+    hlCard(hurt, { eyebrow:'The owner handles it', stat: dd.length ? pct(o, dd.length)+'%' : '–', meter: dd.length ? o/dd.length : null,
+      text: dd.length ? `of followed-up areas are handled by the owner or managing partner personally (${o} of ${dd.length}).` : NA }); }
   { const dd = deepDiveRows(rows).filter(d => d.hours && d.hours!=='notsure');
     const h = dd.filter(d => hoursHeavy(d.hours)).length;
-    hlCard(grid, 'Time drain', dd.length ? pct(h, dd.length)+'%' : '–', dd.length ? `of deep-dive areas take <b>6+ hours a week</b> across the business (${h} of ${dd.length}, “Not sure” excluded).` : NA); }
+    hlCard(hurt, { eyebrow:'Time drain', stat: dd.length ? pct(h, dd.length)+'%' : '–', meter: dd.length ? h/dd.length : null,
+      text: dd.length ? `of followed-up areas take <b>6+ hours a week</b> across the business (${h} of ${dd.length}, “Not sure” excluded).` : NA }); }
 
+  /* Where AI can help */
+  const help = hlGroup(s, 'Where AI can help.', 'Openness, current use, and willingness to pay', 'help');
   { const res = aiTaskCounts(rows);
-    hlCard(grid, 'Open to AI', res.n ? pct(res.atLeastOne, res.n)+'%' : '–', res.n ? `would let AI handle at least one task${res.list[0] && res.list[0].key!=='none' ? `; the top pick is <b>${esc(res.list[0].name)}</b> (${res.list[0].pct}% of those shown it)` : ''}.` : NA); }
-
+    hlCard(help, { eyebrow:'Open to AI', stat: res.n ? pct(res.atLeastOne, res.n)+'%' : '–', meter: res.n ? res.atLeastOne/res.n : null,
+      text: res.n ? `would let AI handle at least one task${res.list[0] && res.list[0].key!=='none' ? `; the top pick is <b>${esc(res.list[0].name)}</b> (${res.list[0].pct}% of those shown it)` : ''}.` : NA }); }
   { const a = rows.filter(r => hasVal(r.ai_frequency));
     const d = a.filter(r => r.ai_frequency==='daily').length;
-    hlCard(grid, 'Daily AI users', a.length ? pct(d, a.length)+'%' : '–', a.length ? `use AI tools every work day (${d} of ${a.length}).` : NA); }
-
+    hlCard(help, { eyebrow:'Daily AI users', stat: a.length ? pct(d, a.length)+'%' : '–', meter: a.length ? d/a.length : null,
+      text: a.length ? `use AI tools every work day (${d} of ${a.length}).` : NA }); }
   { const a = owners.filter(r => hasVal(r.wtp_ai) && r.wtp_ai!=='notsure');
     const p = a.filter(r => r.wtp_ai!=='0').length;
     const hi = a.filter(r => ['101-250','251-500','500+'].includes(r.wtp_ai)).length;
-    hlCard(grid, 'Would pay', a.length ? pct(p, a.length)+'%' : '–', a.length ? `of owners would pay something monthly for an AI business assistant; ${hi} of ${a.length} would pay over $100 / mo.` : NA); }
+    hlCard(help, { eyebrow:'Would pay', stat: a.length ? pct(p, a.length)+'%' : '–', meter: a.length ? p/a.length : null,
+      text: a.length ? `of owners would pay something monthly for an AI business assistant; ${hi} of ${a.length} would pay over $100 / mo.` : NA }); }
 
+  /* The sample */
+  const sample = hlGroup(s, 'The sample.', 'Who these numbers are based on', 'ink');
+  hlCard(sample, { eyebrow:'People in view', stat: String(n),
+    text: `got past screening (${rows.filter(r=>r.complete).length} completed, ${rows.filter(r=>!r.complete).length} partial), out of <b>${baseResponses().length}</b> in total${state.showTests ? ', <b>including test rows</b>' : ''}.` });
   { const c = rows.filter(r => r.calendly).length;
-    hlCard(grid, 'Interview pool', n ? pct(c, n)+'%' : '–', n ? `clicked to book the $100 interview (${c} of ${n}), a starting pool for qualitative follow-up.` : NA); }
+    hlCard(sample, { eyebrow:'Interview pool', stat: n ? pct(c, n)+'%' : '–', meter: n ? c/n : null,
+      text: n ? `clicked to book the $100 interview (${c} of ${n}), a starting pool for qualitative follow-up.` : NA }); }
 }
 
 /* ================= shell ================= */
@@ -1355,7 +1399,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     const stickyEl = document.querySelector('.controlbar-sticky');
     const wasStuck = stickyEl && stickyEl.getBoundingClientRect().top <= 1;
     state.tab = btn.dataset.tab;
-    try { localStorage.setItem('smd_tab', state.tab); } catch(e){}
+    try { localStorage.setItem('smd_tab_v2', state.tab); } catch(e){}
     render();
     if (wasStuck){ document.getElementById('main').scrollIntoView({ block: 'start' }); window.scrollBy(0, -stickyEl.offsetHeight); }
   });
