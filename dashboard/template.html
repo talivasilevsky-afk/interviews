@@ -197,6 +197,14 @@
   .bl-fill { background: var(--mark); height: 100%; min-width: 2px; }
   .barrow.muted .bl-fill { background: var(--mark-muted); }
   .barlist.emp .bl-fill { background: var(--emp); }
+  .bl-fill.split { display: flex; background: none; }
+  .bl-fill.split span { height: 100%; }
+  .bl-fill.split .own { background: var(--mark); }
+  .barrow.muted .bl-fill.split .own { background: var(--mark-muted); }
+  .bl-fill.split .em { background: var(--emp); }
+  .role-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.74rem; color: var(--ink-soft); margin: -4px 0 12px; }
+  .role-legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .role-legend i { display: inline-block; width: 9px; height: 9px; }
   .barlist.emp .barrow.muted .bl-fill { background: var(--mark-muted); }
   .chart-title .sq { width: 8px; height: 8px; margin-right: 7px; vertical-align: 0; }
   .sq.emp { background: var(--emp); }
@@ -611,11 +619,22 @@ function insightSentence(counts, n, opts){
 }
 
 /* ================= renderers ================= */
+/* For charts both groups answer: how many of each bar's answers came from employees. */
+function addRoleSplit(counts, field, rows){
+  const multi = MULTI_FIELDS.has(field);
+  const emps = rows.filter(isEmp);
+  counts.forEach(c => { c.emp = emps.filter(r => multi ? (Array.isArray(r[field]) && r[field].includes(c.key)) : String(r[field]) === c.key).length; });
+  return counts;
+}
+
 function renderBarList(container, counts, n, opts){
   opts = opts || {};
   const wrap = el('div','barlist' + (opts.emp ? ' emp' : ''));
   if (!counts.length){ wrap.appendChild(el('div','empty-state', opts.emptyText || 'No responses in this segment yet.')); container.appendChild(wrap); return; }
   const max = Math.max(...counts.map(c => opts.byPct ? c.pct : c.count), 1);
+  if (opts.split){
+    container.appendChild(el('div','role-legend', '<span><i style="background:var(--mark)"></i>Owners &amp; partners</span><span><i style="background:var(--emp)"></i>Employees</span>'));
+  }
   counts.forEach(c => {
     const denom = c.denom != null ? c.denom : n;
     const p = pct(c.count, denom);
@@ -623,8 +642,13 @@ function renderBarList(container, counts, n, opts){
     const row = el('div','barrow' + (opts.tone==='warn' ? ' tone-warn' : '') + (muted ? ' muted' : ''));
     row.appendChild(el('div','bl-label', esc(c.name)));
     const track = el('div','bl-track');
-    const fill = el('div','bl-fill');
+    const fill = el('div','bl-fill' + (opts.split ? ' split' : ''));
     fill.style.width = Math.max(3, Math.round(100*(opts.byPct ? c.pct : c.count)/max)) + '%';
+    if (opts.split && c.count){
+      const em = c.emp || 0, own = c.count - em;
+      if (own) { const a = el('span','own'); a.style.width = (100*own/c.count) + '%'; a.title = `Owners & partners: ${own}`; fill.appendChild(a); }
+      if (em) { const b = el('span','em'); b.style.width = (100*em/c.count) + '%'; b.title = `Employees: ${em}`; fill.appendChild(b); }
+    }
     track.appendChild(fill); row.appendChild(track);
     row.appendChild(el('div','bl-val', c.denom != null ? `${c.count}/${denom} · ${p}%` : `${c.count} · ${p}%`));
     wrap.appendChild(row);
@@ -790,7 +814,9 @@ function barChart(grid, title, field, opts){
   const { block, nSpan } = chartBlock(grid, title, opts.question === undefined ? Q[field] : opts.question, opts.emp);
   const { counts, n } = countsFor(field, MULTI_FIELDS.has(field), opts.order || ORDER[field] || null, rows);
   nSpan.textContent = `n = ${n}`;
-  renderBarList(block, counts, n, { emp: opts.emp, emptyText: opts.emptyText });
+  const split = !opts.rows && !opts.emp;   // no row subset given = owners and employees together
+  if (split) addRoleSplit(counts, field, rows);
+  renderBarList(block, counts, n, { emp: opts.emp, split, emptyText: opts.emptyText });
   if (!opts.noInsight) renderInsight(block, insightSentence(counts, n, { multi: MULTI_FIELDS.has(field), who: opts.who }));
   return { block, counts, n };
 }
@@ -804,11 +830,11 @@ function aiTaskCounts(rows){
     const shownTo = answered.filter(r => r.aiShown.length ? r.aiShown.includes(id) : true);
     if (!shownTo.length) return;
     const c = shownTo.filter(r => r.ai_tasks.includes(id)).length;
-    out.push({ key: id, name: L.ai_tasks[id], count: c, denom: shownTo.length, pct: pct(c, shownTo.length) });
+    out.push({ key: id, name: L.ai_tasks[id], count: c, emp: shownTo.filter(r => isEmp(r) && r.ai_tasks.includes(id)).length, denom: shownTo.length, pct: pct(c, shownTo.length) });
   });
   out.sort((a,b) => b.pct - a.pct || b.count - a.count);
   const none = answered.filter(r => r.ai_tasks.includes('none')).length;
-  if (none) out.push({ key:'none', name: L.ai_tasks.none, count: none, denom: answered.length, pct: pct(none, answered.length) });
+  if (none) out.push({ key:'none', name: L.ai_tasks.none, count: none, emp: answered.filter(r => isEmp(r) && r.ai_tasks.includes('none')).length, denom: answered.length, pct: pct(none, answered.length) });
   return { list: out, n: answered.length, atLeastOne: answered.filter(r => r.ai_tasks.some(t => t!=='none')).length };
 }
 function deepDiveRows(rows){
@@ -854,7 +880,8 @@ function renderTabA(main){
       const { block, nSpan } = chartBlock(grid, 'Company size', Q.team_size);
       const { counts, n: cn } = countsFor('team_size', false, ORDER.team_size, sr);
       nSpan.textContent = `n = ${cn}`;
-      renderBarList(block, counts, cn);
+      addRoleSplit(counts, 'team_size', sr);
+      renderBarList(block, counts, cn, { split: true });
       const solo = sr.filter(r => r.team_size==='1').length;
       renderInsight(block, cn ? `${insightSentence(counts, cn, { who: 'people who answered' })}${solo ? ` “Just me” (${solo}) was screened out by the form after this question.` : ''}` : null);
     }
@@ -962,7 +989,7 @@ function renderTabA(main){
       const { block, nSpan } = chartBlock(grid, 'Tasks they’d let AI handle', Q.ai_tasks);
       const res = aiTaskCounts(rows);
       nSpan.textContent = `n = ${res.n}`;
-      renderBarList(block, res.list, res.n, { byPct: true });
+      renderBarList(block, res.list, res.n, { byPct: true, split: true });
       renderInsight(block, res.list.length ? `<b>“${esc(res.list[0].name)}”</b> is the task they’d most readily hand over — <b>${res.list[0].pct}%</b> of the ${res.list[0].denom} who saw it. ${pct(res.atLeastOne, res.n)}% picked at least one task.` : null);
     }
     barChart(grid, 'Why not the other tasks', 'ai_reluctance', { question: Q.ai_reluctance, who: 'respondents who left at least one task unpicked', tone: 'warn' });
@@ -1015,7 +1042,8 @@ function renderTabA(main){
       const { counts } = countsFor('heaviest', false, null, reached.filter(r => r.heaviest!=='positive_week'));
       const nNeg = reached.filter(r => r.heaviest!=='positive_week').length;
       nSpan.textContent = `n = ${nNeg}`;
-      renderBarList(block, counts, nNeg, { tone: 'warn' });
+      addRoleSplit(counts, 'heaviest', reached.filter(r => r.heaviest!=='positive_week'));
+      renderBarList(block, counts, nNeg, { split: true });
       const pos = reached.length - nNeg;
       renderInsight(block, nNeg ? `${insightSentence(counts, nNeg, { who: 'respondents with at least one negative statement' })} ${pos ? `${pos} described a purely positive week.` : ''} When someone picked only one negative statement, it was filled in for them.` : null);
     }
@@ -1117,7 +1145,7 @@ function renderTabB(main){
       const res = aiTaskCounts(rows);
       addMeta(`n = ${res.n}`);
       body.appendChild(meta);
-      renderBarList(body, res.list, res.n, { byPct: true });
+      renderBarList(body, res.list, res.n, { byPct: true, split: true });
       addWriteIns(body, rows, 'ai_tasks_other');
     } else if (step.flag){
       body.appendChild(el('div','snap-q', esc(step.flag==='calendly' ? Q.calendly : Q.report)));
@@ -1132,7 +1160,9 @@ function renderTabB(main){
       const { counts, n } = countsFor(step.field, MULTI_FIELDS.has(step.field), ORDER[step.field] || null, pool);
       addMeta(`n = ${n}` + (step.all ? ' · all sessions, incl. screened out' : ''));
       body.appendChild(meta);
-      renderBarList(body, counts, n, { emp: !!step.emps });
+      const splitB = !step.owners && !step.emps;
+      if (splitB) addRoleSplit(counts, step.field, pool);
+      renderBarList(body, counts, n, { emp: !!step.emps, split: splitB });
       if (OTHER_TEXT[step.field]) addWriteIns(body, pool, OTHER_TEXT[step.field]);
     }
     list.appendChild(row);
