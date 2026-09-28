@@ -190,12 +190,11 @@
   .bl-track { background: var(--surface-2); height: 10px; position: relative; overflow: hidden; }
   .bl-fill { background: var(--mark); height: 100%; min-width: 2px; }
   .barrow.muted .bl-fill { background: var(--mark-muted); }
-  .barrow.top .bl-fill { background: var(--point); }   /* the top answer in each chart */
   .bl-val { font-size: 0.76rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; min-width: 4.4em; white-space: nowrap; }
 
-  .insight { margin-top: 14px; padding: 10px 0 0; border-top: 1px solid var(--line); font-size: 0.84rem; color: var(--ink-soft); line-height: 1.5; }
-  .insight.empty { color: var(--ink-faint); }
-  .insight b { font-weight: 600; color: var(--ink); }
+  .insight { margin-top: 16px; padding: 12px 0 0; border-top: 1px solid var(--line); font-size: 0.95rem; font-weight: 500; color: var(--ink); line-height: 1.45; letter-spacing: -0.005em; }
+  .insight.empty { color: var(--ink-faint); font-size: 0.84rem; font-weight: 400; }
+  .insight b { font-weight: 700; color: var(--ink); }
 
   /* 1–7 scale, grouped into three bands (proposal). */
   .lk-legend { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin: 0 0 16px; font-size: 0.76rem; color: var(--ink-soft); }
@@ -564,10 +563,10 @@ function insightSentence(counts, n, opts){
   const verb = opts.multi ? 'picked' : 'chose';
   const who = opts.who || 'respondents who reached this question';
   if (ties.length > 1 && ties.length <= 3){
-    return `${ties.length} answers are tied for the top spot at ${p}% each of the ${n} ${who}: ${ties.map(t => '“'+esc(t.name)+'”').join(', ')}.`;
+    return `${ties.length} answers are tied for the top spot at ${p}% each of the ${n} ${who}: ${ties.map(t => '<b>“'+esc(t.name)+'”</b>').join(', ')}.`;
   }
   if (ties.length > 3) return `No single answer leads yet: ${ties.length} answers are tied at ${p}% of the ${n} ${who}.`;
-  return `“${esc(top.name)}” is the top answer — ${verb} by <b>${p}%</b> of the ${n} ${who}.`;
+  return `<b>“${esc(top.name)}”</b> is the top answer — ${verb} by <b>${p}%</b> of the ${n} ${who}.`;
 }
 
 /* ================= renderers ================= */
@@ -576,18 +575,11 @@ function renderBarList(container, counts, n, opts){
   const wrap = el('div','barlist');
   if (!counts.length){ wrap.appendChild(el('div','empty-state', opts.emptyText || 'No responses in this segment yet.')); container.appendChild(wrap); return; }
   const max = Math.max(...counts.map(c => opts.byPct ? c.pct : c.count), 1);
-  // Top answer in Ochre: highest share among real answers ("Not sure", "None", "Other" skipped).
-  // Ties of up to three are all marked; a wider tie means there is no top answer yet.
-  const shareOf = c => { const d = c.denom != null ? c.denom : n; return d ? c.count / d : 0; };
-  const real = counts.filter(c => !['notsure','none','other'].includes(c.key) && c.count > 0);
-  const best = real.length ? Math.max(...real.map(shareOf)) : 0;
-  const tops = real.filter(c => shareOf(c) === best);
-  const topKeys = new Set(tops.length <= 3 && tops.length < real.length || real.length === 1 ? tops.map(c => c.key) : []);
   counts.forEach(c => {
     const denom = c.denom != null ? c.denom : n;
     const p = pct(c.count, denom);
     const muted = ['notsure','none'].includes(c.key);
-    const row = el('div','barrow' + (muted ? ' muted' : '') + (topKeys.has(c.key) ? ' top' : ''));
+    const row = el('div','barrow' + (opts.tone==='warn' ? ' tone-warn' : '') + (muted ? ' muted' : ''));
     row.appendChild(el('div','bl-label', esc(c.name)));
     const track = el('div','bl-track');
     const fill = el('div','bl-fill');
@@ -653,7 +645,7 @@ function renderLikert(container, stats, whoText){
     container.appendChild(row);
   });
   const top = stats[0];
-  renderInsight(container, `“${esc(top.name)}” is the most frustrating area, with a mean of <b>${top.mean.toFixed(1)} / 7</b>; ${pct(top.high, top.n)}% of the ${top.n} ${whoText} rated it 5 or higher.`);
+  renderInsight(container, `<b>“${esc(top.name)}”</b> is the most frustrating area, with a mean of <b>${top.mean.toFixed(1)} / 7</b>; ${pct(top.high, top.n)}% of the ${top.n} ${whoText} rated it 5 or higher.`);
 }
 
 function renderHeatmap(container, matrixRows, colKeys, colLabel, rowLabel){
@@ -876,7 +868,7 @@ function renderTabA(main){
       const counts = [...map.entries()].map(([k,c]) => ({ key:k, name:(AREA_BY_SLUG[k]||{}).owner || k, count:c })).sort((a,b) => b.count - a.count);
       nSpan.textContent = `n = ${owners2}`;
       renderBarList(block, counts, owners2);
-      renderInsight(block, counts.length ? `“${esc(counts[0].name)}” came up most often, in ${pct(counts[0].count, owners2)}% of the ${owners2} owners’ deep dives.` : null);
+      renderInsight(block, counts.length ? `<b>“${esc(counts[0].name)}”</b> came up most often, in ${pct(counts[0].count, owners2)}% of the ${owners2} owners’ deep dives.` : null);
     }
     {
       const { block, nSpan } = chartBlock(grid2, 'Hours per week, per area', Q.hours);
@@ -901,7 +893,7 @@ function renderTabA(main){
       const res = aiTaskCounts(rows);
       nSpan.textContent = `n = ${res.n}`;
       renderBarList(block, res.list, res.n, { byPct: true });
-      renderInsight(block, res.list.length ? `“${esc(res.list[0].name)}” is the task they’d most readily hand over — <b>${res.list[0].pct}%</b> of the ${res.list[0].denom} who saw it. ${pct(res.atLeastOne, res.n)}% picked at least one task.` : null);
+      renderInsight(block, res.list.length ? `<b>“${esc(res.list[0].name)}”</b> is the task they’d most readily hand over — <b>${res.list[0].pct}%</b> of the ${res.list[0].denom} who saw it. ${pct(res.atLeastOne, res.n)}% picked at least one task.` : null);
     }
     barChart(grid, 'Why not the other tasks', 'ai_reluctance', { question: Q.ai_reluctance, who: 'respondents who left at least one task unpicked', tone: 'warn' });
     barChart(grid, 'Employees: working with an AI assistant', 'emp_ai_adopt', { rows: emps, who: 'employees who reached this question' });
