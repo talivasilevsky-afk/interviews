@@ -176,6 +176,9 @@
 
   .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 18px; margin-top: 20px; align-items: start; }
   .chart-grid.stacked { grid-template-columns: 1fr; }
+  /* Charts are packed into columns so a short chart never leaves a gap under it. */
+  .chart-grid.packed { display: flex; align-items: flex-start; gap: 18px; }
+  .chart-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 18px; }
   .chart-block { min-width: 0; display: flex; flex-direction: column; background: var(--surface); border-radius: 2px; padding: 18px 20px 20px; }
   .chart-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
   .chart-title { font-weight: 500; font-size: 0.68rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.12em; }
@@ -1236,7 +1239,30 @@ function render(){
   if (state.tab==='a') renderTabA(main);
   else if (state.tab==='b') renderTabB(main);
   else renderTabC(main);
+  main.querySelectorAll('.chart-grid:not(.stacked)').forEach(packGrid);
 }
+
+/* Put each chart, in order, into the currently shortest column. */
+const CHART_MIN = 310, CHART_GAP = 18;
+function packGrid(grid){
+  const items = Array.from(grid.children);
+  const cols = Math.max(1, Math.min(items.length, Math.floor((grid.clientWidth + CHART_GAP) / (CHART_MIN + CHART_GAP))));
+  if (cols < 2 || items.length < 2) return;
+  const colEls = Array.from({ length: cols }, () => el('div','chart-col'));
+  grid.classList.add('packed');
+  colEls.forEach(c => grid.appendChild(c));
+  items.forEach(item => {
+    const target = colEls.reduce((a, b) => (b.offsetHeight < a.offsetHeight ? b : a));
+    target.appendChild(item);
+  });
+}
+let resizeTimer = null, lastWidth = window.innerWidth;
+window.addEventListener('resize', () => {
+  if (window.innerWidth === lastWidth) return;
+  lastWidth = window.innerWidth;
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { if (DATA) render(); }, 150);
+});
 
 /* ================= data sources ================= */
 function buildData(records, fetchedAt){
