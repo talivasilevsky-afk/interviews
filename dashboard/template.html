@@ -214,6 +214,7 @@
   table.heatmap th.colh { font-weight: 500; color: var(--ink-soft); font-size: 0.72rem; max-width: 120px; white-space: normal; vertical-align: bottom; }
   table.heatmap td { color: var(--ink); font-variant-numeric: tabular-nums; }
   table.heatmap td.zero { color: var(--ink-faint); }
+  table.heatmap .total { font-weight: 600; border-left: 1px solid var(--line); }
   .hm-cell { display: inline-flex; align-items: center; gap: 8px; }
   .hm-sq { display: inline-block; background: var(--mark); }
   .hm-sq.point { background: var(--point); }
@@ -292,7 +293,7 @@
       <label class="fl" for="fRole">Role</label>
       <select id="fRole" class="filter-select"></select>
       <label class="fl" for="fYears">Years in business</label>
-      <select id="fYears" class="filter-select" title="Asked of owners and managing partners only"></select>
+      <select id="fYears" class="filter-select"></select>
       <label class="test-toggle" id="testToggleWrap" for="fTests"><input type="checkbox" id="fTests"> Show test rows</label>
       <button class="reset-btn" id="resetBtn" type="button">Reset filters</button>
       <span class="match-count" id="matchCount"></span>
@@ -501,7 +502,7 @@ function mergeSessions(rows){
     s.calendly = rs.some(r => r.calendly_clicked === true);
     s.reportOptIn = rs.some(r => hasVal(r.report_email));
     s.exitOptIn = rs.some(r => hasVal(r.exit_email));
-    s.screenedOut = hasVal(s.exit_reason) || (hasVal(s.workplace) && s.workplace!=='agency') || s.team_size==='1';
+    s.screenedOut = hasVal(s.exit_reason) || (hasVal(s.workplace) && s.workplace!=='agency') || s.team_size==='1' || s.role==='employee';
     s.complete = !s.screenedOut && (rs.some(r => r.completed === true) || hasVal(s.gender));
     s.isTest = s.firstTs < TEST_BEFORE;
     s.inTarget = !s.screenedOut;   // no size cut-off: everyone the form let through
@@ -533,7 +534,7 @@ function baseResponses(){ return qualified().filter(s => s.inTarget); }
 function sizeMatch(s, size){ return size==='all' || s.team_size===size; }
 function yearsMatch(s, years){ return years==='all' || s.years_operating===years; }
 function filtersActive(){ return state.size!=='all' || state.role!=='all' || state.years!=='all'; }
-function roleMatch(s, role){ return role==='all' || (role==='owner' ? isOwner(s) : isEmp(s)); }
+function roleMatch(s, role){ return role==='all' || s.role===role; }
 function filteredResponses(){
   return baseResponses().filter(s => sizeMatch(s, state.size) && roleMatch(s, state.role) && yearsMatch(s, state.years));
 }
@@ -653,7 +654,7 @@ function renderLikert(container, stats, whoText){
   renderInsight(container, `<b>“${esc(top.name)}”</b> is the most frustrating area, with a mean of <b>${top.mean.toFixed(1)} / 7</b>; ${pct(top.high, top.n)}% of the ${top.n} ${whoText} rated it 5 or higher.`);
 }
 
-function renderHeatmap(container, matrixRows, colKeys, colLabel, rowLabel){
+function renderHeatmap(container, matrixRows, colKeys, colLabel, rowLabel, opts){
   const rowsWithData = matrixRows.filter(r => colKeys.some(c => r.cells[c]));
   if (!rowsWithData.length){ container.appendChild(el('div','empty-state','No deep dives in this segment yet.')); return; }
   const usedCols = colKeys.filter(c => rowsWithData.some(r => r.cells[c]));
@@ -663,6 +664,7 @@ function renderHeatmap(container, matrixRows, colKeys, colLabel, rowLabel){
   const thead = el('thead'); const htr = el('tr');
   htr.appendChild(el('th','rowh', esc(rowLabel || '')));
   usedCols.forEach(c => htr.appendChild(el('th','colh', esc(colLabel(c)))));
+  if (opts && opts.total) htr.appendChild(el('th','colh total', 'Total'));
   thead.appendChild(htr); table.appendChild(thead);
   const tbody = el('tbody');
   let topMarked = false;
@@ -681,6 +683,7 @@ function renderHeatmap(container, matrixRows, colKeys, colLabel, rowLabel){
       }
       tr.appendChild(td);
     });
+    if (opts && opts.total) tr.appendChild(el('td','total', String(usedCols.reduce((a,c) => a + (r.cells[c]||0), 0))));
     tbody.appendChild(tr);
   });
   table.appendChild(tbody); wrap.appendChild(table); container.appendChild(wrap);
@@ -769,7 +772,7 @@ function sessionBreakdown(){
 function renderTabA(main){
   const rows = filteredResponses();
   const n = rows.length;
-  const owners = rows.filter(isOwner), emps = rows.filter(isEmp);
+  const owners = rows.filter(isOwner);
 
   /* Sample */
   {
@@ -777,7 +780,8 @@ function renderTabA(main){
     const b = sessionBreakdown();
     const tot = b.all.length;
     const exitReasons = countsFor('exit_reason', false, null, b.exited).counts
-      .map(c => `${c.count} ${c.key==='not_agency' ? 'not an agency' : c.key==='solo' ? '“Just me”' : esc(c.name)}`).join(', ');
+      .map(c => `${c.count} ${c.key==='not_agency' ? 'not an agency' : c.key==='solo' ? '“Just me”' : esc(c.name)}`)
+      .concat(b.exited.filter(x => !hasVal(x.exit_reason) && x.role==='employee').length ? [`${b.exited.filter(x => !hasVal(x.exit_reason) && x.role==='employee').length} employee`] : []).join(', ');
     const stats = el('div','stat-row');
     renderStat(stats, 'Unique sessions', String(tot), state.showTests ? `includes ${b.tests} test session${b.tests===1?'':'s'}` : (b.tests ? `${b.tests} test session${b.tests===1?'':'s'} hidden` : 'one per person'));
     renderStat(stats, 'Exited at screening', String(b.exited.length), tot ? `${pct(b.exited.length, tot)}% · ${exitReasons || 'screened out by the form'}` : '');
@@ -799,33 +803,26 @@ function renderTabA(main){
     }
     barChart(grid, 'Role', 'role');
     barChart(grid, 'Country', 'country');
-    barChart(grid, 'Years operating (owners & partners)', 'years_operating', { rows: owners, who: 'owners and partners who reached this question' });
+    barChart(grid, 'Years operating', 'years_operating', { rows: owners });
     s.appendChild(grid);
     main.appendChild(s);
   }
 
   /* 1 — Pain */
   {
-    const s = section('1 — Where does it hurt most?', 'Owners and partners rated ten business areas; employees rated six day-to-day frustrations worded for their role. The two scales are shown separately because the wording differs.');
-    s.appendChild(el('div','answered-by','Answered by: frustration ratings, “anything else?”, and what slows employees down'));
+    const s = section('1 — Where does it hurt most?', 'Owners and managing partners rated ten business areas from 1 (not at all frustrating) to 7 (extremely frustrating).');
+    s.appendChild(el('div','answered-by','Answered by: the frustration ratings and “anything else?”'));
     const grid = el('div','chart-grid stacked');
     {
-      const { block, nSpan } = chartBlock(grid, 'Owners & partners — 10 areas', Q.pain_owner);
+      const { block, nSpan } = chartBlock(grid, 'Frustration by area', Q.pain_owner);
       const st = likertStats(AREAS, owners, 'owner');
       nSpan.textContent = `n = ${owners.filter(r => AREAS.some(a => hasVal(r['pain_'+a.slug]))).length}`;
       renderLikert(block, st, 'owners and partners who rated it');
     }
-    {
-      const { block, nSpan } = chartBlock(grid, 'Employees — 6 day-to-day frustrations', Q.pain_emp);
-      const st = likertStats(AREAS.filter(a => a.emp), emps, 'emp');
-      nSpan.textContent = `n = ${emps.filter(r => AREAS.some(a => hasVal(r['pain_'+a.slug]))).length}`;
-      renderLikert(block, st, 'employees who rated it');
-    }
     s.appendChild(grid);
     const grid2 = el('div','chart-grid');
-    barChart(grid2, 'What slows employees down', 'emp_bottlenecks', { rows: emps, who: 'employees who reached this question' });
     {
-      const { block, nSpan } = chartBlock(grid2, 'Anything else? (owners, optional)', Q.pain_other);
+      const { block, nSpan } = chartBlock(grid2, 'Anything else? (optional)', Q.pain_other);
       const reached = owners.filter(r => AREAS.some(a => hasVal(r['pain_'+a.slug])));
       nSpan.textContent = `n = ${reached.length}`;
       renderOpenEnded(block, reached, 'pain_other', { shownN: reached.length });
@@ -836,53 +833,46 @@ function renderTabA(main){
 
   /* 2 — Deep dives */
   {
-    const s = section('2 — Who carries the load, and how many hours does it take?', 'Owners and partners got a deep dive on up to three areas they rated 4 or higher (or their top three if none were). Each figure below counts deep dives, so one person can contribute up to three.');
-    s.appendChild(el('div','answered-by','Answered by: “Who mostly handles this today?” and “Hours per week spent on it” for each deep-dive area'));
+    const s = section('2 — Who carries the load, and how many hours does it take?', 'After the ratings, each owner answered two follow-up questions (who handles it, and hours per week) for up to three of their most frustrating areas: those rated 4 or higher, or their top three if none were. Every figure below counts these area follow-ups, so one owner adds up to three.');
+    s.appendChild(el('div','answered-by','Answered by: “Who mostly handles this today?” and “Hours per week spent on it”, asked for each followed-up area'));
     const dd = deepDiveRows(rows);
     const withHandler = dd.filter(d => d.handler);
     const withHours = dd.filter(d => d.hours && d.hours!=='notsure');
     const stats = el('div','stat-row');
-    renderStat(stats, 'Deep dives', String(dd.length), `from ${new Set(dd.map(d => d.respId)).size} owners & partners`);
+    const ddOwners = new Set(dd.map(d => d.respId)).size;
+    renderStat(stats, 'Areas followed up', String(dd.length), `${ddOwners} owner${ddOwners===1?'':'s'} × up to 3 areas each`);
     const ownerHandled = withHandler.filter(d => d.handler==='you').length;
-    renderStat(stats, 'Handled by the owner', withHandler.length ? pct(ownerHandled, withHandler.length)+'%' : '–', `${ownerHandled} of ${withHandler.length} deep dives`, Q.handler);
+    renderStat(stats, 'Handled by the owner', withHandler.length ? pct(ownerHandled, withHandler.length)+'%' : '–', `${ownerHandled} of ${withHandler.length} areas`, Q.handler);
     const heavy = withHours.filter(d => hoursHeavy(d.hours)).length;
-    renderStat(stats, '6+ hours a week', withHours.length ? pct(heavy, withHours.length)+'%' : '–', `${heavy} of ${withHours.length} with an hours estimate`, Q.hours);
+    renderStat(stats, '6+ hours a week', withHours.length ? pct(heavy, withHours.length)+'%' : '–', `${heavy} of ${withHours.length} areas with an hours estimate`, Q.hours);
     const noone = withHandler.filter(d => d.handler==='noone').length;
-    renderStat(stats, 'Nobody handles it', withHandler.length ? pct(noone, withHandler.length)+'%' : '–', `${noone} of ${withHandler.length} deep dives`);
+    renderStat(stats, 'Nobody handles it', withHandler.length ? pct(noone, withHandler.length)+'%' : '–', `${noone} of ${withHandler.length} areas`);
     s.appendChild(stats);
 
     const grid = el('div','chart-grid stacked');
     {
-      const { block, nSpan } = chartBlock(grid, 'Heatmap — area × who handles it', null);
-      nSpan.textContent = `${withHandler.length} deep dives`;
+      const { block, nSpan } = chartBlock(grid, 'Who handles each area', null);
+      nSpan.textContent = `${withHandler.length} areas followed up`;
       const byArea = new Map();
       withHandler.forEach(d => { if (!byArea.has(d.area)) byArea.set(d.area, {}); const c = byArea.get(d.area); c[d.handler] = (c[d.handler]||0)+1; });
       const mrows = [...byArea.entries()].map(([slug, cells]) => ({ label: (AREA_BY_SLUG[slug]||{}).short || slug, cells, total: Object.values(cells).reduce((a,b)=>a+b,0) })).sort((a,b) => b.total - a.total);
-      renderHeatmap(block, mrows, ORDER.handler, c => L.handlerShort[c] || c, 'Area');
+      renderHeatmap(block, mrows, ORDER.handler, c => L.handlerShort[c] || c, 'Area', { total: true });
       if (withHandler.length){
         const topCell = mrows.flatMap(r => Object.entries(r.cells).map(([h,v]) => ({ area: r.label, h, v }))).sort((a,b) => b.v - a.v)[0];
-        renderInsight(block, `The most common pairing is <b>${esc(topCell.area)}</b> handled by <b>${esc(L.handlerShort[topCell.h] || topCell.h)}</b> (${topCell.v} of ${withHandler.length} deep dives). The owner handles ${pct(ownerHandled, withHandler.length)}% of all deep-dive areas personally.`);
+        const topArea = mrows[0];
+        renderInsight(block, `<b>${esc(topArea.label)}</b> came up most often (${topArea.total} of ${withHandler.length} areas followed up). The most common pairing is <b>${esc(topCell.area)}</b> handled by <b>${esc(L.handlerShort[topCell.h] || topCell.h)}</b> (${topCell.v}), and the owner handles ${pct(ownerHandled, withHandler.length)}% of all followed-up areas personally.`);
       } else renderInsight(block, null);
     }
     s.appendChild(grid);
     const grid2 = el('div','chart-grid');
     {
-      const { block, nSpan } = chartBlock(grid2, 'Areas people dug into', null);
-      const map = new Map(); dd.forEach(d => map.set(d.area, (map.get(d.area)||0)+1));
-      const owners2 = new Set(dd.map(d => d.respId)).size;
-      const counts = [...map.entries()].map(([k,c]) => ({ key:k, name:(AREA_BY_SLUG[k]||{}).owner || k, count:c })).sort((a,b) => b.count - a.count);
-      nSpan.textContent = `n = ${owners2}`;
-      renderBarList(block, counts, owners2);
-      renderInsight(block, counts.length ? `<b>“${esc(counts[0].name)}”</b> came up most often, in ${pct(counts[0].count, owners2)}% of the ${owners2} owners’ deep dives.` : null);
-    }
-    {
       const { block, nSpan } = chartBlock(grid2, 'Hours per week, per area', Q.hours);
       const hrs = dd.filter(d => d.hours);
       const map = new Map(); hrs.forEach(d => map.set(d.hours, (map.get(d.hours)||0)+1));
       const counts = ORDER.hours.filter(k => map.has(k)).map(k => ({ key:k, name:L.hours[k], count: map.get(k) }));
-      nSpan.textContent = `${hrs.length} deep dives`;
+      nSpan.textContent = `${hrs.length} areas`;
       renderBarList(block, counts, hrs.length);
-      renderInsight(block, withHours.length ? `<b>${pct(heavy, withHours.length)}%</b> of deep-dive areas take 6 or more hours a week across the business (“Not sure” excluded).` : null);
+      renderInsight(block, withHours.length ? `<b>${pct(heavy, withHours.length)}%</b> of followed-up areas take 6 or more hours a week across the business (“Not sure” excluded).` : null);
     }
     s.appendChild(grid2);
     main.appendChild(s);
@@ -890,8 +880,8 @@ function renderTabA(main){
 
   /* 3 — AI hand-off */
   {
-    const s = section('3 — What would they hand to AI, and what holds them back?', 'Each task’s percentage counts only the people who were shown it: owners saw eight tasks, employees saw a set based on their title.');
-    s.appendChild(el('div','answered-by','Answered by: tasks they’d let AI handle, why not the rest, and (employees) how they’d feel working with an AI assistant'));
+    const s = section('3 — What would they hand to AI, and what holds them back?');
+    s.appendChild(el('div','answered-by','Answered by: the tasks they’d let AI handle, and why not the rest'));
     const grid = el('div','chart-grid');
     {
       const { block, nSpan } = chartBlock(grid, 'Tasks they’d let AI handle', Q.ai_tasks);
@@ -901,8 +891,6 @@ function renderTabA(main){
       renderInsight(block, res.list.length ? `<b>“${esc(res.list[0].name)}”</b> is the task they’d most readily hand over — <b>${res.list[0].pct}%</b> of the ${res.list[0].denom} who saw it. ${pct(res.atLeastOne, res.n)}% picked at least one task.` : null);
     }
     barChart(grid, 'Why not the other tasks', 'ai_reluctance', { question: Q.ai_reluctance, who: 'respondents who left at least one task unpicked', tone: 'warn' });
-    barChart(grid, 'Employees: working with an AI assistant', 'emp_ai_adopt', { rows: emps, who: 'employees who reached this question' });
-    barChart(grid, 'Employees: what makes them hesitant', 'emp_adopt_why', { rows: emps, who: 'cautious or reluctant employees', tone: 'warn' });
     s.appendChild(grid);
     main.appendChild(s);
   }
@@ -921,11 +909,11 @@ function renderTabA(main){
 
   /* 5 — Spend & WTP */
   {
-    const s = section('5 — What do they spend on tools, and what would they pay?', 'Monthly spend was asked only of owners who use at least one tool. Willingness to pay was asked of all owners and partners.');
+    const s = section('5 — What do they spend on tools, and what would they pay?', 'Monthly spend was asked only of owners who use at least one tool.');
     s.appendChild(el('div','answered-by','Answered by: tools used, monthly tool spend, and willingness to pay for an AI business assistant'));
     const grid = el('div','chart-grid');
     barChart(grid, 'Tools they use', 'tools_used');
-    barChart(grid, 'Monthly spend on tools', 'tools_monthly_spend', { rows: owners, who: 'owners and partners who reached this question' });
+    barChart(grid, 'Monthly spend on tools', 'tools_monthly_spend', { rows: owners });
     {
       const r = barChart(grid, 'Willingness to pay for an AI assistant', 'wtp_ai', { rows: owners, noInsight: true });
       const sure = r.counts.filter(c => c.key!=='notsure');
@@ -939,11 +927,10 @@ function renderTabA(main){
 
   /* 6 — The week */
   {
-    const s = section('6 — What does their week feel like?', 'Owners and employees were shown different statements, so each group has its own chart.');
+    const s = section('6 — What does their week feel like?');
     s.appendChild(el('div','answered-by','Answered by: statements they relate to, the one that weighs most, and their own words about it'));
     const grid = el('div','chart-grid');
-    barChart(grid, 'Owners & partners relate to', 'day2day', { rows: owners, order: null, who: 'owners and partners who reached this question' });
-    barChart(grid, 'Employees relate to', 'day2day', { rows: emps, who: 'employees who reached this question' });
+    barChart(grid, 'Statements they relate to', 'day2day', { rows: owners, order: null, who: 'respondents who reached this question' });
     {
       const reached = rows.filter(r => hasVal(r.heaviest));
       const { block, nSpan } = chartBlock(grid, 'Weighs on them most', Q.heaviest);
@@ -967,36 +954,29 @@ function renderTabA(main){
 
 /* ================= TAB B ================= */
 const SURVEY_ORDER = [
-  { group:'Screening', note:'Everyone. Non-agencies and “Just me” are screened out.' },
+  { group:'Screening', note:'Everyone. Non-agencies, “Just me” and employees are screened out.' },
   { id:'S1', field:'workplace', type:'Single choice', shown:'Everyone who started', all:true },
   { id:'S2', field:'team_size', type:'Single choice · ordered', shown:'Agencies', all:true },
   { id:'S3', field:'role', type:'Single choice', shown:'Qualified agencies' },
   { id:'S4', field:'country', type:'Single choice', shown:'Qualified agencies' },
-  { group:'Owners & partners', note:'Owner and partner path.' },
+  { group:'Your practice & where it hurts', note:'Owners and managing partners.' },
   { id:'O1', field:'years_operating', type:'Single choice · ordered', shown:'Owners & partners', owners:true },
   { id:'O2', likert:'owner', type:'Scale 1–7 · 10 rows', shown:'Owners & partners' },
   { id:'O2b', open:'pain_other', type:'Open-ended (optional)', shown:'Owners & partners' },
   { id:'O3a', dd:'handler', type:'Single choice per area', shown:'Owners & partners, up to 3 areas' },
   { id:'O3b', dd:'hours', type:'Single choice · ordered, per area', shown:'Owners & partners, up to 3 areas' },
-  { group:'Employees', note:'Employee path.' },
-  { id:'E1', field:'emp_role', type:'Single choice', shown:'Employees', emps:true },
-  { id:'E2', likert:'emp', type:'Scale 1–7 · 6 rows', shown:'Employees' },
-  { id:'E3', field:'emp_bottlenecks', type:'Multi-select · up to 3', shown:'Employees', emps:true },
-  { group:'AI adoption & use', note:'Both paths.' },
-  { id:'Q7', aitasks:true, type:'Multi-select', shown:'Everyone qualified; task list depends on role' },
+  { group:'AI adoption & use', note:'Everyone who got past screening.' },
+  { id:'Q7', aitasks:true, type:'Multi-select', shown:'Everyone qualified' },
   { id:'Q7a', field:'ai_reluctance', type:'Multi-select', shown:'Anyone who left a shown task unpicked' },
   { id:'Q10', field:'ai_frequency', type:'Single choice · ordered', shown:'Everyone qualified' },
   { id:'Q10a', field:'ai_uses', type:'Multi-select', shown:'Everyone except “Never”' },
   { id:'QL', field:'ai_low_why', type:'Multi-select', shown:'“Rarely” or “Never” only' },
-  { id:'E4', field:'emp_ai_adopt', type:'Single choice · ordered', shown:'Employees', emps:true },
-  { id:'E5', field:'emp_adopt_why', type:'Multi-select', shown:'Employees who are cautious or reluctant', emps:true },
-  { group:'Your stack', note:'Both paths; spend and willingness to pay are owners only.' },
+  { group:'Your stack', note:'Monthly spend only appears for owners who use at least one tool.' },
   { id:'Q9', field:'tools_used', type:'Multi-select', shown:'Everyone qualified' },
   { id:'Q9a', field:'tools_monthly_spend', type:'Single choice · ordered', shown:'Owners who use at least one tool', owners:true },
   { id:'Q9b', field:'wtp_ai', type:'Single choice · ordered', shown:'Owners & partners', owners:true },
-  { group:'Day to day', note:'Both paths, with different statements.' },
-  { id:'Q12o', field:'day2day', type:'Multi-select · up to 3', shown:'Owners & partners', owners:true, label:'(owner statements)' },
-  { id:'Q12e', field:'day2day', type:'Multi-select · up to 3', shown:'Employees', emps:true, label:'(employee statements)' },
+  { group:'Day to day', note:'The last questions in the form.' },
+  { id:'Q12', field:'day2day', type:'Multi-select · up to 3', shown:'Everyone qualified', owners:true },
   { id:'Q13', field:'heaviest', type:'Single choice (auto-filled if only one)', shown:'Everyone who picked a negative statement' },
   { id:'Q13b', open:'heaviest_note', type:'Open-ended', shown:'Everyone who reached Q13' },
   { id:'Q14', field:'gender', type:'Single choice', shown:'Everyone qualified (last question)' },
@@ -1010,7 +990,7 @@ function renderTabB(main){
   const s = bandSection('Full survey.', 'Every question in form order, with who was shown it. Same filters and exclusions as the Research Questions tab.');
   main.appendChild(s);
   const rows = filteredResponses();
-  const owners = rows.filter(isOwner), emps = rows.filter(isEmp);
+  const owners = rows.filter(isOwner);
   const list = el('div','');
   SURVEY_ORDER.forEach(step => {
     if (step.group){
@@ -1026,13 +1006,13 @@ function renderTabB(main){
     const addMeta = (nText) => { meta.appendChild(el('span','snap-n', esc(nText))); meta.appendChild(el('span','chip type', esc(step.type))); meta.appendChild(el('span','chip', 'Shown to: ' + esc(step.shown))); };
 
     if (step.likert){
-      const grp = step.likert==='owner' ? owners : emps;
+      const grp = owners;
       body.appendChild(el('div','snap-q', esc(step.likert==='owner' ? Q.pain_owner : Q.pain_emp)));
       const st = likertStats(step.likert==='owner' ? AREAS : AREAS.filter(a => a.emp), grp, step.likert==='owner' ? 'owner' : 'emp');
       addMeta(`n = ${grp.filter(r => AREAS.some(a => hasVal(r['pain_'+a.slug]))).length}`);
       body.appendChild(meta);
       const w = el('div',''); body.appendChild(w);
-      renderLikert(w, st, step.likert==='owner' ? 'owners and partners who rated it' : 'employees who rated it');
+      renderLikert(w, st, 'owners and partners who rated it');
     } else if (step.open){
       body.appendChild(el('div','snap-q', esc(Q[step.open])));
       const reached = step.open==='pain_other' ? owners.filter(r => AREAS.some(a => hasVal(r['pain_'+a.slug]))) : rows.filter(r => hasVal(r.heaviest));
@@ -1062,7 +1042,7 @@ function renderTabB(main){
       body.appendChild(meta);
       body.appendChild(el('div','oe-count', `<b>${pct(c, reached.length)}%</b> ${step.flag==='calendly' ? 'clicked “Book my slot”' : 'left an email for the report'} (${c} of ${reached.length}).`));
     } else {
-      const pool = step.all ? sessionsAll().filter(testVisible) : (step.owners ? owners : step.emps ? emps : rows);
+      const pool = step.all ? sessionsAll().filter(testVisible) : (step.owners ? owners : rows);
       body.appendChild(el('div','snap-q', esc(Q[step.field]) + (step.label ? ` <span style="color:var(--ink-faint);font-weight:400">${esc(step.label)}</span>` : '')));
       const { counts, n } = countsFor(step.field, MULTI_FIELDS.has(step.field), ORDER[step.field] || null, pool);
       addMeta(`n = ${n}` + (step.all ? ' · all sessions, incl. screened out' : ''));
@@ -1139,8 +1119,8 @@ function populateFilterOptions(){
   const sizeOpts = [`<option value="all">All sizes (${forSize.length})</option>`]
     .concat(ALL_SIZES.filter(v => base.some(s => s.team_size===v)).map(v => `<option value="${esc(v)}">${esc(L.team_size[v])} (${forSize.filter(s => s.team_size===v).length})</option>`));
   const roleOpts = [`<option value="all">All roles (${forRole.length})</option>`,
-    `<option value="owner">Owner or partner (${forRole.filter(isOwner).length})</option>`,
-    `<option value="employee">Employee (${forRole.filter(isEmp).length})</option>`];
+    `<option value="owner">${esc(L.role.owner)} (${forRole.filter(r => r.role==='owner').length})</option>`,
+    `<option value="partner">${esc(L.role.partner)} (${forRole.filter(r => r.role==='partner').length})</option>`];
   const yearOpts = [`<option value="all">Any (${forYears.length})</option>`]
     .concat(ORDER.years_operating.filter(v => base.some(s => s.years_operating===v)).map(v => `<option value="${esc(v)}">${esc(L.years_operating[v])} (${forYears.filter(s => s.years_operating===v).length})</option>`));
   if (fs.innerHTML !== sizeOpts.join('')) fs.innerHTML = sizeOpts.join('');
@@ -1227,9 +1207,6 @@ function render(){
 
   if (SOURCE === 'live'){
     main.appendChild(el('div','notice info', `<div><b>You’re looking at live data.</b> Only your view changed; everyone else still sees the snapshot from ${esc(fmtTime(SNAP_DATA ? SNAP_DATA.fetchedAt : DATA.fetchedAt))}.</div>`));
-  }
-  if (state.years !== 'all'){
-    main.appendChild(el('div','notice', `<div><b>Years in business: ${esc(L.years_operating[state.years] || state.years)}.</b> Only owners and managing partners were asked this, so employees are left out while this filter is on.</div>`));
   }
   if (state.autoTests && state.showTests){
     main.appendChild(el('div','notice', `<div><b>Test rows are shown.</b> The survey hasn’t launched yet, so sessions that started before ${esc(TEST_BEFORE_LABEL)} are included. Untick “Show test rows” to hide them.</div>`));
