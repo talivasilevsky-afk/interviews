@@ -1,0 +1,1401 @@
+<title>Stacked Marketing survey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..800&family=Public+Sans:wght@300..800&display=swap">
+<style>
+  :root {
+    --paper: #F2F4F6;
+    --surface: #FFFFFF;
+    --surface-2: #EEF1F4;
+    --surface-3: #E4E8ED;
+    --ink: #171A20;
+    --ink-soft: #565D6B;
+    --ink-faint: #8991A0;
+    --border: #E1E5EA;
+    --border-soft: #ECEFF2;
+    --accent: #0C7864;
+    --accent-strong: #075447;
+    --accent-soft: #E4F2EE;
+    --accent-soft-ink: #0B5C4F;
+    --warn: #B94A1E;
+    --warn-soft: #FBE9E1;
+    --good: #1F8A4C;
+    --shadow: 0 1px 2px rgba(20, 24, 32, 0.03), 0 6px 20px -10px rgba(20, 24, 32, 0.10);
+    --radius: 12px;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #111318;
+    --surface: #191D24;
+    --surface-2: #1F242D;
+    --surface-3: #272D38;
+    --ink: #ECEEF3;
+    --ink-soft: #9CA3B2;
+    --ink-faint: #6B7280;
+    --border: #2A303B;
+    --border-soft: #232833;
+    --accent: #34C2A5;
+    --accent-strong: #7FEBD3;
+    --accent-soft: #14332C;
+    --accent-soft-ink: #8FEDDA;
+    --warn: #FF8A5D;
+    --warn-soft: #351D14;
+    --good: #4ADE80;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --paper: #111318;
+      --surface: #191D24;
+      --surface-2: #1F242D;
+      --surface-3: #272D38;
+      --ink: #ECEEF3;
+      --ink-soft: #9CA3B2;
+      --ink-faint: #6B7280;
+      --border: #2A303B;
+      --border-soft: #232833;
+      --accent: #34C2A5;
+      --accent-strong: #7FEBD3;
+      --accent-soft: #14332C;
+      --accent-soft-ink: #8FEDDA;
+      --warn: #FF8A5D;
+      --warn-soft: #351D14;
+      --good: #4ADE80;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Public Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px 100px; }
+
+  .top-inner { padding: 30px 0 22px; }
+  .top-row1 { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  h1 {
+    font-family: 'Fraunces', ui-serif, Georgia, serif;
+    font-weight: 640;
+    font-size: clamp(1.5rem, 1.15rem + 1.3vw, 2rem);
+    margin: 0;
+    letter-spacing: -0.012em;
+    text-wrap: balance;
+  }
+  .kicker {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent-soft-ink); background: var(--accent-soft);
+    display: inline-block; padding: 4px 10px; border-radius: 100px; margin-bottom: 10px;
+  }
+  .asof-wrap { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .asof { font-size: 0.8rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  .live-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ink-faint); margin-right: 6px; vertical-align: 1px; }
+  .live-dot.on { background: var(--good); }
+  .live-dot.stale { background: var(--warn); }
+  button.refresh-btn {
+    font-family: inherit; font-size: 0.78rem; font-weight: 600; color: var(--accent-soft-ink);
+    background: var(--accent-soft); border: none; border-radius: 8px; padding: 5px 10px; cursor: pointer;
+  }
+  button.refresh-btn:disabled { opacity: 0.5; cursor: default; }
+  .subtitle { color: var(--ink-soft); font-size: 0.9rem; margin: 8px 0 0; max-width: 78ch; line-height: 1.55; }
+
+  .controlbar-sticky {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+    background: color-mix(in srgb, var(--paper) 94%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .tabs { display: flex; gap: 4px; padding: 10px 0 0; overflow-x: auto; }
+  .tab-btn {
+    font-family: inherit; font-size: 0.86rem; font-weight: 600; color: var(--ink-faint);
+    background: transparent; border: none; border-bottom: 2px solid transparent;
+    padding: 9px 4px 11px; margin-right: 22px; cursor: pointer; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--ink); }
+  .tab-btn.active { color: var(--ink); border-bottom-color: var(--accent); }
+
+  .filterbar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 10px 0;
+    border-top: 1px solid var(--border-soft);
+  }
+  .filterbar label.fl {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--ink-faint); margin-right: -4px;
+  }
+  select.filter-select {
+    font-family: inherit; font-size: 0.85rem; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 28px 6px 10px; cursor: pointer; max-width: 100%;
+    appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M1 1l4 4 4-4' stroke='%238991A0' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat; background-position: right 9px center;
+  }
+  select.filter-select:focus-visible, button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .test-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--ink-soft); cursor: pointer; padding: 5px 9px; border-radius: 8px; border: 1px dashed var(--border); }
+  .test-toggle.on { border-style: solid; border-color: var(--warn); color: var(--warn); background: var(--warn-soft); }
+  .test-toggle input { accent-color: var(--warn); margin: 0; }
+  button.reset-btn {
+    font-family: inherit; font-size: 0.8rem; font-weight: 600; color: var(--ink-soft);
+    background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 6px 9px; cursor: pointer;
+  }
+  button.reset-btn:hover { color: var(--ink); background: var(--surface-2); }
+  .match-count { margin-left: auto; font-size: 0.8rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .match-count b { color: var(--ink); font-weight: 700; }
+
+  main { padding-top: 26px; }
+
+  .notice {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--warn);
+    border-radius: 10px; padding: 12px 16px; margin-bottom: 18px; font-size: 0.86rem; color: var(--ink-soft);
+  }
+  .notice b { color: var(--ink); }
+  .notice.info { border-left-color: var(--accent); }
+  .notice button { margin-left: auto; flex-shrink: 0; }
+  .conn-state {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 28px; max-width: 640px; margin: 10px auto 30px;
+  }
+  .conn-state h2 { font-family: 'Fraunces', ui-serif, serif; font-weight: 620; font-size: 1.3rem; margin: 0 0 8px; }
+  .conn-state p { color: var(--ink-soft); margin: 0 0 14px; font-size: 0.9rem; }
+  .skeleton { height: 14px; border-radius: 6px; background: var(--surface-3); margin: 10px 0; animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.45; } }
+  @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+
+  section.card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px 22px 22px; margin-bottom: 16px;
+  }
+  section.band {
+    background: transparent; border: none; box-shadow: none;
+    padding: 0 0 6px; margin-bottom: 20px; border-bottom: 1px solid var(--border);
+  }
+  .section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .badge-num {
+    flex-shrink: 0; width: 24px; height: 24px; border-radius: 7px;
+    background: var(--accent-soft); color: var(--accent-soft-ink);
+    font-size: 0.74rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    font-variant-numeric: tabular-nums;
+  }
+  section h2 { font-weight: 700; font-size: 1.02rem; margin: 0; letter-spacing: -0.005em; text-wrap: balance; color: var(--ink); }
+  section.band h2 { font-size: 1.3rem; font-family: 'Fraunces', ui-serif, serif; font-weight: 620; }
+  .section-note { color: var(--ink-soft); font-size: 0.84rem; margin: 6px 0 16px; max-width: 72ch; }
+  .answered-by { font-size: 0.74rem; color: var(--ink-faint); margin: -8px 0 14px; }
+
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 4px; }
+  .stat { background: var(--surface-2); border-radius: 10px; padding: 13px 15px; }
+  .band .stat-row .stat { background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); }
+  .stat-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.045em; color: var(--ink-faint); margin-bottom: 7px; }
+  .stat-value { font-weight: 750; font-size: 1.65rem; font-variant-numeric: tabular-nums; color: var(--ink); letter-spacing: -0.01em; }
+  .stat-sub { font-size: 0.76rem; color: var(--ink-faint); margin-top: 3px; }
+  .stat-question { font-size: 0.68rem; color: var(--ink-faint); font-style: italic; margin-top: 5px; line-height: 1.35; }
+
+  .chart-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px;
+    margin-top: 14px; padding-top: 16px; border-top: 1px solid var(--border-soft); align-items: start;
+  }
+  .chart-grid.stacked { grid-template-columns: 1fr; }
+  .chart-block { min-width: 0; display: flex; flex-direction: column; background: var(--surface-2); border-radius: 10px; padding: 14px 16px 16px; }
+  .band .chart-grid .chart-block { background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); }
+  .band .chart-grid .chart-block .bl-track, .band .chart-grid .chart-block .donut::after { background: var(--surface-2); }
+  .chart-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .chart-title { font-weight: 700; font-size: 0.68rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.05em; }
+  .chart-n { font-size: 0.72rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .chart-q { font-size: 0.75rem; color: var(--ink-faint); font-style: italic; margin: 0 0 12px; line-height: 1.4; }
+  .chart-body { flex: 1; }
+
+  .barlist { display: flex; flex-direction: column; gap: 8px; }
+  .barrow { display: grid; grid-template-columns: minmax(90px, 38%) 1fr auto; gap: 10px; align-items: center; }
+  .bl-label { font-size: 0.81rem; color: var(--ink); text-align: right; line-height: 1.25; overflow-wrap: anywhere; }
+  .bl-track { background: var(--surface-3); border-radius: 5px; height: 14px; position: relative; overflow: hidden; }
+  .bl-fill { background: var(--accent); height: 100%; border-radius: 5px; min-width: 3px; }
+  .barrow.tone-warn .bl-fill { background: var(--warn); }
+  .barrow.muted .bl-fill { background: var(--ink-faint); }
+  .bl-val { font-size: 0.76rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; min-width: 4.4em; white-space: nowrap; }
+
+  .donut-wrap { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .donut { width: 116px; height: 116px; border-radius: 50%; flex-shrink: 0; position: relative; }
+  .donut::after { content: ""; position: absolute; inset: 24%; background: var(--surface-2); border-radius: 50%; }
+  .donut-legend { flex: 1; min-width: 170px; display: flex; flex-direction: column; gap: 6px; }
+  .legend-row { display: flex; align-items: center; gap: 8px; font-size: 0.79rem; color: var(--ink); }
+  .legend-swatch { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; }
+  .lg-val { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--ink-faint); white-space: nowrap; }
+
+  .insight { margin-top: 12px; padding: 9px 0 0 13px; border-left: 2px solid var(--accent); font-size: 0.82rem; color: var(--ink-soft); line-height: 1.5; }
+  .insight.empty { border-left-color: var(--border); color: var(--ink-faint); font-style: italic; }
+  .insight b { font-weight: 700; color: var(--ink); }
+
+  /* 1–7 frustration scale */
+  .lk-legend { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; margin: 0 0 14px; font-size: 0.72rem; color: var(--ink-faint); }
+  .lk-legend .lk-sw { width: 20px; height: 12px; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.62rem; font-weight: 700; color: var(--ink); }
+  .lk-legend .lk-end { margin: 0 6px; }
+  .lkrow { display: grid; grid-template-columns: minmax(120px, 34%) 1fr auto; gap: 10px; align-items: center; margin-bottom: 9px; }
+  .lk-label { font-size: 0.81rem; color: var(--ink); text-align: right; line-height: 1.25; }
+  .lk-bar { display: flex; height: 18px; border-radius: 5px; overflow: hidden; background: var(--surface-3); }
+  .lk-seg { height: 100%; }
+  .lk-mean { font-size: 0.74rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; min-width: 8.4em; white-space: nowrap; }
+  .lk-mean b { color: var(--ink); }
+
+  .heatmap-wrap { overflow-x: auto; }
+  table.heatmap { border-collapse: collapse; font-size: 0.77rem; min-width: 100%; }
+  table.heatmap th, table.heatmap td { padding: 7px 10px; text-align: center; border: 1px solid var(--border); white-space: nowrap; }
+  table.heatmap th.rowh { text-align: right; font-weight: 600; color: var(--ink); background: var(--surface-2); position: sticky; left: 0; }
+  table.heatmap th.colh { font-weight: 600; color: var(--ink); background: var(--surface-2); font-size: 0.71rem; max-width: 120px; white-space: normal; }
+  table.heatmap td { color: var(--ink); font-variant-numeric: tabular-nums; background: var(--surface); }
+  table.heatmap td.zero { color: var(--ink-faint); }
+
+  .quotes { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .quote { font-size: 0.84rem; color: var(--ink); background: var(--surface); border: 1px solid var(--border-soft); border-radius: 8px; padding: 8px 12px; line-height: 1.45; overflow-wrap: anywhere; }
+  .band .quote { background: var(--surface-2); }
+  .quote-meta { font-size: 0.7rem; color: var(--ink-faint); margin-top: 3px; }
+  .oe-count { font-size: 0.8rem; color: var(--ink-soft); margin-bottom: 8px; }
+  .oe-count b { color: var(--ink); }
+
+  .empty-state { color: var(--ink-faint); font-size: 0.85rem; font-style: italic; padding: 8px 0; }
+
+  .snap-row { display: grid; grid-template-columns: 52px 1fr; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--border-soft); }
+  .snap-row:first-child { padding-top: 4px; }
+  .snap-idx { font-weight: 700; font-size: 0.72rem; color: var(--ink-faint); padding-top: 3px; font-variant-numeric: tabular-nums; }
+  .snap-q { font-size: 0.92rem; font-weight: 600; color: var(--ink); margin: 0 0 2px; line-height: 1.4; text-wrap: balance; }
+  .snap-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+  .snap-n { font-size: 0.74rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  .chip { font-size: 0.68rem; font-weight: 600; color: var(--ink-soft); background: var(--surface-2); border: 1px solid var(--border); border-radius: 100px; padding: 1px 8px; }
+  .chip.type { color: var(--accent-soft-ink); background: var(--accent-soft); border-color: transparent; }
+  .snap-body { max-width: 700px; min-width: 0; }
+  .snap-group { font-family: 'Fraunces', ui-serif, serif; font-weight: 620; font-size: 1.02rem; margin: 26px 0 2px; color: var(--ink); }
+  .snap-group-note { font-size: 0.78rem; color: var(--ink-faint); margin-bottom: 4px; }
+
+  .hl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .hl-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; display: flex; flex-direction: column; gap: 8px; }
+  .hl-eyebrow { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-soft-ink); }
+  .hl-stat { font-family: 'Fraunces', ui-serif, serif; font-weight: 640; font-size: 2.1rem; color: var(--ink); letter-spacing: -0.01em; line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .hl-text { font-size: 0.87rem; color: var(--ink-soft); line-height: 1.5; }
+  .hl-text b { color: var(--ink); font-weight: 700; }
+
+  .merge-steps { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 14px; font-size: 0.8rem; }
+  .merge-step { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .merge-step b { color: var(--ink); font-size: 0.95rem; margin-right: 4px; }
+  .merge-step.final { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-soft-ink); }
+  .merge-step.final b { color: var(--accent-soft-ink); }
+  .merge-arrow { color: var(--ink-faint); }
+
+  footer.page-foot { text-align: center; color: var(--ink-faint); font-size: 0.76rem; padding: 32px 0 10px; }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 0 16px 80px; }
+    .barrow, .lkrow { grid-template-columns: 1fr; gap: 4px; }
+    .bl-label, .lk-label { text-align: left; }
+    table.heatmap th.rowh { position: static; }
+    .snap-row { grid-template-columns: 1fr; gap: 4px; }
+    .match-count { margin-left: 0; width: 100%; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="top-inner">
+      <div class="top-row1">
+        <div>
+          <span class="kicker">Practice Pulse ’26 · Stacked marketer version</span>
+          <h1>Stacked Marketing survey</h1>
+        </div>
+        <div class="asof-wrap">
+          <span class="asof" id="asofLabel"><span class="live-dot"></span>Connecting to Airtable…</span>
+          <button class="refresh-btn" id="refreshBtn" type="button" disabled>Refresh</button>
+        </div>
+      </div>
+      <p class="subtitle" id="pageSubtitle">How small marketing and advertising agencies run their business: where it hurts, who carries the work, and how ready they are for an AI business assistant. Responses are read live from Airtable each time the page opens.</p>
+    </div>
+  </header>
+
+  <div class="controlbar-sticky">
+    <div class="tabs" id="tabs" role="tablist">
+      <button class="tab-btn" data-tab="a" type="button">Research Questions</button>
+      <button class="tab-btn" data-tab="b" type="button">Full Survey</button>
+      <button class="tab-btn" data-tab="c" type="button">Highlights</button>
+    </div>
+    <div class="filterbar">
+      <label class="fl" for="fSize">Company size</label>
+      <select id="fSize" class="filter-select"></select>
+      <label class="fl" for="fRole">Role</label>
+      <select id="fRole" class="filter-select"></select>
+      <label class="test-toggle" id="testToggleWrap" for="fTests"><input type="checkbox" id="fTests"> Show test rows</label>
+      <button class="reset-btn" id="resetBtn" type="button">Reset filters</button>
+      <span class="match-count" id="matchCount"></span>
+    </div>
+  </div>
+
+  <main id="main"></main>
+
+  <footer class="page-foot">Built for internal ThinkUp research use · not for external distribution</footer>
+</div>
+
+<script>
+/* ================= source ================= */
+const SERVER = 'Airtable';
+const TOOL = 'list_records_for_table';
+const BASE_ID = 'appYzXPXZT64hQZYF';
+const TABLE_ID = 'tblWLgj43pQIH1oFc';
+const PAGE_SIZE = 1000;
+
+/* Sessions whose first row is earlier than this are internal test runs.
+   Move it to the real launch time once the survey goes out. */
+const TEST_BEFORE = Date.parse('2026-09-28T00:00:00Z');
+const TEST_BEFORE_LABEL = 'Sep 28, 2026';
+
+/* Target segment: qualified agency respondents with 2–24 people. */
+const ICP_SIZES = ['2','3-5','6-10','11-16','17-24'];
+const ALL_SIZES = ['1','2','3-5','6-10','11-16','17-24','25-50','51-100'];
+
+const FIELD_IDS = {
+  fldptlBmysZwmHkjz:'session_id', fldllnAOWghixfscK:'survey_version', fldZFndH0j1GBCMwZ:'workplace',
+  fld5cPfynbqGvrDKC:'_partial', fldzUv2NgEBN8XRy6:'screen', fld8N3PTTPd8uoCqU:'industry',
+  fldRZ7d60yLSUsiKm:'industry_other', fldeS5KtUOi2yi8U6:'team_size', fldxBJICNaFwuO2CM:'role',
+  fldLyv1T02Tg6M7uK:'country', fldwNlaBNBNh3tfwU:'years_operating', fldmA8ss34MzpnmC4:'emp_role',
+  flds2AqJIQkj92ToC:'emp_bottlenecks', fldkKdIdFTrYdto3M:'emp_bottlenecks_other', fldJ0GKzBCF1K0T3Y:'emp_ai_adopt',
+  fld7cSvGG4ZNaMIy4:'emp_adopt_why', fldXdeNBN5rJQC7Go:'emp_adopt_why_other', fldpUdDLGm2dCk7Gk:'emp_role_other',
+  fld9ck4NuwoppzciM:'vip_qualified', fldyluWlUwe68mQxl:'pain_other', fldVW4wVwMwXWVzDm:'ai_tasks',
+  fldiFGwFvwZHf9Cwu:'ai_tasks_shown', fldEC46sZoX2dSAIA:'ai_tasks_other', fldwQBoS3jp6gCO9M:'ai_reluctance',
+  fld972NsOEsUsJbGH:'ai_reluctance_other', fldMiLdAiHOUQ90cr:'tools_used', fld2OMlI7nsmzQX6j:'tools_other',
+  fldxXBj4DBVRm2v5o:'tools_monthly_spend', fldYFcjlXfMEsz7av:'wtp_ai', fldsynscgi4vQaPbk:'ai_frequency',
+  fldD2CEGqqhccvqfQ:'ai_uses', fldxPx8YkXTpwEkjK:'ai_low_why', fldrbNlxwtOWoEJ1q:'ai_low_why_other',
+  fldbebCURTUOidvKc:'ai_uses_other', fldp7cv5c0LWq5m4j:'day2day', fldwkfHDqx8TYSrbC:'day2day_other',
+  fldrkqo3kinnV2OLf:'heaviest', fldW04mq3mrbsaXZN:'heaviest_note', fldNoRGCgf8ZAxEAr:'gender',
+  fld79QUr8FzbZ37Cq:'duration_sec',
+  fldgFEMj35tlnMe1m:'pain_new_clients', fldxtYAKGk6mBzWQR:'pain_collecting_payments', fldRWBc4o1PWPTbPi:'pain_invoicing_paperwork',
+  fld0BYmcPTEv9ahrv:'pain_team_professional_level', fld9wtdaxEYlpthuV:'pain_hiring_retention', fldFaGzZYJapLvwJZ:'pain_work_rate',
+  fld1ey2pyRZlcXjV3:'pain_deliverables_quality', fldAfz60vBqzI2zh5:'pain_team_management', fldUqkI26x1E9AZWl:'pain_strategic_decisions',
+  fldHqT5iSuSrMdMHb:'pain_admin_work',
+  fldOL1MBiZk7LtcGQ:'area1_key', fldu2CDtVkdtub1Sv:'area1_handler', fld5PrU0FmIpTPuJa:'area1_hours',
+  fldJop1JzbY24RHhC:'area2_key', fldAY4Cf8LBs2ppAp:'area2_handler', fldhpZU0hHBYXgbsy:'area2_hours',
+  fld5lcvQywwX3imVM:'area3_key', fldMrZmPbPJszdBTi:'area3_handler', fldLrgabGrstuyWrj:'area3_hours',
+  fldcLJx6qGuO3dLoa:'completed', fldz8p5JmiTDcPJm5:'completed_at', fldkgVTiZ88nKZQQ8:'exit_reason',
+  flddFPQlT8haxZJba:'exit_email', fldc3wZZ71PFwmLio:'report_email', flda8pNlQtz77DsL5:'calendly_clicked',
+  fldyl4QrgnKTqsh53:'clicked_at', flds2KmyjGSYlYy0c:'_replyto', fldZm0HWRglCjD6Tv:'_subject',
+  fld7c8oNA8ahnLt6L:'submission_date', fld9WLZz26Mojjckl:'submission_created_time'
+};
+const MULTI_FIELDS = new Set(['emp_bottlenecks','emp_adopt_why','ai_tasks','ai_reluctance','tools_used','ai_uses','ai_low_why','day2day']);
+/* Fields merged per session with "latest non-empty answer wins". Flags and event rows are handled separately. */
+const ANSWER_FIELDS = Object.values(FIELD_IDS).filter(f => ![
+  'session_id','_partial','screen','completed','completed_at','calendly_clicked','clicked_at',
+  'exit_email','report_email','_replyto','_subject','submission_date','submission_created_time','vip_qualified'
+].includes(f));
+
+/* ================= labels (form wording) ================= */
+const L = {
+  workplace: { agency:'An agency — we do marketing / advertising for clients', non_marketing:'In-house — I do marketing at a non-marketing company', freelancer_vendor:'Solo — freelancer, consultant, or vendor' },
+  team_size: { '1':'Just me','2':'2 people','3-5':'3 – 5 people','6-10':'6 – 10 people','11-16':'11 – 16 people','17-24':'17 – 24 people','25-50':'25 – 50 people','51-100':'51 – 100 people' },
+  role: { owner:'Owner or co-owner', partner:'Managing partner', employee:'Full- or part-time employee' },
+  years_operating: { '<1':'Less than a year','1-2':'1 – 2 years','3-5':'3 – 5 years','6-10':'6 – 10 years','10+':'More than 10 years' },
+  emp_role: { mgmt:'Team manager / C-level executive', craft:'Marketing professional (PPC / content / social / etc.)', ops:'Project / operations manager', admin:'PA / office manager', finance:'Bookkeeper / accountant / finance manager', hr:'HR manager / recruiter', other:'Other' },
+  emp_bottlenecks: { approvals:'Waiting for answers or approvals', priorities:'Unclear or shifting priorities', admin:'Admin — emails, scheduling, paperwork, reporting & status updates', chasing:'Chasing people for inputs I need', meetings:'Too many meetings & interruptions', rework:'Rework from unclear briefs or last-minute changes', tools:'Juggling too many tools & systems', other:'Something else' },
+  emp_ai_adopt: { embrace:'I’d embrace it — bring it on', try:'I’d give it a fair try', cautious:'Cautious — I’d need to see it work first', reluctant:'Reluctant — I’d rather not' },
+  emp_adopt_why: { reliability:'I don’t trust it to get things right', job_security:'Worried about what it means for my role', privacy:'Privacy — I’m not comfortable with what it might see', learning:'One more system to learn on top of everything', humans:'I prefer working with people', other:'Other' },
+  ai_tasks: { inbox_admin:'Email, calendar & meeting scheduling', drafting:'Drafting documents, proposals & client communication', billing:'Invoicing, financial paperwork & chasing payments', team_oversight:'Tracking progress, deadlines & keeping the team aligned', team_quality:'Overseeing work quality, guidance & professional research', leads:'Lead generation', data_pull:'Pulling together data & insights for decisions', screening:'Screening job candidates', prioritize:'Productivity — prioritizing & organizing my tasks', other:'Other', none:'None of these' },
+  ai_reluctance: { trust_privacy:'Data safety & client confidentiality', quality_risk:'The output isn’t good enough', prefer_humans:'I prefer working with humans', price:'Too expensive', effort:'Too much effort to learn & set up', other:'Other' },
+  ai_frequency: { daily:'Every day', few_week:'A few times a week', weekly:'About once a week', few_month:'A few times a month', rarely:'Rarely', never:'Never' },
+  ai_uses: { content:'Content creation — writing, marketing copy', design:'Design or visual assets', research:'Professional research', data:'Business data analysis', client_docs:'Drafting client emails or proposals', admin:'Admin — email, calendar, meeting scheduling', other:'Other' },
+  ai_low_why: { no_need:'I don’t see where it would help my work', tried_quality:'I tried it — the results weren’t good enough', no_time:'No time to learn it properly', trust:'Privacy — I don’t trust it with my work & data', not_available:'It’s not available or not allowed at work', other:'Other' },
+  tools_used: { productive2:'Productive', productive:'Productive', functionpoint:'Function Point', scoro2:'Scoro', scoro:'Scoro', semrush:'Semrush', sprout:'Sprout Social', muckrack:'Muck Rack', hubspot:'HubSpot', monday:'Monday.com', harvest:'Harvest', quickbooks:'QuickBooks', other:'Other', none:'None of these' },
+  tools_monthly_spend: { '<50':'Under $50 / mo','50-150':'$50 – $150 / mo','151-300':'$151 – $300 / mo','301-500':'$301 – $500 / mo','501-1000':'$501 – $1,000 / mo','1000+':'More than $1,000 / mo', notsure:'Not sure' },
+  wtp_ai: { '0':'Nothing — I wouldn’t pay for it','<50':'Under $50 / mo','50-100':'$50 – $100 / mo','101-250':'$101 – $250 / mo','251-500':'$251 – $500 / mo','500+':'More than $500 / mo', notsure:'Not sure' },
+  day2day: {
+    fires:'I’m busy putting out fires', on_top:'I generally feel I’m on top of things', enjoy:'I really enjoy the managerial side of my work',
+    chasing:'I’m wasting time chasing people — employees, vendors, clients', cracks:'Things fall through the cracks more often than I’d like',
+    managing_not_making:'I spend more time managing than doing the work I love',
+    ereact:'I’m mostly reacting — my plans rarely survive the day', eon_top:'I generally feel on top of my work', echasing:'I’m always chasing people for answers or approvals',
+    ecracks:'Things fall through the cracks between people', eadmin:'Admin and reporting eat into my real work', eenjoy:'I genuinely enjoy my day-to-day',
+    eequipped:'I have everything I need to do my best work', other:'Something else' },
+  gender: { male:'Male', female:'Female', nonbinary:'Non-binary', na:'Prefer not to answer' },
+  handler: { you:'Me — the owner / managing partner', expert:'A specific expert employee (HR, marketing, PA…)', anyone:'Whoever’s available — no one specific', vendor:'An external vendor', software:'Software or a tool', noone:'No one — it isn’t handled' },
+  handlerShort: { you:'Owner / partner', expert:'Expert employee', anyone:'Whoever’s available', vendor:'External vendor', software:'Software / tool', noone:'No one' },
+  hours: { '0':'0 / almost none','<2':'Under 2h','2-5':'2–5h','6-10':'6–10h','11-20':'11–20h','20+':'20h+', notsure:'Not sure' },
+};
+L.heaviest = Object.assign({}, L.day2day, { positive_week:'None — a positive week' });
+
+const ORDER = {
+  team_size: ALL_SIZES,
+  years_operating: ['<1','1-2','3-5','6-10','10+'],
+  emp_ai_adopt: ['embrace','try','cautious','reluctant'],
+  ai_frequency: ['daily','few_week','weekly','few_month','rarely','never'],
+  tools_monthly_spend: ['<50','50-150','151-300','301-500','501-1000','1000+','notsure'],
+  wtp_ai: ['0','<50','50-100','101-250','251-500','500+','notsure'],
+  hours: ['0','<2','2-5','6-10','11-20','20+','notsure'],
+  handler: ['you','expert','anyone','vendor','software','noone'],
+};
+
+const AREAS = [
+  { slug:'new_clients', owner:'New clients & a steady stream of work', short:'New clients & work stream' },
+  { slug:'collecting_payments', owner:'Charging & collecting payment', short:'Collecting payments' },
+  { slug:'invoicing_paperwork', owner:'Invoicing & financial paperwork', short:'Invoicing & paperwork' },
+  { slug:'team_professional_level', owner:'Maintaining the team’s professional level', short:'Team’s professional level', emp:'Professional growth & guidance' },
+  { slug:'hiring_retention', owner:'Sourcing staff & retaining employees', short:'Hiring & retention', emp:'Understaffing & turnover — too few hands, people leaving' },
+  { slug:'work_rate', owner:'Keeping a high work rate', short:'Work rate', emp:'Workload & pace — too much to do, not enough time' },
+  { slug:'deliverables_quality', owner:'Maintaining a high deliverables quality standard', short:'Deliverables quality', emp:'Keeping quality high under time pressure' },
+  { slug:'team_management', owner:'Managing & motivating the team', short:'Managing the team', emp:'Coordination — deadlines, alignment & follow-ups between people' },
+  { slug:'strategic_decisions', owner:'Making informed strategic decisions', short:'Strategic decisions' },
+  { slug:'admin_work', owner:'Administrative work — email, calendar, meeting scheduling', short:'Admin work', emp:'Administrative work — emails, scheduling, reporting' },
+];
+const AREA_BY_SLUG = Object.fromEntries(AREAS.map(a => [a.slug, a]));
+const D2D_OWNER = ['fires','on_top','enjoy','chasing','cracks','managing_not_making','other'];
+const D2D_EMP = ['ereact','eon_top','echasing','ecracks','eadmin','eenjoy','eequipped','other'];
+
+const Q = {
+  workplace:'What best describes your place of work?',
+  team_size:'Including yourself, how many people work at the company?',
+  role:'Which of these best describes your role?',
+  country:'What country are you based in?',
+  years_operating:'How long has your business been operating?',
+  pain_owner:'Rate how frustrating each area is for you right now (1 = not at all frustrating · 7 = extremely frustrating)',
+  pain_emp:'Rate how frustrating each of these is in your day-to-day (1 = not at all frustrating · 7 = extremely frustrating)',
+  pain_other:'Anything that’s a real problem for your business and isn’t listed?',
+  handler:'Who mostly handles this today?',
+  hours:'Hours per week spent on it, across the business — best guess',
+  emp_role:'Which best describes your professional title?',
+  emp_bottlenecks:'What slows you down most in a typical week? (Pick up to 3.)',
+  ai_tasks:'If it were done well — which of these would you feel comfortable letting AI handle?',
+  ai_reluctance:'Why not let AI handle the tasks you didn’t pick?',
+  ai_frequency:'How often do you use AI tools during your work day?',
+  ai_uses:'What do you use AI for?',
+  ai_low_why:'What keeps you from using AI more?',
+  emp_ai_adopt:'If your company brought in an AI business assistant — handling admin, follow-ups & tracking — how would you feel about working with it?',
+  emp_adopt_why:'What makes you hesitant?',
+  tools_used:'Which tools does your business actively use?',
+  tools_monthly_spend:'Roughly how much does your business pay per month for tools, in total?',
+  wtp_ai:'How much would you pay for an AI business assistant — boosting productivity, handling admin & follow-ups, and partnering with you on strategy? (Per month, for the whole business.)',
+  day2day:'Which of these do you relate to? (Pick up to 3.)',
+  heaviest:'Of these — which weighs on you most?',
+  heaviest_note:'Tell us a bit more about it — what does that look like in practice?',
+  gender:'What’s your gender?',
+  calendly:'Book a meeting with us, get a $100 Amazon gift card',
+  report:'Practice Pulse ’26 — the report: want first access?',
+};
+
+const PALETTE = ['#0C7864','#E0762E','#6B4FE0','#D6467F','#C9A227','#2F6FE0','#7A8B2E','#A83A3A'];
+function colorFor(i){ return PALETTE[i % PALETTE.length]; }
+
+/* ================= helpers ================= */
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function hasVal(v){ if (v===undefined||v===null||v===false) return false; if (Array.isArray(v)) return v.length>0; return String(v).trim()!==''; }
+function lab(field, v){ const m = L[field]; return (m && m[v]) || String(v).replace(/_/g,' '); }
+function pct(a, b){ return b ? Math.round(100*a/b) : 0; }
+function el(tag, cls, html){ const e = document.createElement(tag); if (cls) e.className = cls; if (html!==undefined) e.innerHTML = html; return e; }
+function isOwner(r){ return r.role==='owner' || r.role==='partner'; }
+function isEmp(r){ return r.role==='employee'; }
+function fmtTime(ms){
+  try { return new Date(ms).toLocaleString(undefined, { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }); }
+  catch(e){ return new Date(ms).toISOString(); }
+}
+
+/* ================= data: records → rows → sessions ================= */
+function normVal(v){
+  if (v===null || v===undefined) return null;
+  if (Array.isArray(v)) return v.map(x => (x && typeof x==='object') ? (x.name ?? x.email ?? x.id) : x).filter(x => x!==null && x!=='');
+  if (typeof v==='object') return v.name ?? v.email ?? v.id ?? null;
+  return v;
+}
+function rowFromRecord(rec){
+  const src = rec.cellValuesByFieldId || rec.fields || {};
+  const out = { _rid: rec.id };
+  Object.keys(src).forEach(k => { out[FIELD_IDS[k] || k] = normVal(src[k]); });
+  MULTI_FIELDS.forEach(f => { if (typeof out[f]==='string') out[f] = out[f].split(',').map(s=>s.trim()).filter(Boolean); });
+  const t = Date.parse(out.submission_created_time || out.submission_date || rec.createdTime || '');
+  out._ts = isNaN(t) ? 0 : t;
+  return out;
+}
+
+function mergeSessions(rows){
+  const groups = new Map();
+  const noSession = [];
+  rows.forEach(r => {
+    const sid = r.session_id ? String(r.session_id).trim() : '';
+    if (!sid){ noSession.push(r); return; }
+    if (!groups.has(sid)) groups.set(sid, []);
+    groups.get(sid).push(r);
+  });
+  const sessions = [];
+  groups.forEach((rs, sid) => {
+    rs.sort((a,b) => a._ts - b._ts);
+    const s = { id: sid, rowCount: rs.length, firstTs: rs[0]._ts, lastTs: rs[rs.length-1]._ts };
+    // Latest non-empty answer wins, per question. A later blank never erases an earlier answer.
+    // Multi-selects take the whole latest submitted set.
+    rs.forEach(r => { ANSWER_FIELDS.forEach(f => { if (hasVal(r[f])) s[f] = r[f]; }); });
+    const withScreen = rs.filter(r => hasVal(r.screen));
+    s.lastScreen = withScreen.length ? withScreen[withScreen.length-1].screen : null;
+    s.calendly = rs.some(r => r.calendly_clicked === true);
+    s.reportOptIn = rs.some(r => hasVal(r.report_email));
+    s.exitOptIn = rs.some(r => hasVal(r.exit_email));
+    s.screenedOut = hasVal(s.exit_reason) || (hasVal(s.workplace) && s.workplace!=='agency') || s.team_size==='1';
+    s.complete = !s.screenedOut && (rs.some(r => r.completed === true) || hasVal(s.gender));
+    s.isTest = s.firstTs < TEST_BEFORE;
+    s.inTarget = !s.screenedOut && ICP_SIZES.includes(s.team_size);
+    s.aiShown = hasVal(s.ai_tasks_shown) ? String(s.ai_tasks_shown).split(',').map(x=>x.trim()).filter(Boolean) : [];
+    s.deepDives = [];
+    [1,2,3].forEach(n => {
+      const key = s['area'+n+'_key'];
+      if (hasVal(key)) s.deepDives.push({ area: key, handler: s['area'+n+'_handler'] || null, hours: s['area'+n+'_hours'] || null });
+    });
+    sessions.push(s);
+  });
+  return { sessions, noSession };
+}
+
+/* ================= state ================= */
+const state = { size: 'all', role: 'all', tab: 'a', showTests: false, autoTests: false };
+let DATA = null;           // { rows, sessions, noSession, fetchedAt }
+let CONN = { status: 'connecting', error: null };
+
+try { const t = localStorage.getItem('smd_tab'); if (t && 'abc'.includes(t)) state.tab = t; } catch(e){}
+if (['a','b','c'].includes((location.hash||'').slice(1))) state.tab = location.hash.slice(1);
+
+function sessionsAll(){ return DATA ? DATA.sessions : []; }
+function testVisible(s){ return state.showTests || !s.isTest; }
+function qualified(){ return sessionsAll().filter(s => !s.screenedOut && testVisible(s)); }
+function baseResponses(){ return qualified().filter(s => s.inTarget); }
+function roleMatch(s, role){ return role==='all' || (role==='owner' ? isOwner(s) : isEmp(s)); }
+function filteredResponses(){
+  return baseResponses().filter(s => (state.size==='all' || s.team_size===state.size) && roleMatch(s, state.role));
+}
+function sizeChartResponses(){
+  return sessionsAll().filter(s => testVisible(s) && hasVal(s.team_size) && roleMatch(s, state.role));
+}
+
+function countsFor(field, multi, order, rows){
+  rows = rows || filteredResponses();
+  const map = new Map(); let n = 0;
+  rows.forEach(r => {
+    const v = r[field];
+    if (!hasVal(v)) return;
+    n++;
+    if (multi) v.forEach(x => map.set(x, (map.get(x)||0)+1));
+    else map.set(String(v), (map.get(String(v))||0)+1);
+  });
+  let arr = [...map.entries()].map(([key,count]) => ({ key, name: lab(field, key), count }));
+  if (order) arr.sort((a,b) => { const ia = order.indexOf(a.key), ib = order.indexOf(b.key); return (ia<0?99:ia) - (ib<0?99:ib); });
+  else arr.sort((a,b) => b.count - a.count || a.name.localeCompare(b.name));
+  return { counts: arr, n };
+}
+
+function insightSentence(counts, n, opts){
+  opts = opts || {};
+  if (!n || !counts.length) return null;
+  const pool = counts.filter(c => !['notsure','other','none'].includes(c.key));
+  const sorted = (pool.length ? pool : counts).slice().sort((a,b) => b.count - a.count);
+  const top = sorted[0];
+  const ties = sorted.filter(c => c.count===top.count);
+  const p = pct(top.count, n);
+  const verb = opts.multi ? 'picked' : 'chose';
+  const who = opts.who || 'respondents who reached this question';
+  if (ties.length > 1 && ties.length <= 3){
+    return `${ties.length} answers are tied for the top spot at ${p}% each of the ${n} ${who}: ${ties.map(t => '“'+esc(t.name)+'”').join(', ')}.`;
+  }
+  if (ties.length > 3) return `No single answer leads yet: ${ties.length} answers are tied at ${p}% of the ${n} ${who}.`;
+  return `“${esc(top.name)}” is the top answer — ${verb} by <b>${p}%</b> of the ${n} ${who}.`;
+}
+
+/* ================= renderers ================= */
+function renderBarList(container, counts, n, opts){
+  opts = opts || {};
+  const wrap = el('div','barlist');
+  if (!counts.length){ wrap.appendChild(el('div','empty-state', opts.emptyText || 'No responses in this segment yet.')); container.appendChild(wrap); return; }
+  const max = Math.max(...counts.map(c => opts.byPct ? c.pct : c.count), 1);
+  counts.forEach(c => {
+    const denom = c.denom != null ? c.denom : n;
+    const p = pct(c.count, denom);
+    const muted = ['notsure','none'].includes(c.key);
+    const row = el('div','barrow' + (opts.tone==='warn' ? ' tone-warn' : '') + (muted ? ' muted' : ''));
+    row.appendChild(el('div','bl-label', esc(c.name)));
+    const track = el('div','bl-track');
+    const fill = el('div','bl-fill');
+    fill.style.width = Math.max(3, Math.round(100*(opts.byPct ? c.pct : c.count)/max)) + '%';
+    track.appendChild(fill); row.appendChild(track);
+    row.appendChild(el('div','bl-val', c.denom != null ? `${c.count}/${denom} · ${p}%` : `${c.count} · ${p}%`));
+    wrap.appendChild(row);
+  });
+  container.appendChild(wrap);
+}
+
+function renderDonut(container, counts){
+  const wrap = el('div','donut-wrap');
+  if (!counts.length){ wrap.appendChild(el('div','empty-state','No responses in this segment yet.')); container.appendChild(wrap); return; }
+  const total = counts.reduce((a,c) => a+c.count, 0);
+  let acc = 0;
+  const stops = counts.map((c,i) => { const s0 = acc/total*360; acc += c.count; return `${colorFor(i)} ${s0}deg ${acc/total*360}deg`; }).join(', ');
+  const donut = el('div','donut'); donut.style.background = `conic-gradient(${stops})`;
+  wrap.appendChild(donut);
+  const legend = el('div','donut-legend');
+  counts.forEach((c,i) => {
+    const row = el('div','legend-row');
+    const sw = el('span','legend-swatch'); sw.style.background = colorFor(i);
+    row.appendChild(sw); row.appendChild(document.createTextNode(c.name));
+    row.appendChild(el('span','lg-val', `${c.count} · ${pct(c.count,total)}%`));
+    legend.appendChild(row);
+  });
+  wrap.appendChild(legend);
+  container.appendChild(wrap);
+}
+
+function renderStat(container, label, value, sub, question){
+  const s = el('div','stat');
+  s.appendChild(el('div','stat-label', esc(label)));
+  s.appendChild(el('div','stat-value', esc(value)));
+  if (sub) s.appendChild(el('div','stat-sub', sub));
+  if (question) s.appendChild(el('div','stat-question', `Asked: “${esc(question)}”`));
+  container.appendChild(s);
+}
+
+function renderInsight(container, text, emptyText){
+  if (!text){ container.appendChild(el('div','insight empty', emptyText || 'Not enough responses in this segment yet to surface an insight.')); return; }
+  container.appendChild(el('div','insight', text));
+}
+
+/* 1–7 scale colours: 1–3 teal, 4 neutral, 5–7 warm */
+function scaleColor(v){
+  const m = { 1:'color-mix(in srgb, var(--accent) 70%, var(--surface-3))', 2:'color-mix(in srgb, var(--accent) 45%, var(--surface-3))', 3:'color-mix(in srgb, var(--accent) 22%, var(--surface-3))',
+    4:'color-mix(in srgb, var(--ink-faint) 45%, var(--surface-3))', 5:'color-mix(in srgb, var(--warn) 32%, var(--surface-3))', 6:'color-mix(in srgb, var(--warn) 60%, var(--surface-3))', 7:'var(--warn)' };
+  return m[v];
+}
+function likertStats(items, rows, labelKey){
+  return items.map(a => {
+    const vals = rows.map(r => Number(r['pain_'+a.slug])).filter(v => v>=1 && v<=7);
+    const dist = [0,0,0,0,0,0,0,0];
+    vals.forEach(v => dist[v]++);
+    const n = vals.length;
+    const mean = n ? vals.reduce((x,y)=>x+y,0)/n : 0;
+    const high = dist[5]+dist[6]+dist[7];
+    return { slug: a.slug, name: a[labelKey] || a.owner, n, mean, dist, high };
+  }).filter(x => x.n > 0).sort((a,b) => b.mean - a.mean || b.high - a.high);
+}
+function renderLikert(container, stats, whoText){
+  if (!stats.length){ container.appendChild(el('div','empty-state','No ratings in this segment yet.')); return; }
+  const legend = el('div','lk-legend');
+  legend.appendChild(el('span','lk-end','Not at all'));
+  for (let v=1; v<=7; v++){ const sw = el('span','lk-sw', String(v)); sw.style.background = scaleColor(v); if (v===7) sw.style.color = 'var(--surface)'; legend.appendChild(sw); }
+  legend.appendChild(el('span','lk-end','Extremely frustrating'));
+  container.appendChild(legend);
+  stats.forEach(it => {
+    const row = el('div','lkrow');
+    row.appendChild(el('div','lk-label', esc(it.name)));
+    const bar = el('div','lk-bar');
+    for (let v=1; v<=7; v++){
+      if (!it.dist[v]) continue;
+      const seg = el('div','lk-seg');
+      seg.style.width = (100*it.dist[v]/it.n) + '%';
+      seg.style.background = scaleColor(v);
+      seg.title = `${it.dist[v]} rated it ${v}`;
+      bar.appendChild(seg);
+    }
+    row.appendChild(bar);
+    row.appendChild(el('div','lk-mean', `mean <b>${it.mean.toFixed(1)}</b> · ${pct(it.high, it.n)}% 5–7`));
+    container.appendChild(row);
+  });
+  const top = stats[0];
+  renderInsight(container, `“${esc(top.name)}” is the most frustrating area, with a mean of <b>${top.mean.toFixed(1)} / 7</b>; ${pct(top.high, top.n)}% of the ${top.n} ${whoText} rated it 5 or higher.`);
+}
+
+function renderHeatmap(container, matrixRows, colKeys, colLabel, rowLabel){
+  const rowsWithData = matrixRows.filter(r => colKeys.some(c => r.cells[c]));
+  if (!rowsWithData.length){ container.appendChild(el('div','empty-state','No deep dives in this segment yet.')); return; }
+  const usedCols = colKeys.filter(c => rowsWithData.some(r => r.cells[c]));
+  let max = 0; rowsWithData.forEach(r => usedCols.forEach(c => { max = Math.max(max, r.cells[c]||0); }));
+  const wrap = el('div','heatmap-wrap');
+  const table = el('table','heatmap');
+  const thead = el('thead'); const htr = el('tr');
+  htr.appendChild(el('th','rowh', esc(rowLabel || '')));
+  usedCols.forEach(c => htr.appendChild(el('th','colh', esc(colLabel(c)))));
+  thead.appendChild(htr); table.appendChild(thead);
+  const tbody = el('tbody');
+  rowsWithData.forEach(r => {
+    const tr = el('tr');
+    tr.appendChild(el('th','rowh', esc(r.label)));
+    usedCols.forEach(c => {
+      const v = r.cells[c] || 0;
+      const td = el('td', v===0 ? 'zero' : '', v===0 ? '–' : String(v));
+      if (v>0){ td.style.background = `color-mix(in srgb, var(--accent) ${Math.round((0.12 + 0.68*(v/max))*100)}%, transparent)`; }
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody); wrap.appendChild(table); container.appendChild(wrap);
+}
+
+function renderOpenEnded(container, rows, field, opts){
+  opts = opts || {};
+  const withText = rows.filter(r => hasVal(r[field])).sort((a,b) => b.lastTs - a.lastTs);
+  const shown = opts.shownN != null ? opts.shownN : rows.length;
+  container.appendChild(el('div','oe-count', `<b>${withText.length}</b> wrote an answer${shown ? ` (of ${shown} who saw it)` : ''}.`));
+  if (!withText.length){ container.appendChild(el('div','empty-state','No written answers in this segment yet.')); return; }
+  const q = el('div','quotes');
+  withText.slice(0, opts.max || 4).forEach(r => {
+    const d = el('div','quote', '“' + esc(String(r[field]).slice(0, 400)) + '”');
+    if (opts.meta) d.appendChild(el('div','quote-meta', esc(opts.meta(r))));
+    q.appendChild(d);
+  });
+  container.appendChild(q);
+}
+
+function section(title, note){
+  const s = el('section','card');
+  const m = /^(\d+)\s*—\s*(.+)$/.exec(title);
+  const head = el('div','section-head');
+  if (m){ head.appendChild(el('div','badge-num', m[1])); head.appendChild(el('h2','', esc(m[2]))); }
+  else head.appendChild(el('h2','', esc(title)));
+  s.appendChild(head);
+  if (note) s.appendChild(el('p','section-note', note));
+  return s;
+}
+function bandSection(title, note){ const s = section(title, note); s.className = 'band'; return s; }
+function chartBlock(parentGrid, title, question){
+  const block = el('div','chart-block');
+  const tr = el('div','chart-title-row');
+  tr.appendChild(el('div','chart-title', esc(title)));
+  const nSpan = el('div','chart-n','');
+  tr.appendChild(nSpan); block.appendChild(tr);
+  if (question) block.appendChild(el('div','chart-q', `Asked: “${esc(question)}”`));
+  const body = el('div','chart-body'); block.appendChild(body);
+  parentGrid.appendChild(block);
+  return { block: body, nSpan };
+}
+function barChart(grid, title, field, opts){
+  opts = opts || {};
+  const rows = opts.rows || filteredResponses();
+  const { block, nSpan } = chartBlock(grid, title, opts.question === undefined ? Q[field] : opts.question);
+  const { counts, n } = countsFor(field, MULTI_FIELDS.has(field), opts.order || ORDER[field] || null, rows);
+  nSpan.textContent = `n = ${n}`;
+  if (opts.donut) renderDonut(block, counts); else renderBarList(block, counts, n, { tone: opts.tone, emptyText: opts.emptyText });
+  if (!opts.noInsight) renderInsight(block, insightSentence(counts, n, { multi: MULTI_FIELDS.has(field), who: opts.who }));
+  return { block, counts, n };
+}
+
+/* ---------- derived analyses ---------- */
+function aiTaskCounts(rows){
+  const answered = rows.filter(r => hasVal(r.ai_tasks));
+  const ids = Object.keys(L.ai_tasks).filter(k => !['other','none'].includes(k));
+  const out = [];
+  ids.forEach(id => {
+    const shownTo = answered.filter(r => r.aiShown.length ? r.aiShown.includes(id) : true);
+    if (!shownTo.length) return;
+    const c = shownTo.filter(r => r.ai_tasks.includes(id)).length;
+    out.push({ key: id, name: L.ai_tasks[id], count: c, denom: shownTo.length, pct: pct(c, shownTo.length) });
+  });
+  out.sort((a,b) => b.pct - a.pct || b.count - a.count);
+  const none = answered.filter(r => r.ai_tasks.includes('none')).length;
+  if (none) out.push({ key:'none', name: L.ai_tasks.none, count: none, denom: answered.length, pct: pct(none, answered.length) });
+  return { list: out, n: answered.length, atLeastOne: answered.filter(r => r.ai_tasks.some(t => t!=='none')).length };
+}
+function deepDiveRows(rows){
+  const out = [];
+  rows.filter(isOwner).forEach(r => r.deepDives.forEach(d => out.push(Object.assign({ respId: r.id }, d))));
+  return out;
+}
+function hoursHeavy(h){ return ['6-10','11-20','20+'].includes(h); }
+
+/* ================= TAB A ================= */
+function renderMergeSteps(container){
+  const all = sessionsAll();
+  const screened = all.filter(s => s.screenedOut && testVisible(s)).length;
+  const tests = all.filter(s => s.isTest).length;
+  const q = qualified();
+  const oot = q.filter(s => !s.inTarget).length;
+  const inView = filteredResponses().length;
+  const steps = el('div','merge-steps');
+  const add = (n, l, cls) => { if (steps.children.length) steps.appendChild(el('span','merge-arrow','→')); steps.appendChild(el('span','merge-step'+(cls?' '+cls:''), `<b>${n}</b>${esc(l)}`)); };
+  add(DATA.rows.length, 'rows in Airtable');
+  add(all.length, 'unique sessions');
+  add(state.showTests ? '+'+tests : '−'+tests, state.showTests ? 'test sessions included' : 'test sessions');
+  add('−'+screened, 'screened out by the form');
+  add('−'+oot, 'outside 2–24 people or no size yet');
+  if (state.size!=='all' || state.role!=='all') add(baseResponses().length, 'in target');
+  add(inView, 'respondents in view', 'final');
+  container.appendChild(steps);
+}
+
+function renderTabA(main){
+  const rows = filteredResponses();
+  const n = rows.length;
+  const owners = rows.filter(isOwner), emps = rows.filter(isEmp);
+
+  /* Sample */
+  {
+    const s = bandSection('Sample & who answered');
+    renderMergeSteps(s);
+    const stats = el('div','stat-row');
+    const complete = rows.filter(r => r.complete).length;
+    renderStat(stats, 'Respondents in view', String(n), `${complete} complete · ${n-complete} partial`);
+    renderStat(stats, 'Owners & partners', String(owners.length), `${emps.length} employee${emps.length===1?'':'s'}`);
+    const cal = rows.filter(r => r.calendly).length;
+    renderStat(stats, 'Clicked to book the interview', n ? pct(cal,n)+'%' : '–', `${cal} of ${n}`, Q.calendly);
+    const rep = rows.filter(r => r.reportOptIn).length;
+    renderStat(stats, 'Asked for the report', n ? pct(rep,n)+'%' : '–', `${rep} of ${n} left an email`);
+    s.appendChild(stats);
+    const noSid = DATA.noSession.length;
+    renderInsight(s, `Rows are merged by session ID: each question keeps its latest non-empty answer, so partial saves and event rows (booking clicks, report emails) fold into one respondent. Partial sessions count for the questions they reached, and every percentage uses only the people who were shown that question. ${noSid ? `<b>${noSid}</b> row${noSid===1?' has':'s have'} no session ID and ${noSid===1?'is':'are'} left out.` : 'Every row has a session ID.'}`);
+
+    const grid = el('div','chart-grid');
+    {
+      const sr = sizeChartResponses();
+      const { block, nSpan } = chartBlock(grid, 'Company size (everyone, incl. out of target)', Q.team_size);
+      const { counts, n: cn } = countsFor('team_size', false, ORDER.team_size, sr);
+      nSpan.textContent = `n = ${cn}`;
+      renderBarList(block, counts, cn);
+      const inT = sr.filter(r => ICP_SIZES.includes(r.team_size)).length;
+      renderInsight(block, cn ? `<b>${pct(inT, cn)}%</b> of the ${cn} people who answered fall inside the 2–24 person target. “Just me” was screened out by the form.` : null);
+    }
+    barChart(grid, 'Role', 'role', { donut: true });
+    barChart(grid, 'Country', 'country');
+    barChart(grid, 'Years operating (owners & partners)', 'years_operating', { rows: owners, who: 'owners and partners who reached this question' });
+    s.appendChild(grid);
+    main.appendChild(s);
+  }
+
+  /* 1 — Pain */
+  {
+    const s = section('1 — Where does it hurt most?', 'Owners and partners rated ten business areas; employees rated six day-to-day frustrations worded for their role. The two scales are shown separately because the wording differs.');
+    s.appendChild(el('div','answered-by','Answered by: frustration ratings, “anything else?”, and what slows employees down'));
+    const grid = el('div','chart-grid stacked');
+    {
+      const { block, nSpan } = chartBlock(grid, 'Owners & partners — 10 areas', Q.pain_owner);
+      const st = likertStats(AREAS, owners, 'owner');
+      nSpan.textContent = `n = ${owners.filter(r => AREAS.some(a => hasVal(r['pain_'+a.slug]))).length}`;
+      renderLikert(block, st, 'owners and partners who rated it');
+    }
+    {
+      const { block, nSpan } = chartBlock(grid, 'Employees — 6 day-to-day frustrations', Q.pain_emp);
+      const st = likertStats(AREAS.filter(a => a.emp), emps, 'emp');
+      nSpan.textContent = `n = ${emps.filter(r => AREAS.some(a => hasVal(r['pain_'+a.slug]))).length}`;
+      renderLikert(block, st, 'employees who rated it');
+    }
+    s.appendChild(grid);
+    const grid2 = el('div','chart-grid');
+    barChart(grid2, 'What slows employees down', 'emp_bottlenecks', { rows: emps, who: 'employees who reached this question' });
+    {
+      const { block, nSpan } = chartBlock(grid2, 'Anything else? (owners, optional)', Q.pain_other);
+      const reached = owners.filter(r => AREAS.some(a => hasVal(r['pain_'+a.slug])));
+      nSpan.textContent = `n = ${reached.length}`;
+      renderOpenEnded(block, reached, 'pain_other', { shownN: reached.length });
+    }
+    s.appendChild(grid2);
+    main.appendChild(s);
+  }
+
+  /* 2 — Deep dives */
+  {
+    const s = section('2 — Who carries the load, and how many hours does it take?', 'Owners and partners got a deep dive on up to three areas they rated 4 or higher (or their top three if none were). Each figure below counts deep dives, so one person can contribute up to three.');
+    s.appendChild(el('div','answered-by','Answered by: “Who mostly handles this today?” and “Hours per week spent on it” for each deep-dive area'));
+    const dd = deepDiveRows(rows);
+    const withHandler = dd.filter(d => d.handler);
+    const withHours = dd.filter(d => d.hours && d.hours!=='notsure');
+    const stats = el('div','stat-row');
+    renderStat(stats, 'Deep dives', String(dd.length), `from ${new Set(dd.map(d => d.respId)).size} owners & partners`);
+    const ownerHandled = withHandler.filter(d => d.handler==='you').length;
+    renderStat(stats, 'Handled by the owner', withHandler.length ? pct(ownerHandled, withHandler.length)+'%' : '–', `${ownerHandled} of ${withHandler.length} deep dives`, Q.handler);
+    const heavy = withHours.filter(d => hoursHeavy(d.hours)).length;
+    renderStat(stats, '6+ hours a week', withHours.length ? pct(heavy, withHours.length)+'%' : '–', `${heavy} of ${withHours.length} with an hours estimate`, Q.hours);
+    const noone = withHandler.filter(d => d.handler==='noone').length;
+    renderStat(stats, 'Nobody handles it', withHandler.length ? pct(noone, withHandler.length)+'%' : '–', `${noone} of ${withHandler.length} deep dives`);
+    s.appendChild(stats);
+
+    const grid = el('div','chart-grid stacked');
+    {
+      const { block, nSpan } = chartBlock(grid, 'Heatmap — area × who handles it', null);
+      nSpan.textContent = `${withHandler.length} deep dives`;
+      const byArea = new Map();
+      withHandler.forEach(d => { if (!byArea.has(d.area)) byArea.set(d.area, {}); const c = byArea.get(d.area); c[d.handler] = (c[d.handler]||0)+1; });
+      const mrows = [...byArea.entries()].map(([slug, cells]) => ({ label: (AREA_BY_SLUG[slug]||{}).short || slug, cells, total: Object.values(cells).reduce((a,b)=>a+b,0) })).sort((a,b) => b.total - a.total);
+      renderHeatmap(block, mrows, ORDER.handler, c => L.handlerShort[c] || c, 'Area');
+      if (withHandler.length){
+        const topCell = mrows.flatMap(r => Object.entries(r.cells).map(([h,v]) => ({ area: r.label, h, v }))).sort((a,b) => b.v - a.v)[0];
+        renderInsight(block, `The most common pairing is <b>${esc(topCell.area)}</b> handled by <b>${esc(L.handlerShort[topCell.h] || topCell.h)}</b> (${topCell.v} of ${withHandler.length} deep dives). The owner handles ${pct(ownerHandled, withHandler.length)}% of all deep-dive areas personally.`);
+      } else renderInsight(block, null);
+    }
+    s.appendChild(grid);
+    const grid2 = el('div','chart-grid');
+    {
+      const { block, nSpan } = chartBlock(grid2, 'Areas people dug into', null);
+      const map = new Map(); dd.forEach(d => map.set(d.area, (map.get(d.area)||0)+1));
+      const owners2 = new Set(dd.map(d => d.respId)).size;
+      const counts = [...map.entries()].map(([k,c]) => ({ key:k, name:(AREA_BY_SLUG[k]||{}).owner || k, count:c })).sort((a,b) => b.count - a.count);
+      nSpan.textContent = `n = ${owners2}`;
+      renderBarList(block, counts, owners2);
+      renderInsight(block, counts.length ? `“${esc(counts[0].name)}” came up most often, in ${pct(counts[0].count, owners2)}% of the ${owners2} owners’ deep dives.` : null);
+    }
+    {
+      const { block, nSpan } = chartBlock(grid2, 'Hours per week, per area', Q.hours);
+      const hrs = dd.filter(d => d.hours);
+      const map = new Map(); hrs.forEach(d => map.set(d.hours, (map.get(d.hours)||0)+1));
+      const counts = ORDER.hours.filter(k => map.has(k)).map(k => ({ key:k, name:L.hours[k], count: map.get(k) }));
+      nSpan.textContent = `${hrs.length} deep dives`;
+      renderBarList(block, counts, hrs.length);
+      renderInsight(block, withHours.length ? `<b>${pct(heavy, withHours.length)}%</b> of deep-dive areas take 6 or more hours a week across the business (“Not sure” excluded).` : null);
+    }
+    s.appendChild(grid2);
+    main.appendChild(s);
+  }
+
+  /* 3 — AI hand-off */
+  {
+    const s = section('3 — What would they hand to AI, and what holds them back?', 'Each task’s percentage counts only the people who were shown it: owners saw eight tasks, employees saw a set based on their title.');
+    s.appendChild(el('div','answered-by','Answered by: tasks they’d let AI handle, why not the rest, and (employees) how they’d feel working with an AI assistant'));
+    const grid = el('div','chart-grid');
+    {
+      const { block, nSpan } = chartBlock(grid, 'Tasks they’d let AI handle', Q.ai_tasks);
+      const res = aiTaskCounts(rows);
+      nSpan.textContent = `n = ${res.n}`;
+      renderBarList(block, res.list, res.n, { byPct: true });
+      renderInsight(block, res.list.length ? `“${esc(res.list[0].name)}” is the task they’d most readily hand over — <b>${res.list[0].pct}%</b> of the ${res.list[0].denom} who saw it. ${pct(res.atLeastOne, res.n)}% picked at least one task.` : null);
+    }
+    barChart(grid, 'Why not the other tasks', 'ai_reluctance', { question: Q.ai_reluctance, who: 'respondents who left at least one task unpicked', tone: 'warn' });
+    barChart(grid, 'Employees: working with an AI assistant', 'emp_ai_adopt', { rows: emps, who: 'employees who reached this question' });
+    barChart(grid, 'Employees: what makes them hesitant', 'emp_adopt_why', { rows: emps, who: 'cautious or reluctant employees', tone: 'warn' });
+    s.appendChild(grid);
+    main.appendChild(s);
+  }
+
+  /* 4 — AI today */
+  {
+    const s = section('4 — How AI-ready are they today?');
+    s.appendChild(el('div','answered-by','Answered by: how often they use AI, what for, and what keeps them from using it more'));
+    const grid = el('div','chart-grid');
+    barChart(grid, 'How often they use AI', 'ai_frequency');
+    barChart(grid, 'What they use AI for', 'ai_uses', { who: 'respondents who use AI at least rarely' });
+    barChart(grid, 'What keeps them from using AI more', 'ai_low_why', { who: 'respondents who use AI rarely or never', tone: 'warn' });
+    s.appendChild(grid);
+    main.appendChild(s);
+  }
+
+  /* 5 — Spend & WTP */
+  {
+    const s = section('5 — What do they spend on tools, and what would they pay?', 'Monthly spend was asked only of owners who use at least one tool. Willingness to pay was asked of all owners and partners.');
+    s.appendChild(el('div','answered-by','Answered by: tools used, monthly tool spend, and willingness to pay for an AI business assistant'));
+    const grid = el('div','chart-grid');
+    barChart(grid, 'Tools they use', 'tools_used');
+    barChart(grid, 'Monthly spend on tools', 'tools_monthly_spend', { rows: owners, who: 'owners and partners who reached this question' });
+    {
+      const r = barChart(grid, 'Willingness to pay for an AI assistant', 'wtp_ai', { rows: owners, noInsight: true });
+      const sure = r.counts.filter(c => c.key!=='notsure');
+      const sureN = sure.reduce((a,c) => a+c.count, 0);
+      const paying = sure.filter(c => c.key!=='0').reduce((a,c) => a+c.count, 0);
+      renderInsight(r.block, sureN ? `<b>${pct(paying, sureN)}%</b> of the ${sureN} owners with an answer would pay something each month (“Not sure” excluded). ${insightSentence(r.counts, r.n, { who: 'owners who reached this question' })}` : null);
+    }
+    s.appendChild(grid);
+    main.appendChild(s);
+  }
+
+  /* 6 — The week */
+  {
+    const s = section('6 — What does their week feel like?', 'Owners and employees were shown different statements, so each group has its own chart.');
+    s.appendChild(el('div','answered-by','Answered by: statements they relate to, the one that weighs most, and their own words about it'));
+    const grid = el('div','chart-grid');
+    barChart(grid, 'Owners & partners relate to', 'day2day', { rows: owners, order: null, who: 'owners and partners who reached this question' });
+    barChart(grid, 'Employees relate to', 'day2day', { rows: emps, who: 'employees who reached this question' });
+    {
+      const reached = rows.filter(r => hasVal(r.heaviest));
+      const { block, nSpan } = chartBlock(grid, 'Weighs on them most', Q.heaviest);
+      const { counts } = countsFor('heaviest', false, null, reached.filter(r => r.heaviest!=='positive_week'));
+      const nNeg = reached.filter(r => r.heaviest!=='positive_week').length;
+      nSpan.textContent = `n = ${nNeg}`;
+      renderBarList(block, counts, nNeg, { tone: 'warn' });
+      const pos = reached.length - nNeg;
+      renderInsight(block, nNeg ? `${insightSentence(counts, nNeg, { who: 'respondents with at least one negative statement' })} ${pos ? `${pos} described a purely positive week.` : ''} When someone picked only one negative statement, it was filled in for them.` : null);
+    }
+    {
+      const reached = rows.filter(r => hasVal(r.heaviest));
+      const { block, nSpan } = chartBlock(grid, 'In their own words', Q.heaviest_note);
+      nSpan.textContent = `n = ${reached.length}`;
+      renderOpenEnded(block, reached, 'heaviest_note', { shownN: reached.length, meta: r => r.heaviest && r.heaviest!=='positive_week' ? 'On: ' + lab('heaviest', r.heaviest) : 'Positive week' });
+    }
+    s.appendChild(grid);
+    main.appendChild(s);
+  }
+}
+
+/* ================= TAB B ================= */
+const SURVEY_ORDER = [
+  { group:'Screening', note:'Everyone. Non-agencies and “Just me” are screened out.' },
+  { id:'S1', field:'workplace', type:'Single choice', shown:'Everyone who started', all:true },
+  { id:'S2', field:'team_size', type:'Single choice · ordered', shown:'Agencies', all:true },
+  { id:'S3', field:'role', type:'Single choice', shown:'Qualified agencies' },
+  { id:'S4', field:'country', type:'Single choice', shown:'Qualified agencies' },
+  { group:'Owners & partners', note:'Owner and partner path.' },
+  { id:'O1', field:'years_operating', type:'Single choice · ordered', shown:'Owners & partners', owners:true },
+  { id:'O2', likert:'owner', type:'Scale 1–7 · 10 rows', shown:'Owners & partners' },
+  { id:'O2b', open:'pain_other', type:'Open-ended (optional)', shown:'Owners & partners' },
+  { id:'O3a', dd:'handler', type:'Single choice per area', shown:'Owners & partners, up to 3 areas' },
+  { id:'O3b', dd:'hours', type:'Single choice · ordered, per area', shown:'Owners & partners, up to 3 areas' },
+  { group:'Employees', note:'Employee path.' },
+  { id:'E1', field:'emp_role', type:'Single choice', shown:'Employees', emps:true },
+  { id:'E2', likert:'emp', type:'Scale 1–7 · 6 rows', shown:'Employees' },
+  { id:'E3', field:'emp_bottlenecks', type:'Multi-select · up to 3', shown:'Employees', emps:true },
+  { group:'AI adoption & use', note:'Both paths.' },
+  { id:'Q7', aitasks:true, type:'Multi-select', shown:'Everyone qualified; task list depends on role' },
+  { id:'Q7a', field:'ai_reluctance', type:'Multi-select', shown:'Anyone who left a shown task unpicked' },
+  { id:'Q10', field:'ai_frequency', type:'Single choice · ordered', shown:'Everyone qualified' },
+  { id:'Q10a', field:'ai_uses', type:'Multi-select', shown:'Everyone except “Never”' },
+  { id:'QL', field:'ai_low_why', type:'Multi-select', shown:'“Rarely” or “Never” only' },
+  { id:'E4', field:'emp_ai_adopt', type:'Single choice · ordered', shown:'Employees', emps:true },
+  { id:'E5', field:'emp_adopt_why', type:'Multi-select', shown:'Employees who are cautious or reluctant', emps:true },
+  { group:'Your stack', note:'Both paths; spend and willingness to pay are owners only.' },
+  { id:'Q9', field:'tools_used', type:'Multi-select', shown:'Everyone qualified' },
+  { id:'Q9a', field:'tools_monthly_spend', type:'Single choice · ordered', shown:'Owners who use at least one tool', owners:true },
+  { id:'Q9b', field:'wtp_ai', type:'Single choice · ordered', shown:'Owners & partners', owners:true },
+  { group:'Day to day', note:'Both paths, with different statements.' },
+  { id:'Q12o', field:'day2day', type:'Multi-select · up to 3', shown:'Owners & partners', owners:true, label:'(owner statements)' },
+  { id:'Q12e', field:'day2day', type:'Multi-select · up to 3', shown:'Employees', emps:true, label:'(employee statements)' },
+  { id:'Q13', field:'heaviest', type:'Single choice (auto-filled if only one)', shown:'Everyone who picked a negative statement' },
+  { id:'Q13b', open:'heaviest_note', type:'Open-ended', shown:'Everyone who reached Q13' },
+  { id:'Q14', field:'gender', type:'Single choice', shown:'Everyone qualified (last question)' },
+  { group:'Opt-ins', note:'Counts only. Email addresses are never shown here.' },
+  { id:'OI1', flag:'calendly', type:'Opt-in', shown:'Everyone who finished' },
+  { id:'OI2', flag:'reportOptIn', type:'Opt-in', shown:'Everyone who finished' },
+];
+const OTHER_TEXT = { emp_role:'emp_role_other', emp_bottlenecks:'emp_bottlenecks_other', ai_reluctance:'ai_reluctance_other', ai_uses:'ai_uses_other', ai_low_why:'ai_low_why_other', emp_adopt_why:'emp_adopt_why_other', tools_used:'tools_other', day2day:'day2day_other' };
+
+function renderTabB(main){
+  const s = bandSection('Full survey', 'Every question in form order, with who was shown it. Same filters and exclusions as the Research Questions tab.');
+  main.appendChild(s);
+  const rows = filteredResponses();
+  const owners = rows.filter(isOwner), emps = rows.filter(isEmp);
+  const list = el('div','');
+  SURVEY_ORDER.forEach(step => {
+    if (step.group){
+      list.appendChild(el('div','snap-group', esc(step.group)));
+      list.appendChild(el('div','snap-group-note', esc(step.note)));
+      return;
+    }
+    const row = el('div','snap-row');
+    row.appendChild(el('div','snap-idx', esc(step.id)));
+    const body = el('div','snap-body');
+    row.appendChild(body);
+    const meta = el('div','snap-meta');
+    const addMeta = (nText) => { meta.appendChild(el('span','snap-n', esc(nText))); meta.appendChild(el('span','chip type', esc(step.type))); meta.appendChild(el('span','chip', 'Shown to: ' + esc(step.shown))); };
+
+    if (step.likert){
+      const grp = step.likert==='owner' ? owners : emps;
+      body.appendChild(el('div','snap-q', esc(step.likert==='owner' ? Q.pain_owner : Q.pain_emp)));
+      const st = likertStats(step.likert==='owner' ? AREAS : AREAS.filter(a => a.emp), grp, step.likert==='owner' ? 'owner' : 'emp');
+      addMeta(`n = ${grp.filter(r => AREAS.some(a => hasVal(r['pain_'+a.slug]))).length}`);
+      body.appendChild(meta);
+      const w = el('div',''); body.appendChild(w);
+      renderLikert(w, st, step.likert==='owner' ? 'owners and partners who rated it' : 'employees who rated it');
+    } else if (step.open){
+      body.appendChild(el('div','snap-q', esc(Q[step.open])));
+      const reached = step.open==='pain_other' ? owners.filter(r => AREAS.some(a => hasVal(r['pain_'+a.slug]))) : rows.filter(r => hasVal(r.heaviest));
+      addMeta(`n = ${reached.length}`);
+      body.appendChild(meta);
+      renderOpenEnded(body, reached, step.open, { shownN: reached.length });
+    } else if (step.dd){
+      body.appendChild(el('div','snap-q', esc(Q[step.dd])));
+      const dd = deepDiveRows(rows).filter(d => d[step.dd]);
+      const map = new Map(); dd.forEach(d => map.set(d[step.dd], (map.get(d[step.dd])||0)+1));
+      const counts = ORDER[step.dd].filter(k => map.has(k)).map(k => ({ key:k, name: L[step.dd][k], count: map.get(k) }));
+      addMeta(`${dd.length} deep dives`);
+      body.appendChild(meta);
+      renderBarList(body, counts, dd.length);
+    } else if (step.aitasks){
+      body.appendChild(el('div','snap-q', esc(Q.ai_tasks)));
+      const res = aiTaskCounts(rows);
+      addMeta(`n = ${res.n}`);
+      body.appendChild(meta);
+      renderBarList(body, res.list, res.n, { byPct: true });
+      addWriteIns(body, rows, 'ai_tasks_other');
+    } else if (step.flag){
+      body.appendChild(el('div','snap-q', esc(step.flag==='calendly' ? Q.calendly : Q.report)));
+      const reached = rows.filter(r => r.complete);
+      const c = reached.filter(r => r[step.flag]).length;
+      addMeta(`n = ${reached.length} complete`);
+      body.appendChild(meta);
+      body.appendChild(el('div','oe-count', `<b>${pct(c, reached.length)}%</b> ${step.flag==='calendly' ? 'clicked “Book my slot”' : 'left an email for the report'} (${c} of ${reached.length}).`));
+    } else {
+      const pool = step.all ? sessionsAll().filter(testVisible) : (step.owners ? owners : step.emps ? emps : rows);
+      body.appendChild(el('div','snap-q', esc(Q[step.field]) + (step.label ? ` <span style="color:var(--ink-faint);font-weight:400">${esc(step.label)}</span>` : '')));
+      const { counts, n } = countsFor(step.field, MULTI_FIELDS.has(step.field), ORDER[step.field] || null, pool);
+      addMeta(`n = ${n}` + (step.all ? ' · all sessions, incl. screened out' : ''));
+      body.appendChild(meta);
+      renderBarList(body, counts, n);
+      if (OTHER_TEXT[step.field]) addWriteIns(body, pool, OTHER_TEXT[step.field]);
+    }
+    list.appendChild(row);
+  });
+  s.appendChild(list);
+}
+function addWriteIns(body, rows, field){
+  const w = rows.filter(r => hasVal(r[field]));
+  if (!w.length) return;
+  body.appendChild(el('div','snap-n', `“Other” write-ins (${w.length}): ` + w.slice(0,4).map(r => '“'+esc(String(r[field]).slice(0,80))+'”').join(' · ')));
+}
+
+/* ================= TAB C ================= */
+function hlCard(grid, eyebrow, stat, text){
+  const c = el('div','hl-card');
+  c.appendChild(el('div','hl-eyebrow', esc(eyebrow)));
+  c.appendChild(el('div','hl-stat', esc(stat)));
+  c.appendChild(el('div','hl-text', text));
+  grid.appendChild(c);
+}
+function renderTabC(main){
+  const s = bandSection('Highlights', 'The short version, for the same filtered segment as the other tabs.');
+  main.appendChild(s);
+  const grid = el('div','hl-grid');
+  s.appendChild(grid);
+  const rows = filteredResponses();
+  const n = rows.length;
+  const owners = rows.filter(isOwner);
+  const NA = 'Not enough responses in this segment yet.';
+
+  hlCard(grid, 'Sample', String(n), `Respondents in view (${rows.filter(r=>r.complete).length} complete), out of <b>${baseResponses().length}</b> qualified agency respondents with 2–24 people${state.showTests ? ', <b>including test rows</b>' : ''}.`);
+
+  { const st = likertStats(AREAS, owners, 'owner');
+    if (st.length) hlCard(grid, 'Top frustration', st[0].mean.toFixed(1)+' / 7', `<b>${esc(st[0].name)}</b> is the most frustrating area for owners; ${pct(st[0].high, st[0].n)}% of ${st[0].n} rated it 5 or higher.`);
+    else hlCard(grid, 'Top frustration', '–', NA); }
+
+  { const dd = deepDiveRows(rows).filter(d => d.handler);
+    const o = dd.filter(d => d.handler==='you').length;
+    hlCard(grid, 'The owner handles it', dd.length ? pct(o, dd.length)+'%' : '–', dd.length ? `of deep-dive areas are handled by the owner or managing partner personally (${o} of ${dd.length}).` : NA); }
+
+  { const dd = deepDiveRows(rows).filter(d => d.hours && d.hours!=='notsure');
+    const h = dd.filter(d => hoursHeavy(d.hours)).length;
+    hlCard(grid, 'Time drain', dd.length ? pct(h, dd.length)+'%' : '–', dd.length ? `of deep-dive areas take <b>6+ hours a week</b> across the business (${h} of ${dd.length}, “Not sure” excluded).` : NA); }
+
+  { const res = aiTaskCounts(rows);
+    hlCard(grid, 'Open to AI', res.n ? pct(res.atLeastOne, res.n)+'%' : '–', res.n ? `would let AI handle at least one task${res.list[0] && res.list[0].key!=='none' ? `; the top pick is <b>${esc(res.list[0].name)}</b> (${res.list[0].pct}% of those shown it)` : ''}.` : NA); }
+
+  { const a = rows.filter(r => hasVal(r.ai_frequency));
+    const d = a.filter(r => r.ai_frequency==='daily').length;
+    hlCard(grid, 'Daily AI users', a.length ? pct(d, a.length)+'%' : '–', a.length ? `use AI tools every work day (${d} of ${a.length}).` : NA); }
+
+  { const a = owners.filter(r => hasVal(r.wtp_ai) && r.wtp_ai!=='notsure');
+    const p = a.filter(r => r.wtp_ai!=='0').length;
+    const hi = a.filter(r => ['101-250','251-500','500+'].includes(r.wtp_ai)).length;
+    hlCard(grid, 'Would pay', a.length ? pct(p, a.length)+'%' : '–', a.length ? `of owners would pay something monthly for an AI business assistant; ${hi} of ${a.length} would pay over $100 / mo.` : NA); }
+
+  { const c = rows.filter(r => r.calendly).length;
+    hlCard(grid, 'Interview pool', n ? pct(c, n)+'%' : '–', n ? `clicked to book the $100 interview (${c} of ${n}), a starting pool for qualitative follow-up.` : NA); }
+}
+
+/* ================= shell ================= */
+function populateFilterOptions(){
+  const base = baseResponses();
+  const fs = document.getElementById('fSize'), fr = document.getElementById('fRole');
+  const sizeOpts = [`<option value="all">All sizes (${base.filter(s => roleMatch(s, state.role)).length})</option>`]
+    .concat(ICP_SIZES.map(v => `<option value="${esc(v)}">${esc(L.team_size[v])} (${base.filter(s => s.team_size===v && roleMatch(s, state.role)).length})</option>`));
+  const bySize = base.filter(s => state.size==='all' || s.team_size===state.size);
+  const roleOpts = [`<option value="all">All roles (${bySize.length})</option>`,
+    `<option value="owner">Owner or partner (${bySize.filter(isOwner).length})</option>`,
+    `<option value="employee">Employee (${bySize.filter(isEmp).length})</option>`];
+  if (fs.innerHTML !== sizeOpts.join('')) fs.innerHTML = sizeOpts.join('');
+  if (fr.innerHTML !== roleOpts.join('')) fr.innerHTML = roleOpts.join('');
+  fs.value = state.size; fr.value = state.role;
+  const t = document.getElementById('fTests');
+  t.checked = state.showTests;
+  document.getElementById('testToggleWrap').classList.toggle('on', state.showTests);
+}
+
+function setHeader(){
+  const lbl = document.getElementById('asofLabel');
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = !MCP || CONN.status==='loading';
+  if (CONN.status==='live' && DATA){
+    lbl.innerHTML = `<span class="live-dot on"></span>Live from Airtable · updated ${esc(fmtTime(DATA.fetchedAt))}`;
+  } else if (CONN.status==='stale' && DATA){
+    lbl.innerHTML = `<span class="live-dot stale"></span>Showing data from ${esc(fmtTime(DATA.fetchedAt))} · refresh failed`;
+  } else if (CONN.status==='loading' || CONN.status==='connecting'){
+    lbl.innerHTML = `<span class="live-dot"></span>Loading from Airtable…`;
+  } else {
+    lbl.innerHTML = `<span class="live-dot stale"></span>Not connected to Airtable`;
+  }
+  if (DATA){
+    const all = DATA.sessions;
+    const tests = all.filter(s => s.isTest).length;
+    const screened = all.filter(s => s.screenedOut).length;
+    document.getElementById('pageSubtitle').textContent =
+      `How small marketing and advertising agencies run their business: where it hurts, who carries the work, and how ready they are for an AI business assistant. ` +
+      `${DATA.rows.length} rows in Airtable merge into ${all.length} sessions. ${screened} ${screened===1?'was':'were'} screened out by the form, and ${tests} test session${tests===1?'':'s'} (started before ${TEST_BEFORE_LABEL}) ${state.showTests ? 'are currently included' : 'are excluded'}. Charts use qualified agencies with 2–24 people.`;
+  }
+}
+
+function connMessage(){
+  const e = CONN.error || {};
+  switch (CONN.status === 'unavailable' ? 'unavailable' : e.code){
+    case 'unavailable': return ['Live data needs the Airtable connector', 'This view can’t reach connectors. Open the dashboard on claude.ai while signed in to the organization, and allow Airtable when the page asks.'];
+    case 'server_not_connected': return ['Airtable isn’t connected', 'Add Airtable in claude.ai Settings → Connectors, then reload this page.'];
+    case 'needs_reauth': return ['Reconnect Airtable', 'Your Airtable connection has expired. Reconnect Airtable in claude.ai Settings → Connectors, then reload this page.'];
+    case 'selection_required': return ['Choose which Airtable connection to use', 'You have more than one Airtable connector. Pick one in the prompt claude.ai shows, then reload this page.'];
+    case 'not_in_manifest': return ['Airtable is turned off for this page', 'The dashboard reads responses through your Airtable connector. Allow Airtable for this page from its permissions, then reload.'];
+    case 'blocked_by_policy': return ['Blocked by your organization', 'Your organization’s policy blocks this Airtable tool. Ask an admin to allow “list records” for the Airtable connector.'];
+    case 'approval_required': return ['Needs approval', 'Your organization requires approval for each Airtable call, which this page can’t request. Ask an admin to allow “list records” for the Airtable connector.'];
+    case 'tool_error': return ['Airtable returned an error', esc(e.message || 'The table could not be read.') + ' Check that you have access to the “Stacked Survey - Marketing” base.'];
+    case 'server_unavailable': return ['Airtable isn’t responding', 'Airtable didn’t answer in time. Try again in a moment.'];
+    default: return ['Couldn’t load responses', esc(e.message || 'Something interrupted the Airtable read.') + ' Try again, or reload the page.'];
+  }
+}
+
+function render(){
+  const main = document.getElementById('main');
+  main.innerHTML = '';
+  setHeader();
+  document.querySelectorAll('.tab-btn').forEach(b => { b.classList.toggle('active', b.dataset.tab===state.tab); b.setAttribute('aria-selected', b.dataset.tab===state.tab); });
+
+  if (!DATA){
+    document.getElementById('matchCount').innerHTML = '';
+    if (CONN.status==='connecting' || CONN.status==='loading'){
+      const c = el('div','conn-state');
+      c.appendChild(el('h2','','Loading responses'));
+      c.appendChild(el('p','','Reading the Stacked Marketing table from Airtable. If claude.ai asks, allow Airtable for this page.'));
+      for (let i=0;i<4;i++){ const sk = el('div','skeleton'); sk.style.width = (90 - i*14) + '%'; c.appendChild(sk); }
+      main.appendChild(c);
+    } else {
+      const [h, p] = connMessage();
+      const c = el('div','conn-state');
+      c.appendChild(el('h2','', esc(h)));
+      c.appendChild(el('p','', p));
+      if (MCP && CONN.status!=='unavailable'){
+        const b = el('button','refresh-btn','Try again'); b.type='button'; b.addEventListener('click', refresh); c.appendChild(b);
+      }
+      main.appendChild(c);
+    }
+    return;
+  }
+
+  populateFilterOptions();
+  const inView = filteredResponses().length, all = baseResponses().length;
+  document.getElementById('matchCount').innerHTML = (state.size==='all' && state.role==='all')
+    ? `<b>${inView}</b> in view`
+    : `<b>${inView}</b> of ${all} in view`;
+
+  if (CONN.status==='stale'){
+    const [h, p] = connMessage();
+    const nb = el('div','notice', `<div><b>${esc(h)}.</b> ${p} The charts below show the last data that loaded.</div>`);
+    main.appendChild(nb);
+  }
+  if (state.autoTests && state.showTests){
+    main.appendChild(el('div','notice', `<div><b>Showing test rows.</b> No real in-target responses have arrived yet, so the charts show test data (sessions that started before ${esc(TEST_BEFORE_LABEL)}). Untick “Show test rows” to hide them.</div>`));
+  } else if (state.showTests){
+    main.appendChild(el('div','notice', `<div><b>Test rows are included.</b> Sessions that started before ${esc(TEST_BEFORE_LABEL)} are internal test runs.</div>`));
+  }
+
+  if (state.tab==='a') renderTabA(main);
+  else if (state.tab==='b') renderTabB(main);
+  else renderTabC(main);
+}
+
+/* ================= live data ================= */
+let MCP = null;
+let unwatch = null;
+let loadSeq = 0;
+
+function payloadOf(result){
+  let p = result && result.payload;
+  if (typeof p === 'string'){ try { p = JSON.parse(p); } catch(e){ p = null; } }
+  return p || {};
+}
+function nextCursorOf(p){ return p.nextCursor || p.cursor || (p.metadata && (p.metadata.nextCursor || p.metadata.cursor)) || null; }
+
+async function ingest(result){
+  const seq = ++loadSeq;
+  const p = payloadOf(result);
+  let records = Array.isArray(p.records) ? p.records.slice() : [];
+  let cursor = nextCursorOf(p);
+  let pages = 0;
+  try {
+    while (cursor && pages < 25){
+      pages++;
+      const more = await MCP.callTool(SERVER, TOOL, { baseId: BASE_ID, tableId: TABLE_ID, pageSize: PAGE_SIZE, cursor });
+      const mp = payloadOf(more);
+      records = records.concat(Array.isArray(mp.records) ? mp.records : []);
+      cursor = nextCursorOf(mp);
+    }
+  } catch(err){
+    if (seq !== loadSeq) return;
+    CONN = { status: DATA ? 'stale' : 'error', error: err };
+    render(); return;
+  }
+  if (seq !== loadSeq) return;
+  const rows = records.map(rowFromRecord);
+  const merged = mergeSessions(rows);
+  DATA = { rows, sessions: merged.sessions, noSession: merged.noSession, fetchedAt: (result.cache && result.cache.storedAt) || Date.now() };
+  const realCount = DATA.sessions.filter(s => !s.isTest && s.inTarget).length;
+  if (realCount === 0 && !state.userToggledTests){ state.showTests = true; state.autoTests = true; }
+  else if (state.autoTests && realCount > 0 && !state.userToggledTests){ state.showTests = false; state.autoTests = false; }
+  CONN = { status: 'live', error: null };
+  render();
+}
+
+function onWatchError(err){
+  const retract = ['needs_reauth','server_not_connected','blocked_by_policy','approval_required','not_in_manifest','selection_required'].includes(err && err.code);
+  if (err && (err.code === 'bad_request' || err.code === 'capability_removed') && !DATA){
+    // Older viewer without live watches: read once instead.
+    oneShot(); return;
+  }
+  if (retract){ DATA = null; CONN = { status: 'error', error: err }; }
+  else CONN = { status: DATA ? 'stale' : 'error', error: err };
+  render();
+}
+
+async function oneShot(refreshCache){
+  if (!MCP) return;
+  CONN = { status: DATA ? CONN.status : 'loading', error: null };
+  setHeader();
+  try {
+    const res = await MCP.callTool(SERVER, TOOL, { baseId: BASE_ID, tableId: TABLE_ID, pageSize: PAGE_SIZE }, refreshCache ? { cache: { refresh: true } } : undefined);
+    await ingest(res);
+  } catch(err){
+    if (err && err.retryable && !refreshCache){
+      setTimeout(() => oneShot(true), Math.min(err.retryAfterMs || (1500 + Math.random()*1500), 60000));
+      return;
+    }
+    onWatchError(err);
+  }
+}
+
+function refresh(){
+  if (!MCP) return;
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  // Fresh read; the watch also hears it through the shared cache.
+  oneShot(true).finally(() => { btn.disabled = false; });
+}
+
+async function boot(){
+  render();
+  let mcp = null;
+  try { mcp = (window.claude && typeof window.claude.use === 'function') ? await window.claude.use('mcp') : null; } catch(e){ mcp = null; }
+  if (!mcp){ CONN = { status: 'unavailable', error: null }; render(); return; }
+  MCP = mcp;
+  CONN = { status: 'loading', error: null };
+  render();
+  try {
+    unwatch = MCP.watchTool(SERVER, TOOL, { baseId: BASE_ID, tableId: TABLE_ID, pageSize: PAGE_SIZE }, ev => {
+      if (ev.type === 'data') ingest(ev.result);
+      else onWatchError(ev.error);
+    }, { refetchInterval: 5 * 60 * 1000 });
+  } catch(e){
+    oneShot();
+  }
+}
+
+/* ================= wiring ================= */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const stickyEl = document.querySelector('.controlbar-sticky');
+    const wasStuck = stickyEl && stickyEl.getBoundingClientRect().top <= 1;
+    state.tab = btn.dataset.tab;
+    try { localStorage.setItem('smd_tab', state.tab); } catch(e){}
+    render();
+    if (wasStuck){ document.getElementById('main').scrollIntoView({ block: 'start' }); window.scrollBy(0, -stickyEl.offsetHeight); }
+  });
+});
+document.getElementById('fSize').addEventListener('change', e => { state.size = e.target.value; render(); });
+document.getElementById('fRole').addEventListener('change', e => { state.role = e.target.value; render(); });
+document.getElementById('fTests').addEventListener('change', e => { state.showTests = e.target.checked; state.userToggledTests = true; state.autoTests = false; render(); });
+document.getElementById('resetBtn').addEventListener('click', () => { state.size = 'all'; state.role = 'all'; render(); });
+document.getElementById('refreshBtn').addEventListener('click', refresh);
+
+boot();
+</script>
