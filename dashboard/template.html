@@ -29,6 +29,7 @@
     --second-voice: var(--human-violet);
     --scale-low: var(--verdigris);
     --scale-high: var(--wine);
+    --emp: var(--verdigris);               /* employees: the second kind of respondent */
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
@@ -46,6 +47,7 @@
     --second-voice: #CBB8DA;
     --scale-low: #86C7C0;
     --scale-high: #B95A78;
+    --emp: #86C7C0;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -64,6 +66,7 @@
       --second-voice: #CBB8DA;
       --scale-low: #86C7C0;
       --scale-high: #B95A78;
+      --emp: #86C7C0;
     }
   }
 
@@ -193,6 +196,18 @@
   .bl-track { background: var(--surface-2); height: 10px; position: relative; overflow: hidden; }
   .bl-fill { background: var(--mark); height: 100%; min-width: 2px; }
   .barrow.muted .bl-fill { background: var(--mark-muted); }
+  .barlist.emp .bl-fill { background: var(--emp); }
+  .barlist.emp .barrow.muted .bl-fill { background: var(--mark-muted); }
+  .chart-title .sq { width: 8px; height: 8px; margin-right: 7px; vertical-align: 0; }
+  .sq.emp { background: var(--emp); }
+  /* proposal: two-slice pie for role */
+  .pie-wrap { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+  .pie { width: 120px; height: 120px; border-radius: 50%; flex-shrink: 0; }
+  .pie-legend { flex: 1; min-width: 170px; display: flex; flex-direction: column; gap: 8px; }
+  .pie-row { display: flex; align-items: baseline; gap: 9px; font-size: 0.84rem; color: var(--ink); }
+  .pie-row i { display: inline-block; width: 9px; height: 9px; flex-shrink: 0; transform: translateY(1px); }
+  .pie-row .v { margin-left: auto; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pie-sub { font-size: 0.74rem; color: var(--ink-faint); margin: -4px 0 0 18px; }
   .bl-val { font-size: 0.76rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; min-width: 4.4em; white-space: nowrap; }
 
   .insight { margin-top: 16px; padding: 12px 0 0; border-top: 1px solid var(--line); font-size: 0.95rem; font-weight: 500; color: var(--ink); line-height: 1.45; letter-spacing: -0.005em; }
@@ -598,7 +613,7 @@ function insightSentence(counts, n, opts){
 /* ================= renderers ================= */
 function renderBarList(container, counts, n, opts){
   opts = opts || {};
-  const wrap = el('div','barlist');
+  const wrap = el('div','barlist' + (opts.emp ? ' emp' : ''));
   if (!counts.length){ wrap.appendChild(el('div','empty-state', opts.emptyText || 'No responses in this segment yet.')); container.appendChild(wrap); return; }
   const max = Math.max(...counts.map(c => opts.byPct ? c.pct : c.count), 1);
   counts.forEach(c => {
@@ -614,6 +629,29 @@ function renderBarList(container, counts, n, opts){
     row.appendChild(el('div','bl-val', c.denom != null ? `${c.count}/${denom} · ${p}%` : `${c.count} · ${p}%`));
     wrap.appendChild(row);
   });
+  container.appendChild(wrap);
+}
+
+function renderPie(container, slices){
+  const total = slices.reduce((a, x) => a + x.count, 0);
+  if (!total){ container.appendChild(el('div','empty-state','No responses in this segment yet.')); return; }
+  const wrap = el('div','pie-wrap');
+  const pie = el('div','pie');
+  let acc = 0;
+  pie.style.background = 'conic-gradient(' + slices.filter(x => x.count).map(x => { const a0 = acc/total*360; acc += x.count; return `${x.color} ${a0}deg ${acc/total*360}deg`; }).join(', ') + ')';
+  pie.setAttribute('role', 'img');
+  pie.setAttribute('aria-label', slices.map(x => `${x.name}: ${x.count}`).join(', '));
+  wrap.appendChild(pie);
+  const legend = el('div','pie-legend');
+  slices.forEach(x => {
+    const row = el('div','pie-row');
+    const sw = el('i',''); sw.style.background = x.color;
+    row.appendChild(sw); row.appendChild(document.createTextNode(x.name));
+    row.appendChild(el('span','v', `${x.count} · ${pct(x.count, total)}%`));
+    legend.appendChild(row);
+    if (x.sub) legend.appendChild(el('div','pie-sub', esc(x.sub)));
+  });
+  wrap.appendChild(legend);
   container.appendChild(wrap);
 }
 
@@ -735,10 +773,10 @@ function section(title, note){
   return s;
 }
 function bandSection(title, note){ const s = section(title, note); s.className = 'band'; return s; }
-function chartBlock(parentGrid, title, question){
+function chartBlock(parentGrid, title, question, emp){
   const block = el('div','chart-block');
   const tr = el('div','chart-title-row');
-  tr.appendChild(el('div','chart-title', esc(title)));
+  tr.appendChild(el('div','chart-title', (emp ? '<span class="sq emp" title="Employee answers"></span>' : '') + esc(title)));
   const nSpan = el('div','chart-n','');
   tr.appendChild(nSpan); block.appendChild(tr);
   if (question) block.appendChild(el('div','chart-q', `Asked: “${esc(question)}”`));
@@ -749,10 +787,10 @@ function chartBlock(parentGrid, title, question){
 function barChart(grid, title, field, opts){
   opts = opts || {};
   const rows = opts.rows || filteredResponses();
-  const { block, nSpan } = chartBlock(grid, title, opts.question === undefined ? Q[field] : opts.question);
+  const { block, nSpan } = chartBlock(grid, title, opts.question === undefined ? Q[field] : opts.question, opts.emp);
   const { counts, n } = countsFor(field, MULTI_FIELDS.has(field), opts.order || ORDER[field] || null, rows);
   nSpan.textContent = `n = ${n}`;
-  renderBarList(block, counts, n, { tone: opts.tone, emptyText: opts.emptyText });
+  renderBarList(block, counts, n, { emp: opts.emp, emptyText: opts.emptyText });
   if (!opts.noInsight) renderInsight(block, insightSentence(counts, n, { multi: MULTI_FIELDS.has(field), who: opts.who }));
   return { block, counts, n };
 }
@@ -820,8 +858,19 @@ function renderTabA(main){
       const solo = sr.filter(r => r.team_size==='1').length;
       renderInsight(block, cn ? `${insightSentence(counts, cn, { who: 'people who answered' })}${solo ? ` “Just me” (${solo}) was screened out by the form after this question.` : ''}` : null);
     }
-    barChart(grid, 'Role', 'role');
+    {
+      const { block, nSpan } = chartBlock(grid, 'Role', Q.role);
+      const withRole = rows.filter(r => hasVal(r.role));
+      nSpan.textContent = `n = ${withRole.length}`;
+      const own = withRole.filter(r => r.role==='owner').length, prt = withRole.filter(r => r.role==='partner').length, emp = withRole.filter(isEmp).length;
+      renderPie(block, [
+        { name:'Owner or managing partner', count: own + prt, color:'var(--mark)', sub: prt ? `${own} owner${own===1?'':'s'} · ${prt} managing partner${prt===1?'':'s'}` : null },
+        { name:'Employee', count: emp, color:'var(--emp)' },
+      ]);
+      renderInsight(block, withRole.length ? `<b>${pct(own+prt, withRole.length)}%</b> are owners or managing partners and <b>${pct(emp, withRole.length)}%</b> are employees, of the ${withRole.length} who answered.` : null);
+    }
     barChart(grid, 'Country', 'country');
+    barChart(grid, 'Gender', 'gender', { order: ['male','female','nonbinary','na'] });
     barChart(grid, 'Years operating (owners & partners)', 'years_operating', { rows: owners, who: 'owners and partners who reached this question' });
     s.appendChild(grid);
     main.appendChild(s);
@@ -839,14 +888,14 @@ function renderTabA(main){
       renderLikert(block, st, 'owners and partners who rated it');
     }
     {
-      const { block, nSpan } = chartBlock(grid, 'Employees — 6 day-to-day frustrations', Q.pain_emp);
+      const { block, nSpan } = chartBlock(grid, 'Employees — 6 day-to-day frustrations', Q.pain_emp, true);
       const st = likertStats(AREAS.filter(a => a.emp), emps, 'emp');
       nSpan.textContent = `n = ${emps.filter(r => AREAS.some(a => hasVal(r['pain_'+a.slug]))).length}`;
       renderLikert(block, st, 'employees who rated it');
     }
     s.appendChild(grid);
     const grid2 = el('div','chart-grid');
-    barChart(grid2, 'What slows employees down', 'emp_bottlenecks', { rows: emps, who: 'employees who reached this question' });
+    barChart(grid2, 'What slows employees down', 'emp_bottlenecks', { rows: emps, emp: true, who: 'employees who reached this question' });
     {
       const { block, nSpan } = chartBlock(grid2, 'Anything else? (owners, optional)', Q.pain_other);
       const reached = owners.filter(r => AREAS.some(a => hasVal(r['pain_'+a.slug])));
@@ -917,8 +966,8 @@ function renderTabA(main){
       renderInsight(block, res.list.length ? `<b>“${esc(res.list[0].name)}”</b> is the task they’d most readily hand over — <b>${res.list[0].pct}%</b> of the ${res.list[0].denom} who saw it. ${pct(res.atLeastOne, res.n)}% picked at least one task.` : null);
     }
     barChart(grid, 'Why not the other tasks', 'ai_reluctance', { question: Q.ai_reluctance, who: 'respondents who left at least one task unpicked', tone: 'warn' });
-    barChart(grid, 'Employees: working with an AI assistant', 'emp_ai_adopt', { rows: emps, who: 'employees who reached this question' });
-    barChart(grid, 'Employees: what makes them hesitant', 'emp_adopt_why', { rows: emps, who: 'cautious or reluctant employees', tone: 'warn' });
+    barChart(grid, 'Employees: working with an AI assistant', 'emp_ai_adopt', { rows: emps, emp: true, who: 'employees who reached this question' });
+    barChart(grid, 'Employees: what makes them hesitant', 'emp_adopt_why', { rows: emps, emp: true, who: 'cautious or reluctant employees' });
     s.appendChild(grid);
     main.appendChild(s);
   }
@@ -959,7 +1008,7 @@ function renderTabA(main){
     s.appendChild(el('div','answered-by','Answered by: statements they relate to, the one that weighs most, and their own words about it'));
     const grid = el('div','chart-grid');
     barChart(grid, 'Owners & partners relate to', 'day2day', { rows: owners, order: null, who: 'owners and partners who reached this question' });
-    barChart(grid, 'Employees relate to', 'day2day', { rows: emps, who: 'employees who reached this question' });
+    barChart(grid, 'Employees relate to', 'day2day', { rows: emps, emp: true, who: 'employees who reached this question' });
     {
       const reached = rows.filter(r => hasVal(r.heaviest));
       const { block, nSpan } = chartBlock(grid, 'Weighs on them most', Q.heaviest);
@@ -1083,7 +1132,7 @@ function renderTabB(main){
       const { counts, n } = countsFor(step.field, MULTI_FIELDS.has(step.field), ORDER[step.field] || null, pool);
       addMeta(`n = ${n}` + (step.all ? ' · all sessions, incl. screened out' : ''));
       body.appendChild(meta);
-      renderBarList(body, counts, n);
+      renderBarList(body, counts, n, { emp: !!step.emps });
       if (OTHER_TEXT[step.field]) addWriteIns(body, pool, OTHER_TEXT[step.field]);
     }
     list.appendChild(row);
