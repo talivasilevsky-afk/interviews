@@ -291,6 +291,8 @@
       <select id="fSize" class="filter-select"></select>
       <label class="fl" for="fRole">Role</label>
       <select id="fRole" class="filter-select"></select>
+      <label class="fl" for="fYears">Years in business</label>
+      <select id="fYears" class="filter-select" title="Asked of owners and managing partners only"></select>
       <label class="test-toggle" id="testToggleWrap" for="fTests"><input type="checkbox" id="fTests"> Show test rows</label>
       <button class="reset-btn" id="resetBtn" type="button">Reset filters</button>
       <span class="match-count" id="matchCount"></span>
@@ -515,7 +517,7 @@ function mergeSessions(rows){
 }
 
 /* ================= state ================= */
-const state = { size: 'all', role: 'all', tab: 'a', showTests: false, autoTests: false };
+const state = { size: 'all', role: 'all', years: 'all', tab: 'a', showTests: false, autoTests: false };
 let DATA = null;           // { rows, sessions, noSession, fetchedAt }
 let LIVE = { status: 'idle', error: null };
 let SOURCE = 'snapshot';
@@ -528,9 +530,12 @@ function sessionsAll(){ return DATA ? DATA.sessions : []; }
 function testVisible(s){ return state.showTests || !s.isTest; }
 function qualified(){ return sessionsAll().filter(s => !s.screenedOut && testVisible(s)); }
 function baseResponses(){ return qualified().filter(s => s.inTarget); }
+function sizeMatch(s, size){ return size==='all' || s.team_size===size; }
+function yearsMatch(s, years){ return years==='all' || s.years_operating===years; }
+function filtersActive(){ return state.size!=='all' || state.role!=='all' || state.years!=='all'; }
 function roleMatch(s, role){ return role==='all' || (role==='owner' ? isOwner(s) : isEmp(s)); }
 function filteredResponses(){
-  return baseResponses().filter(s => (state.size==='all' || s.team_size===state.size) && roleMatch(s, state.role));
+  return baseResponses().filter(s => sizeMatch(s, state.size) && roleMatch(s, state.role) && yearsMatch(s, state.years));
 }
 function sizeChartResponses(){
   return sessionsAll().filter(s => testVisible(s) && hasVal(s.team_size) && roleMatch(s, state.role));
@@ -780,7 +785,7 @@ function renderTabA(main){
     renderStat(stats, 'Completed', String(b.completed.length), tot ? `${pct(b.completed.length, tot)}% · reached the last question` : '');
     s.appendChild(stats);
     const noSid = DATA.noSession.length;
-    renderInsight(s, `Each session ID is one person, however many rows it saved. The charts below use everyone who got past screening (<b>${b.partial.length + b.completed.length}</b> ${b.partial.length + b.completed.length===1?'person':'people'}), with no company-size cut-off. Partial sessions count for the questions they reached, and every percentage uses only the people who were shown that question.${(state.size!=='all' || state.role!=='all') ? ` The filters narrow the charts to <b>${n}</b>; these four counts cover all sessions.` : ''}${noSid ? ` <b>${noSid}</b> row${noSid===1?' has':'s have'} no session ID and ${noSid===1?'is':'are'} left out.` : ''}`);
+    renderInsight(s, `Each session ID is one person, however many rows it saved. The charts below use everyone who got past screening (<b>${b.partial.length + b.completed.length}</b> ${b.partial.length + b.completed.length===1?'person':'people'}), with no company-size cut-off. Partial sessions count for the questions they reached, and every percentage uses only the people who were shown that question.${filtersActive() ? ` The filters narrow the charts to <b>${n}</b>; these four counts cover all sessions.` : ''}${noSid ? ` <b>${noSid}</b> row${noSid===1?' has':'s have'} no session ID and ${noSid===1?'is':'are'} left out.` : ''}`);
 
     const grid = el('div','chart-grid');
     {
@@ -1126,16 +1131,22 @@ function renderTabC(main){
 /* ================= shell ================= */
 function populateFilterOptions(){
   const base = baseResponses();
-  const fs = document.getElementById('fSize'), fr = document.getElementById('fRole');
-  const sizeOpts = [`<option value="all">All sizes (${base.filter(s => roleMatch(s, state.role)).length})</option>`]
-    .concat(ALL_SIZES.filter(v => base.some(s => s.team_size===v)).map(v => `<option value="${esc(v)}">${esc(L.team_size[v])} (${base.filter(s => s.team_size===v && roleMatch(s, state.role)).length})</option>`));
-  const bySize = base.filter(s => state.size==='all' || s.team_size===state.size);
-  const roleOpts = [`<option value="all">All roles (${bySize.length})</option>`,
-    `<option value="owner">Owner or partner (${bySize.filter(isOwner).length})</option>`,
-    `<option value="employee">Employee (${bySize.filter(isEmp).length})</option>`];
+  const fs = document.getElementById('fSize'), fr = document.getElementById('fRole'), fy = document.getElementById('fYears');
+  // Each filter's counts respect the other two filters.
+  const forSize = base.filter(s => roleMatch(s, state.role) && yearsMatch(s, state.years));
+  const forRole = base.filter(s => sizeMatch(s, state.size) && yearsMatch(s, state.years));
+  const forYears = base.filter(s => sizeMatch(s, state.size) && roleMatch(s, state.role));
+  const sizeOpts = [`<option value="all">All sizes (${forSize.length})</option>`]
+    .concat(ALL_SIZES.filter(v => base.some(s => s.team_size===v)).map(v => `<option value="${esc(v)}">${esc(L.team_size[v])} (${forSize.filter(s => s.team_size===v).length})</option>`));
+  const roleOpts = [`<option value="all">All roles (${forRole.length})</option>`,
+    `<option value="owner">Owner or partner (${forRole.filter(isOwner).length})</option>`,
+    `<option value="employee">Employee (${forRole.filter(isEmp).length})</option>`];
+  const yearOpts = [`<option value="all">Any (${forYears.length})</option>`]
+    .concat(ORDER.years_operating.filter(v => base.some(s => s.years_operating===v)).map(v => `<option value="${esc(v)}">${esc(L.years_operating[v])} (${forYears.filter(s => s.years_operating===v).length})</option>`));
   if (fs.innerHTML !== sizeOpts.join('')) fs.innerHTML = sizeOpts.join('');
   if (fr.innerHTML !== roleOpts.join('')) fr.innerHTML = roleOpts.join('');
-  fs.value = state.size; fr.value = state.role;
+  if (fy.innerHTML !== yearOpts.join('')) fy.innerHTML = yearOpts.join('');
+  fs.value = state.size; fr.value = state.role; fy.value = state.years;
   const t = document.getElementById('fTests');
   t.checked = state.showTests;
   document.getElementById('testToggleWrap').classList.toggle('on', state.showTests);
@@ -1210,12 +1221,15 @@ function render(){
 
   populateFilterOptions();
   const inView = filteredResponses().length, all = baseResponses().length;
-  document.getElementById('matchCount').innerHTML = (state.size==='all' && state.role==='all')
+  document.getElementById('matchCount').innerHTML = !filtersActive()
     ? `<b>${inView}</b> in view`
     : `<b>${inView}</b> of ${all} in view`;
 
   if (SOURCE === 'live'){
     main.appendChild(el('div','notice info', `<div><b>You’re looking at live data.</b> Only your view changed; everyone else still sees the snapshot from ${esc(fmtTime(SNAP_DATA ? SNAP_DATA.fetchedAt : DATA.fetchedAt))}.</div>`));
+  }
+  if (state.years !== 'all'){
+    main.appendChild(el('div','notice', `<div><b>Years in business: ${esc(L.years_operating[state.years] || state.years)}.</b> Only owners and managing partners were asked this, so employees are left out while this filter is on.</div>`));
   }
   if (state.autoTests && state.showTests){
     main.appendChild(el('div','notice', `<div><b>Test rows are shown.</b> The survey hasn’t launched yet, so sessions that started before ${esc(TEST_BEFORE_LABEL)} are included. Untick “Show test rows” to hide them.</div>`));
@@ -1327,7 +1341,8 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 document.getElementById('fSize').addEventListener('change', e => { state.size = e.target.value; render(); });
 document.getElementById('fRole').addEventListener('change', e => { state.role = e.target.value; render(); });
 document.getElementById('fTests').addEventListener('change', e => { state.showTests = e.target.checked; state.userToggledTests = true; state.autoTests = false; render(); });
-document.getElementById('resetBtn').addEventListener('click', () => { state.size = 'all'; state.role = 'all'; render(); });
+document.getElementById('fYears').addEventListener('change', e => { state.years = e.target.value; render(); });
+document.getElementById('resetBtn').addEventListener('click', () => { state.size = 'all'; state.role = 'all'; state.years = 'all'; render(); });
 document.getElementById('liveBtn').addEventListener('click', loadLatest);
 document.getElementById('snapBtn').addEventListener('click', backToSnapshot);
 
