@@ -354,9 +354,9 @@ const REFRESH_LABEL = /*__REFRESH_LABEL__*/'9:00';
    Move it to the real launch time once the survey goes out. */
 const TEST_BEFORE = Date.parse('2026-09-28T00:00:00Z');
 const TEST_BEFORE_LABEL = 'Sep 28, 2026';
+/* Show test sessions when the page opens. Set to false once the survey has launched. */
+const SHOW_TESTS_BY_DEFAULT = true;
 
-/* Target segment: qualified agency respondents with 2–24 people. */
-const ICP_SIZES = ['2','3-5','6-10','11-16','17-24'];
 const ALL_SIZES = ['1','2','3-5','6-10','11-16','17-24','25-50','51-100'];
 
 const FIELD_IDS = {
@@ -540,7 +540,7 @@ function mergeSessions(rows){
     s.screenedOut = hasVal(s.exit_reason) || (hasVal(s.workplace) && s.workplace!=='agency') || s.team_size==='1';
     s.complete = !s.screenedOut && (rs.some(r => r.completed === true) || hasVal(s.gender));
     s.isTest = s.firstTs < TEST_BEFORE;
-    s.inTarget = !s.screenedOut && ICP_SIZES.includes(s.team_size);
+    s.inTarget = !s.screenedOut;   // no size cut-off: everyone the form let through
     s.aiShown = hasVal(s.ai_tasks_shown) ? String(s.ai_tasks_shown).split(',').map(x=>x.trim()).filter(Boolean) : [];
     s.deepDives = [];
     [1,2,3].forEach(n => {
@@ -805,23 +805,12 @@ function deepDiveRows(rows){
 function hoursHeavy(h){ return ['6-10','11-20','20+'].includes(h); }
 
 /* ================= TAB A ================= */
-function renderMergeSteps(container){
-  const all = sessionsAll();
-  const screened = all.filter(s => s.screenedOut && testVisible(s)).length;
-  const tests = all.filter(s => s.isTest).length;
-  const q = qualified();
-  const oot = q.filter(s => !s.inTarget).length;
-  const inView = filteredResponses().length;
-  const steps = el('div','merge-steps');
-  const add = (n, l, cls) => { if (steps.children.length) steps.appendChild(el('span','merge-arrow','→')); steps.appendChild(el('span','merge-step'+(cls?' '+cls:''), `<b>${n}</b>${esc(l)}`)); };
-  add(DATA.rows.length, 'rows in Airtable');
-  add(all.length, 'unique sessions');
-  add(state.showTests ? '+'+tests : '−'+tests, state.showTests ? 'test sessions included' : 'test sessions');
-  add('−'+screened, 'screened out by the form');
-  add('−'+oot, 'outside 2–24 people or no size yet');
-  if (state.size!=='all' || state.role!=='all') add(baseResponses().length, 'in target');
-  add(inView, 'respondents in view', 'final');
-  container.appendChild(steps);
+function sessionBreakdown(){
+  const all = sessionsAll().filter(testVisible);
+  const exited = all.filter(x => x.screenedOut);
+  const completed = all.filter(x => !x.screenedOut && x.complete);
+  const partial = all.filter(x => !x.screenedOut && !x.complete);
+  return { all, exited, completed, partial, tests: sessionsAll().filter(x => x.isTest).length };
 }
 
 function renderTabA(main){
@@ -832,28 +821,28 @@ function renderTabA(main){
   /* Sample */
   {
     const s = bandSection('Sample & who answered');
-    renderMergeSteps(s);
+    const b = sessionBreakdown();
+    const tot = b.all.length;
+    const exitReasons = countsFor('exit_reason', false, null, b.exited).counts
+      .map(c => `${c.count} ${c.key==='not_agency' ? 'not an agency' : c.key==='solo' ? '“Just me”' : esc(c.name)}`).join(', ');
     const stats = el('div','stat-row');
-    const complete = rows.filter(r => r.complete).length;
-    renderStat(stats, 'Respondents in view', String(n), `${complete} complete · ${n-complete} partial`);
-    renderStat(stats, 'Owners & partners', String(owners.length), `${emps.length} employee${emps.length===1?'':'s'}`);
-    const cal = rows.filter(r => r.calendly).length;
-    renderStat(stats, 'Clicked to book the interview', n ? pct(cal,n)+'%' : '–', `${cal} of ${n}`, Q.calendly);
-    const rep = rows.filter(r => r.reportOptIn).length;
-    renderStat(stats, 'Asked for the report', n ? pct(rep,n)+'%' : '–', `${rep} of ${n} left an email`);
+    renderStat(stats, 'Unique sessions', String(tot), state.showTests ? `includes ${b.tests} test session${b.tests===1?'':'s'}` : (b.tests ? `${b.tests} test session${b.tests===1?'':'s'} hidden` : 'one per person'));
+    renderStat(stats, 'Exited at screening', String(b.exited.length), tot ? `${pct(b.exited.length, tot)}% · ${exitReasons || 'screened out by the form'}` : '');
+    renderStat(stats, 'Partially filled', String(b.partial.length), tot ? `${pct(b.partial.length, tot)}% · stopped before the last question` : '');
+    renderStat(stats, 'Completed', String(b.completed.length), tot ? `${pct(b.completed.length, tot)}% · reached the last question` : '');
     s.appendChild(stats);
     const noSid = DATA.noSession.length;
-    renderInsight(s, `Rows are merged by session ID: each question keeps its latest non-empty answer, so partial saves and event rows (booking clicks, report emails) fold into one respondent. Partial sessions count for the questions they reached, and every percentage uses only the people who were shown that question. ${noSid ? `<b>${noSid}</b> row${noSid===1?' has':'s have'} no session ID and ${noSid===1?'is':'are'} left out.` : 'Every row has a session ID.'}`);
+    renderInsight(s, `Each session ID is one person, however many rows it saved. The charts below use everyone who got past screening (<b>${b.partial.length + b.completed.length}</b> ${b.partial.length + b.completed.length===1?'person':'people'}), with no company-size cut-off. Partial sessions count for the questions they reached, and every percentage uses only the people who were shown that question.${(state.size!=='all' || state.role!=='all') ? ` The filters narrow the charts to <b>${n}</b>; these four counts cover all sessions.` : ''}${noSid ? ` <b>${noSid}</b> row${noSid===1?' has':'s have'} no session ID and ${noSid===1?'is':'are'} left out.` : ''}`);
 
     const grid = el('div','chart-grid');
     {
       const sr = sizeChartResponses();
-      const { block, nSpan } = chartBlock(grid, 'Company size (everyone, incl. out of target)', Q.team_size);
+      const { block, nSpan } = chartBlock(grid, 'Company size', Q.team_size);
       const { counts, n: cn } = countsFor('team_size', false, ORDER.team_size, sr);
       nSpan.textContent = `n = ${cn}`;
       renderBarList(block, counts, cn);
-      const inT = sr.filter(r => ICP_SIZES.includes(r.team_size)).length;
-      renderInsight(block, cn ? `<b>${pct(inT, cn)}%</b> of the ${cn} people who answered fall inside the 2–24 person target. “Just me” was screened out by the form.` : null);
+      const solo = sr.filter(r => r.team_size==='1').length;
+      renderInsight(block, cn ? `${insightSentence(counts, cn, { who: 'people who answered' })}${solo ? ` “Just me” (${solo}) was screened out by the form after this question.` : ''}` : null);
     }
     barChart(grid, 'Role', 'role', { donut: true });
     barChart(grid, 'Country', 'country');
@@ -1156,7 +1145,7 @@ function renderTabC(main){
   const owners = rows.filter(isOwner);
   const NA = 'Not enough responses in this segment yet.';
 
-  hlCard(grid, 'Sample', String(n), `Respondents in view (${rows.filter(r=>r.complete).length} complete), out of <b>${baseResponses().length}</b> qualified agency respondents with 2–24 people${state.showTests ? ', <b>including test rows</b>' : ''}.`);
+  hlCard(grid, 'Sample', String(n), `People in view who got past screening (${rows.filter(r=>r.complete).length} completed, ${rows.filter(r=>!r.complete).length} partial), out of <b>${baseResponses().length}</b> in total${state.showTests ? ', <b>including test rows</b>' : ''}.`);
 
   { const st = likertStats(AREAS, owners, 'owner');
     if (st.length) hlCard(grid, 'Top frustration', st[0].mean.toFixed(1)+' / 7', `<b>${esc(st[0].name)}</b> is the most frustrating area for owners; ${pct(st[0].high, st[0].n)}% of ${st[0].n} rated it 5 or higher.`);
@@ -1191,7 +1180,7 @@ function populateFilterOptions(){
   const base = baseResponses();
   const fs = document.getElementById('fSize'), fr = document.getElementById('fRole');
   const sizeOpts = [`<option value="all">All sizes (${base.filter(s => roleMatch(s, state.role)).length})</option>`]
-    .concat(ICP_SIZES.map(v => `<option value="${esc(v)}">${esc(L.team_size[v])} (${base.filter(s => s.team_size===v && roleMatch(s, state.role)).length})</option>`));
+    .concat(ALL_SIZES.filter(v => base.some(s => s.team_size===v)).map(v => `<option value="${esc(v)}">${esc(L.team_size[v])} (${base.filter(s => s.team_size===v && roleMatch(s, state.role)).length})</option>`));
   const bySize = base.filter(s => state.size==='all' || s.team_size===state.size);
   const roleOpts = [`<option value="all">All roles (${bySize.length})</option>`,
     `<option value="owner">Owner or partner (${bySize.filter(isOwner).length})</option>`,
@@ -1225,7 +1214,7 @@ function setHeader(){
     const screened = all.filter(s => s.screenedOut).length;
     document.getElementById('pageSubtitle').textContent =
       `How small marketing and advertising agencies run their business: where it hurts, who carries the work, and how ready they are for an AI business assistant. ` +
-      `${DATA.rows.length} row${DATA.rows.length===1?'':'s'} in Airtable merge into ${all.length} session${all.length===1?'':'s'}. ${screened} ${screened===1?'was':'were'} screened out by the form, and ${tests} test session${tests===1?'':'s'} (started before ${TEST_BEFORE_LABEL}) ${state.showTests ? 'are currently included' : 'are excluded'}. Charts use qualified agencies with 2–24 people.`;
+      `${all.length} unique session${all.length===1?'':'s'}. ${screened} ${screened===1?'was':'were'} screened out by the form, and ${tests} test session${tests===1?'':'s'} (started before ${TEST_BEFORE_LABEL}) ${state.showTests ? 'are currently included' : 'are excluded'}. Charts include every company size.`;
   }
 }
 
@@ -1278,7 +1267,7 @@ function render(){
     main.appendChild(el('div','notice info', `<div><b>You’re looking at live data.</b> Only your view changed; everyone else still sees the snapshot from ${esc(fmtTime(SNAP_DATA ? SNAP_DATA.fetchedAt : DATA.fetchedAt))}.</div>`));
   }
   if (state.autoTests && state.showTests){
-    main.appendChild(el('div','notice', `<div><b>Showing test rows.</b> No real in-target responses have arrived yet, so the charts show test data (sessions that started before ${esc(TEST_BEFORE_LABEL)}). Untick “Show test rows” to hide them.</div>`));
+    main.appendChild(el('div','notice', `<div><b>Test rows are shown.</b> The survey hasn’t launched yet, so sessions that started before ${esc(TEST_BEFORE_LABEL)} are included. Untick “Show test rows” to hide them.</div>`));
   } else if (state.showTests){
     main.appendChild(el('div','notice', `<div><b>Test rows are included.</b> Sessions that started before ${esc(TEST_BEFORE_LABEL)} are internal test runs.</div>`));
   }
@@ -1297,7 +1286,7 @@ function buildData(records, fetchedAt){
 function applyData(d){
   DATA = d;
   const realCount = DATA.sessions.filter(s => !s.isTest && s.inTarget).length;
-  if (!state.userToggledTests){ state.showTests = realCount === 0; state.autoTests = realCount === 0; }
+  if (!state.userToggledTests){ state.showTests = SHOW_TESTS_BY_DEFAULT || realCount === 0; state.autoTests = state.showTests; }
 }
 
 let MCP = null;
