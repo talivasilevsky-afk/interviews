@@ -307,11 +307,12 @@
           <h1>Stacked Marketing survey</h1>
         </div>
         <div class="asof-wrap">
-          <span class="asof" id="asofLabel"><span class="live-dot"></span>Connecting to Airtable…</span>
-          <button class="refresh-btn" id="refreshBtn" type="button" disabled>Refresh</button>
+          <span class="asof" id="asofLabel"><span class="live-dot"></span>Loading snapshot…</span>
+          <button class="refresh-btn" id="liveBtn" type="button" hidden>Load latest from Airtable</button>
+          <button class="reset-btn" id="snapBtn" type="button" hidden>Back to snapshot</button>
         </div>
       </div>
-      <p class="subtitle" id="pageSubtitle">How small marketing and advertising agencies run their business: where it hurts, who carries the work, and how ready they are for an AI business assistant. Responses are read live from Airtable each time the page opens.</p>
+      <p class="subtitle" id="pageSubtitle">How small marketing and advertising agencies run their business: where it hurts, who carries the work, and how ready they are for an AI business assistant.</p>
     </div>
   </header>
 
@@ -344,6 +345,10 @@ const TOOL = 'list_records_for_table';
 const BASE_ID = 'appYzXPXZT64hQZYF';
 const TABLE_ID = 'tblWLgj43pQIH1oFc';
 const PAGE_SIZE = 1000;
+
+/* Filled in by scripts/build_dashboard.py: { asOf, records }. */
+const SNAPSHOT = /*__SNAPSHOT__*/null;
+const REFRESH_LABEL = /*__REFRESH_LABEL__*/'9:00';
 
 /* Sessions whose first row is earlier than this are internal test runs.
    Move it to the real launch time once the survey goes out. */
@@ -550,7 +555,9 @@ function mergeSessions(rows){
 /* ================= state ================= */
 const state = { size: 'all', role: 'all', tab: 'a', showTests: false, autoTests: false };
 let DATA = null;           // { rows, sessions, noSession, fetchedAt }
-let CONN = { status: 'connecting', error: null };
+let LIVE = { status: 'idle', error: null };
+let SOURCE = 'snapshot';
+let SNAP_DATA = null, LIVE_DATA = null;
 
 try { const t = localStorage.getItem('smd_tab'); if (t && 'abc'.includes(t)) state.tab = t; } catch(e){}
 if (['a','b','c'].includes((location.hash||'').slice(1))) state.tab = location.hash.slice(1);
@@ -1199,16 +1206,18 @@ function populateFilterOptions(){
 
 function setHeader(){
   const lbl = document.getElementById('asofLabel');
-  const btn = document.getElementById('refreshBtn');
-  btn.disabled = !MCP || CONN.status==='loading';
-  if (CONN.status==='live' && DATA){
-    lbl.innerHTML = `<span class="live-dot on"></span>Live from Airtable · updated ${esc(fmtTime(DATA.fetchedAt))}`;
-  } else if (CONN.status==='stale' && DATA){
-    lbl.innerHTML = `<span class="live-dot stale"></span>Showing data from ${esc(fmtTime(DATA.fetchedAt))} · refresh failed`;
-  } else if (CONN.status==='loading' || CONN.status==='connecting'){
-    lbl.innerHTML = `<span class="live-dot"></span>Loading from Airtable…`;
+  const btn = document.getElementById('liveBtn');
+  const back = document.getElementById('snapBtn');
+  btn.hidden = !MCP;
+  btn.disabled = LIVE.status === 'loading';
+  btn.textContent = LIVE.status === 'loading' ? 'Loading…' : (SOURCE === 'live' ? 'Reload latest' : 'Load latest from Airtable');
+  back.hidden = SOURCE !== 'live' || !SNAP_DATA;
+  if (SOURCE === 'live' && DATA){
+    lbl.innerHTML = `<span class="live-dot on"></span>Live from Airtable · loaded ${esc(fmtTime(DATA.fetchedAt))}`;
+  } else if (DATA){
+    lbl.innerHTML = `<span class="live-dot"></span>Data as of ${esc(fmtTime(DATA.fetchedAt))} · refreshed daily at ${esc(REFRESH_LABEL)}`;
   } else {
-    lbl.innerHTML = `<span class="live-dot stale"></span>Not connected to Airtable`;
+    lbl.innerHTML = `<span class="live-dot stale"></span>No snapshot loaded`;
   }
   if (DATA){
     const all = DATA.sessions;
@@ -1216,23 +1225,22 @@ function setHeader(){
     const screened = all.filter(s => s.screenedOut).length;
     document.getElementById('pageSubtitle').textContent =
       `How small marketing and advertising agencies run their business: where it hurts, who carries the work, and how ready they are for an AI business assistant. ` +
-      `${DATA.rows.length} rows in Airtable merge into ${all.length} sessions. ${screened} ${screened===1?'was':'were'} screened out by the form, and ${tests} test session${tests===1?'':'s'} (started before ${TEST_BEFORE_LABEL}) ${state.showTests ? 'are currently included' : 'are excluded'}. Charts use qualified agencies with 2–24 people.`;
+      `${DATA.rows.length} row${DATA.rows.length===1?'':'s'} in Airtable merge into ${all.length} session${all.length===1?'':'s'}. ${screened} ${screened===1?'was':'were'} screened out by the form, and ${tests} test session${tests===1?'':'s'} (started before ${TEST_BEFORE_LABEL}) ${state.showTests ? 'are currently included' : 'are excluded'}. Charts use qualified agencies with 2–24 people.`;
   }
 }
 
-function connMessage(){
-  const e = CONN.error || {};
-  switch (CONN.status === 'unavailable' ? 'unavailable' : e.code){
-    case 'unavailable': return ['Live data needs the Airtable connector', 'This view can’t reach connectors. Open the dashboard on claude.ai while signed in to the organization, and allow Airtable when the page asks.'];
-    case 'server_not_connected': return ['Airtable isn’t connected', 'Add Airtable in claude.ai Settings → Connectors, then reload this page.'];
-    case 'needs_reauth': return ['Reconnect Airtable', 'Your Airtable connection has expired. Reconnect Airtable in claude.ai Settings → Connectors, then reload this page.'];
-    case 'selection_required': return ['Choose which Airtable connection to use', 'You have more than one Airtable connector. Pick one in the prompt claude.ai shows, then reload this page.'];
-    case 'not_in_manifest': return ['Airtable is turned off for this page', 'The dashboard reads responses through your Airtable connector. Allow Airtable for this page from its permissions, then reload.'];
+function connMessage(e){
+  e = e || {};
+  switch (e.code){
+    case 'server_not_connected': return ['Airtable isn’t connected', 'Add Airtable in claude.ai Settings → Connectors, then try again.'];
+    case 'needs_reauth': return ['Reconnect Airtable', 'Your Airtable connection has expired. Reconnect Airtable in claude.ai Settings → Connectors, then try again.'];
+    case 'selection_required': return ['Choose which Airtable connection to use', 'You have more than one Airtable connector. Pick one in the prompt claude.ai shows, then try again.'];
+    case 'not_in_manifest': return ['Airtable is turned off for this page', 'Allow Airtable for this page from its permissions, then try again.'];
     case 'blocked_by_policy': return ['Blocked by your organization', 'Your organization’s policy blocks this Airtable tool. Ask an admin to allow “list records” for the Airtable connector.'];
-    case 'approval_required': return ['Needs approval', 'Your organization requires approval for each Airtable call, which this page can’t request. Ask an admin to allow “list records” for the Airtable connector.'];
-    case 'tool_error': return ['Airtable returned an error', esc(e.message || 'The table could not be read.') + ' Check that you have access to the “Stacked Survey - Marketing” base.'];
+    case 'approval_required': return ['Needs approval', 'Your organization requires approval for each Airtable call, which this page can’t request.'];
+    case 'tool_error': return ['Airtable returned an error', esc(e.message || 'The table could not be read.') + ' You need access to the “Stacked Survey - Marketing” base to load the latest responses.'];
     case 'server_unavailable': return ['Airtable isn’t responding', 'Airtable didn’t answer in time. Try again in a moment.'];
-    default: return ['Couldn’t load responses', esc(e.message || 'Something interrupted the Airtable read.') + ' Try again, or reload the page.'];
+    default: return ['Couldn’t load the latest responses', esc(e.message || 'Something interrupted the Airtable read.') + ' Try again, or keep using the snapshot.'];
   }
 }
 
@@ -1242,24 +1250,21 @@ function render(){
   setHeader();
   document.querySelectorAll('.tab-btn').forEach(b => { b.classList.toggle('active', b.dataset.tab===state.tab); b.setAttribute('aria-selected', b.dataset.tab===state.tab); });
 
+  if (LIVE.status === 'error'){
+    const [h, p] = connMessage(LIVE.error);
+    const nb = el('div','notice', `<div><b>${esc(h)}.</b> ${p}${DATA ? ' The charts below still show the ' + (SOURCE==='live' ? 'last live load.' : 'snapshot.') : ''}</div>`);
+    const x = el('button','reset-btn','Dismiss'); x.type = 'button';
+    x.addEventListener('click', () => { LIVE = { status: 'idle', error: null }; render(); });
+    nb.appendChild(x);
+    main.appendChild(nb);
+  }
+
   if (!DATA){
     document.getElementById('matchCount').innerHTML = '';
-    if (CONN.status==='connecting' || CONN.status==='loading'){
-      const c = el('div','conn-state');
-      c.appendChild(el('h2','','Loading responses'));
-      c.appendChild(el('p','','Reading the Stacked Marketing table from Airtable. If claude.ai asks, allow Airtable for this page.'));
-      for (let i=0;i<4;i++){ const sk = el('div','skeleton'); sk.style.width = (90 - i*14) + '%'; c.appendChild(sk); }
-      main.appendChild(c);
-    } else {
-      const [h, p] = connMessage();
-      const c = el('div','conn-state');
-      c.appendChild(el('h2','', esc(h)));
-      c.appendChild(el('p','', p));
-      if (MCP && CONN.status!=='unavailable'){
-        const b = el('button','refresh-btn','Try again'); b.type='button'; b.addEventListener('click', refresh); c.appendChild(b);
-      }
-      main.appendChild(c);
-    }
+    const c = el('div','conn-state');
+    c.appendChild(el('h2','','No snapshot in this version'));
+    c.appendChild(el('p','', MCP ? 'Load the latest responses from Airtable with the button at the top.' : 'This version of the page was published without data. Ask for the snapshot to be refreshed.'));
+    main.appendChild(c);
     return;
   }
 
@@ -1269,10 +1274,8 @@ function render(){
     ? `<b>${inView}</b> in view`
     : `<b>${inView}</b> of ${all} in view`;
 
-  if (CONN.status==='stale'){
-    const [h, p] = connMessage();
-    const nb = el('div','notice', `<div><b>${esc(h)}.</b> ${p} The charts below show the last data that loaded.</div>`);
-    main.appendChild(nb);
+  if (SOURCE === 'live'){
+    main.appendChild(el('div','notice info', `<div><b>You’re looking at live data.</b> Only your view changed; everyone else still sees the snapshot from ${esc(fmtTime(SNAP_DATA ? SNAP_DATA.fetchedAt : DATA.fetchedAt))}.</div>`));
   }
   if (state.autoTests && state.showTests){
     main.appendChild(el('div','notice', `<div><b>Showing test rows.</b> No real in-target responses have arrived yet, so the charts show test data (sessions that started before ${esc(TEST_BEFORE_LABEL)}). Untick “Show test rows” to hide them.</div>`));
@@ -1285,9 +1288,19 @@ function render(){
   else renderTabC(main);
 }
 
-/* ================= live data ================= */
+/* ================= data sources ================= */
+function buildData(records, fetchedAt){
+  const rows = records.map(rowFromRecord);
+  const merged = mergeSessions(rows);
+  return { rows, sessions: merged.sessions, noSession: merged.noSession, fetchedAt };
+}
+function applyData(d){
+  DATA = d;
+  const realCount = DATA.sessions.filter(s => !s.isTest && s.inTarget).length;
+  if (!state.userToggledTests){ state.showTests = realCount === 0; state.autoTests = realCount === 0; }
+}
+
 let MCP = null;
-let unwatch = null;
 let loadSeq = 0;
 
 function payloadOf(result){
@@ -1297,87 +1310,67 @@ function payloadOf(result){
 }
 function nextCursorOf(p){ return p.nextCursor || p.cursor || (p.metadata && (p.metadata.nextCursor || p.metadata.cursor)) || null; }
 
-async function ingest(result){
+async function loadLatest(){
+  if (!MCP || LIVE.status === 'loading') return;
   const seq = ++loadSeq;
-  const p = payloadOf(result);
-  let records = Array.isArray(p.records) ? p.records.slice() : [];
-  let cursor = nextCursorOf(p);
-  let pages = 0;
+  LIVE = { status: 'loading', error: null };
+  setHeader();
+  const input = { baseId: BASE_ID, tableId: TABLE_ID, pageSize: PAGE_SIZE };
+  const call = async (inp) => {
+    try { return await MCP.callTool(SERVER, TOOL, inp, { cache: false }); }
+    catch(err){
+      if (err && err.retryable){
+        await new Promise(r => setTimeout(r, Math.min(err.retryAfterMs || (1500 + Math.random()*1500), 60000)));
+        return await MCP.callTool(SERVER, TOOL, inp, { cache: false });
+      }
+      throw err;
+    }
+  };
   try {
+    const first = await call(input);
+    const p = payloadOf(first);
+    let records = Array.isArray(p.records) ? p.records.slice() : [];
+    let cursor = nextCursorOf(p), pages = 0;
     while (cursor && pages < 25){
       pages++;
-      const more = await MCP.callTool(SERVER, TOOL, { baseId: BASE_ID, tableId: TABLE_ID, pageSize: PAGE_SIZE, cursor });
-      const mp = payloadOf(more);
+      const mp = payloadOf(await call(Object.assign({}, input, { cursor })));
       records = records.concat(Array.isArray(mp.records) ? mp.records : []);
       cursor = nextCursorOf(mp);
     }
+    if (seq !== loadSeq) return;
+    LIVE_DATA = buildData(records, Date.now());
+    SOURCE = 'live';
+    applyData(LIVE_DATA);
+    LIVE = { status: 'idle', error: null };
   } catch(err){
     if (seq !== loadSeq) return;
-    CONN = { status: DATA ? 'stale' : 'error', error: err };
-    render(); return;
-  }
-  if (seq !== loadSeq) return;
-  const rows = records.map(rowFromRecord);
-  const merged = mergeSessions(rows);
-  DATA = { rows, sessions: merged.sessions, noSession: merged.noSession, fetchedAt: (result.cache && result.cache.storedAt) || Date.now() };
-  const realCount = DATA.sessions.filter(s => !s.isTest && s.inTarget).length;
-  if (realCount === 0 && !state.userToggledTests){ state.showTests = true; state.autoTests = true; }
-  else if (state.autoTests && realCount > 0 && !state.userToggledTests){ state.showTests = false; state.autoTests = false; }
-  CONN = { status: 'live', error: null };
-  render();
-}
-
-function onWatchError(err){
-  const retract = ['needs_reauth','server_not_connected','blocked_by_policy','approval_required','not_in_manifest','selection_required'].includes(err && err.code);
-  if (err && (err.code === 'bad_request' || err.code === 'capability_removed') && !DATA){
-    // Older viewer without live watches: read once instead.
-    oneShot(); return;
-  }
-  if (retract){ DATA = null; CONN = { status: 'error', error: err }; }
-  else CONN = { status: DATA ? 'stale' : 'error', error: err };
-  render();
-}
-
-async function oneShot(refreshCache){
-  if (!MCP) return;
-  CONN = { status: DATA ? CONN.status : 'loading', error: null };
-  setHeader();
-  try {
-    const res = await MCP.callTool(SERVER, TOOL, { baseId: BASE_ID, tableId: TABLE_ID, pageSize: PAGE_SIZE }, refreshCache ? { cache: { refresh: true } } : undefined);
-    await ingest(res);
-  } catch(err){
-    if (err && err.retryable && !refreshCache){
-      setTimeout(() => oneShot(true), Math.min(err.retryAfterMs || (1500 + Math.random()*1500), 60000));
-      return;
+    if (['needs_reauth','server_not_connected','blocked_by_policy','approval_required','not_in_manifest','selection_required'].includes(err && err.code) && SOURCE === 'live' && SNAP_DATA){
+      // Access is gone: drop the live view and fall back to the snapshot.
+      LIVE_DATA = null; SOURCE = 'snapshot'; applyData(SNAP_DATA);
     }
-    onWatchError(err);
+    LIVE = { status: 'error', error: err };
   }
+  render();
 }
 
-function refresh(){
-  if (!MCP) return;
-  const btn = document.getElementById('refreshBtn');
-  btn.disabled = true;
-  // Fresh read; the watch also hears it through the shared cache.
-  oneShot(true).finally(() => { btn.disabled = false; });
+function backToSnapshot(){
+  if (!SNAP_DATA) return;
+  loadSeq++;
+  SOURCE = 'snapshot'; LIVE = { status: 'idle', error: null };
+  applyData(SNAP_DATA);
+  render();
 }
 
 async function boot(){
+  if (SNAPSHOT && Array.isArray(SNAPSHOT.records)){
+    const t = Date.parse(SNAPSHOT.asOf);
+    SNAP_DATA = buildData(SNAPSHOT.records, isNaN(t) ? Date.now() : t);
+    applyData(SNAP_DATA);
+  }
   render();
   let mcp = null;
   try { mcp = (window.claude && typeof window.claude.use === 'function') ? await window.claude.use('mcp') : null; } catch(e){ mcp = null; }
-  if (!mcp){ CONN = { status: 'unavailable', error: null }; render(); return; }
-  MCP = mcp;
-  CONN = { status: 'loading', error: null };
-  render();
-  try {
-    unwatch = MCP.watchTool(SERVER, TOOL, { baseId: BASE_ID, tableId: TABLE_ID, pageSize: PAGE_SIZE }, ev => {
-      if (ev.type === 'data') ingest(ev.result);
-      else onWatchError(ev.error);
-    }, { refetchInterval: 5 * 60 * 1000 });
-  } catch(e){
-    oneShot();
-  }
+  if (mcp){ MCP = mcp; setHeader(); }
 }
 
 /* ================= wiring ================= */
@@ -1395,7 +1388,8 @@ document.getElementById('fSize').addEventListener('change', e => { state.size = 
 document.getElementById('fRole').addEventListener('change', e => { state.role = e.target.value; render(); });
 document.getElementById('fTests').addEventListener('change', e => { state.showTests = e.target.checked; state.userToggledTests = true; state.autoTests = false; render(); });
 document.getElementById('resetBtn').addEventListener('click', () => { state.size = 'all'; state.role = 'all'; render(); });
-document.getElementById('refreshBtn').addEventListener('click', refresh);
+document.getElementById('liveBtn').addEventListener('click', loadLatest);
+document.getElementById('snapBtn').addEventListener('click', backToSnapshot);
 
 boot();
 </script>
