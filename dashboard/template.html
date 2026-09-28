@@ -289,6 +289,11 @@
   .hl-meter .pt { position: absolute; top: 0; width: 9px; height: 9px; margin-left: -4.5px; background: var(--tone); }
   .hl-meter .pt.point { background: var(--point); }
   .hl-card.wide { grid-column: 1 / -1; }
+  /* Research questions share the Highlights treatment: a tone square by the heading and a tone line on each card. */
+  .section-head .tone-sq { flex-shrink: 0; width: 9px; height: 9px; background: var(--tone); align-self: center; }
+  section.toned .chart-block { border-top: 2px solid var(--tone); }
+  section.toned .stat-row { border-top-color: var(--tone); }
+  .stat .hl-meter { margin: 10px 0 2px; max-width: 220px; }
   .tl { display: flex; align-items: flex-end; gap: 6px; height: 170px; padding-top: 18px; border-bottom: 1px solid var(--line-strong); overflow-x: auto; }
   .tl-col { flex: 1 0 28px; max-width: 64px; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-end; height: 100%; position: relative; }
   .tl-col .n { position: absolute; top: -18px; left: 0; right: 0; text-align: center; font-size: 0.72rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
@@ -343,6 +348,7 @@
       <button class="tab-btn" data-tab="c" type="button">Highlights</button>
       <button class="tab-btn" data-tab="a" type="button">Research Questions</button>
       <button class="tab-btn" data-tab="b" type="button">Full Survey</button>
+      <button class="tab-btn" data-tab="d" type="button">Form activity</button>
     </div>
     <div class="filterbar">
       <label class="fl" for="fSize">Company size</label>
@@ -580,8 +586,8 @@ let LIVE = { status: 'idle', error: null };
 let SOURCE = 'snapshot';
 let SNAP_DATA = null, LIVE_DATA = null;
 
-try { const t = localStorage.getItem('smd_tab_v2'); if (t && 'abc'.includes(t)) state.tab = t; } catch(e){}
-if (['a','b','c'].includes((location.hash||'').slice(1))) state.tab = location.hash.slice(1);
+try { const t = localStorage.getItem('smd_tab_v2'); if (t && ['a','b','c','d'].includes(t)) state.tab = t; } catch(e){}
+if (['a','b','c','d'].includes((location.hash||'').slice(1))) state.tab = location.hash.slice(1);
 
 function sessionsAll(){ return DATA ? DATA.sessions : []; }
 function testVisible(s){ return state.showTests || !s.isTest; }
@@ -692,10 +698,16 @@ function renderPie(container, slices){
   container.appendChild(wrap);
 }
 
-function renderStat(container, label, value, sub, question){
+function renderStat(container, label, value, sub, question, meter){
   const s = el('div','stat');
   s.appendChild(el('div','stat-label', esc(label)));
   s.appendChild(el('div','stat-value', esc(value)));
+  if (meter != null && !isNaN(meter)){
+    const f = Math.max(0, Math.min(1, meter));
+    const m = el('div','hl-meter');
+    m.innerHTML = `<span class="fill" style="width:${(f*100).toFixed(1)}%"></span><span class="pt" style="left:${(f*100).toFixed(1)}%"></span>`;
+    s.appendChild(m);
+  }
   if (sub) s.appendChild(el('div','stat-sub', sub));
   if (question) s.appendChild(el('div','stat-question', `Asked: “${esc(question)}”`));
   container.appendChild(s);
@@ -799,17 +811,18 @@ function renderOpenEnded(container, rows, field, opts){
   container.appendChild(q);
 }
 
-function section(title, note){
-  const s = el('section','card');
+function section(title, note, tone){
+  const s = el('section','card' + (tone ? ' toned tone-' + tone : ''));
   const m = /^(\d+)\s*—\s*(.+)$/.exec(title);
   const head = el('div','section-head');
+  if (tone) head.appendChild(el('i','tone-sq'));
   if (m){ head.appendChild(el('div','badge-num', 'RQ ' + m[1])); head.appendChild(el('h2','', esc(m[2]))); }
   else head.appendChild(el('h2','', esc(title)));
   s.appendChild(head);
   if (note) s.appendChild(el('p','section-note', note));
   return s;
 }
-function bandSection(title, note){ const s = section(title, note); s.className = 'band'; return s; }
+function bandSection(title, note, tone){ const s = section(title, note, tone); s.className = 'band' + (tone ? ' toned tone-' + tone : ''); return s; }
 function chartBlock(parentGrid, title, question, emp){
   const block = el('div','chart-block');
   const tr = el('div','chart-title-row');
@@ -883,7 +896,7 @@ function renderTabA(main){
 
   /* Sample */
   {
-    const s = bandSection('Who answered.');
+    const s = bandSection('Who answered.', null, 'ink');
     const b = sessionBreakdown();
     const tot = b.all.length;
     const exitReasons = countsFor('exit_reason', false, null, b.exited).counts
@@ -928,7 +941,7 @@ function renderTabA(main){
 
   /* 1 — Pain */
   {
-    const s = section('1 — Where does it hurt most?', 'Owners and partners rated ten business areas; employees rated six day-to-day frustrations worded for their role. The two scales are shown separately because the wording differs.');
+    const s = section('1 — Where does it hurt most?', 'Owners and partners rated ten business areas; employees rated six day-to-day frustrations worded for their role. The two scales are shown separately because the wording differs.', 'hurt');
     s.appendChild(el('div','answered-by','Answered by: frustration ratings, “anything else?”, and what slows employees down'));
     const grid = el('div','chart-grid stacked');
     {
@@ -958,7 +971,7 @@ function renderTabA(main){
 
   /* 2 — Deep dives */
   {
-    const s = section('2 — Who carries the load, and how many hours does it take?', 'After the ratings, each owner or partner answered two follow-up questions (who handles it, and hours per week) for up to three of their most frustrating areas: those rated 4 or higher, or their top three if none were. Employees don’t get these follow-ups. Every figure below counts these area follow-ups, so one owner adds up to three.');
+    const s = section('2 — Who carries the load, and how many hours does it take?', 'After the ratings, each owner or partner answered two follow-up questions (who handles it, and hours per week) for up to three of their most frustrating areas: those rated 4 or higher, or their top three if none were. Employees don’t get these follow-ups. Every figure below counts these area follow-ups, so one owner adds up to three.', 'hurt');
     s.appendChild(el('div','answered-by','Answered by: “Who mostly handles this today?” and “Hours per week spent on it”, asked for each followed-up area'));
     const dd = deepDiveRows(rows);
     const withHandler = dd.filter(d => d.handler);
@@ -967,11 +980,11 @@ function renderTabA(main){
     const ddOwners = new Set(dd.map(d => d.respId)).size;
     renderStat(stats, 'Areas followed up', String(dd.length), `${ddOwners} owner${ddOwners===1?'':'s'} × up to 3 areas each`);
     const ownerHandled = withHandler.filter(d => d.handler==='you').length;
-    renderStat(stats, 'Handled by the owner', withHandler.length ? pct(ownerHandled, withHandler.length)+'%' : '–', `${ownerHandled} of ${withHandler.length} areas`, Q.handler);
+    renderStat(stats, 'Handled by the owner', withHandler.length ? pct(ownerHandled, withHandler.length)+'%' : '–', `${ownerHandled} of ${withHandler.length} areas`, Q.handler, withHandler.length ? ownerHandled/withHandler.length : null);
     const heavy = withHours.filter(d => hoursHeavy(d.hours)).length;
-    renderStat(stats, '6+ hours a week', withHours.length ? pct(heavy, withHours.length)+'%' : '–', `${heavy} of ${withHours.length} areas with an hours estimate`, Q.hours);
+    renderStat(stats, '6+ hours a week', withHours.length ? pct(heavy, withHours.length)+'%' : '–', `${heavy} of ${withHours.length} areas with an hours estimate`, Q.hours, withHours.length ? heavy/withHours.length : null);
     const noone = withHandler.filter(d => d.handler==='noone').length;
-    renderStat(stats, 'Nobody handles it', withHandler.length ? pct(noone, withHandler.length)+'%' : '–', `${noone} of ${withHandler.length} areas`);
+    renderStat(stats, 'Nobody handles it', withHandler.length ? pct(noone, withHandler.length)+'%' : '–', `${noone} of ${withHandler.length} areas`, null, withHandler.length ? noone/withHandler.length : null);
     s.appendChild(stats);
 
     const grid = el('div','chart-grid stacked');
@@ -1005,7 +1018,7 @@ function renderTabA(main){
 
   /* 3 — AI hand-off */
   {
-    const s = section('3 — What would they hand to AI, and what holds them back?', 'Each task’s percentage counts only the people who were shown it: owners saw eight tasks, employees saw a set based on their title.');
+    const s = section('3 — What would they hand to AI, and what holds them back?', 'Each task’s percentage counts only the people who were shown it: owners saw eight tasks, employees saw a set based on their title.', 'help');
     s.appendChild(el('div','answered-by','Answered by: tasks they’d let AI handle, why not the rest, and (employees) how they’d feel working with an AI assistant'));
     const grid = el('div','chart-grid');
     {
@@ -1024,7 +1037,7 @@ function renderTabA(main){
 
   /* 4 — AI today */
   {
-    const s = section('4 — How AI-ready are they today?');
+    const s = section('4 — How AI-ready are they today?', null, 'help');
     s.appendChild(el('div','answered-by','Answered by: how often they use AI, what for, and what keeps them from using it more'));
     const grid = el('div','chart-grid');
     barChart(grid, 'How often they use AI', 'ai_frequency');
@@ -1036,7 +1049,7 @@ function renderTabA(main){
 
   /* 5 — Spend & WTP */
   {
-    const s = section('5 — What do they spend on tools, and what would they pay?', 'Monthly spend was asked only of owners who use at least one tool. Willingness to pay was asked of all owners and partners.');
+    const s = section('5 — What do they spend on tools, and what would they pay?', 'Monthly spend was asked only of owners who use at least one tool. Willingness to pay was asked of all owners and partners.', 'help');
     s.appendChild(el('div','answered-by','Answered by: tools used, monthly tool spend, and willingness to pay for an AI business assistant'));
     const grid = el('div','chart-grid');
     barChart(grid, 'Tools they use', 'tools_used');
@@ -1054,7 +1067,7 @@ function renderTabA(main){
 
   /* 6 — The week */
   {
-    const s = section('6 — What does their week feel like?', 'Owners and employees were shown different statements, so each group has its own chart.');
+    const s = section('6 — What does their week feel like?', 'Owners and employees were shown different statements, so each group has its own chart.', 'hurt');
     s.appendChild(el('div','answered-by','Answered by: statements they relate to, the one that weighs most, and their own words about it'));
     const grid = el('div','chart-grid');
     barChart(grid, 'Owners & partners relate to', 'day2day', { rows: owners, order: null, who: 'owners and partners who reached this question' });
@@ -1264,8 +1277,16 @@ function renderTabC(main){
     hlCard(help, { eyebrow:'Would pay', stat: a.length ? pct(p, a.length)+'%' : '–', meter: a.length ? p/a.length : null,
       text: a.length ? `of owners would pay something monthly for an AI business assistant; ${hi} of ${a.length} would pay over $100 / mo.` : NA }); }
 
+}
+
+/* ================= TAB D: form activity ================= */
+function renderTabD(main){
+  const s = bandSection('Form activity.', 'How the form itself is doing. These count every session, including people who exited, so the size, role and years filters don’t change them.', 'ink');
+  main.appendChild(s);
+  const NA = 'Not enough responses yet.';
   /* Form activity: every session, whatever the filters */
-  const act = hlGroup(s, 'Form activity.', 'Every session, including people who exited. The size, role and years filters don’t change these.', 'ink');
+  const act = el('div','hl-grid');
+  s.appendChild(act);
   const all = sessionsAll().filter(testVisible);
   const exited = all.filter(x => x.screenedOut), completed = all.filter(x => !x.screenedOut && x.complete), partial = all.filter(x => !x.screenedOut && !x.complete);
   hlCard(act, { eyebrow:'Unique sessions', stat: String(all.length),
@@ -1438,6 +1459,7 @@ function render(){
 
   if (state.tab==='a') renderTabA(main);
   else if (state.tab==='b') renderTabB(main);
+  else if (state.tab==='d') renderTabD(main);
   else renderTabC(main);
   main.querySelectorAll('.chart-grid:not(.stacked)').forEach(packGrid);
 }
