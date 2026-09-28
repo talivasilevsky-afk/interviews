@@ -360,12 +360,11 @@ const PAGE_SIZE = 1000;
 const SNAPSHOT = /*__SNAPSHOT__*/null;
 const REFRESH_LABEL = /*__REFRESH_LABEL__*/'9:00';
 
-/* Sessions whose first row is earlier than this are internal test runs.
-   Move it to the real launch time once the survey goes out. */
-const TEST_BEFORE = Date.parse('2026-09-28T00:00:00Z');
-const TEST_BEFORE_LABEL = 'Sep 28, 2026';
-/* Show test sessions when the page opens. Set to false once the survey has launched. */
-const SHOW_TESTS_BY_DEFAULT = true;
+/* Launch time. Until it is set, the survey hasn't launched: every session is a test run and all of them are shown.
+   Set it (e.g. Date.parse('2026-10-05T07:00:00Z')) only when told the survey has launched. */
+const LAUNCH_AT = null;
+const LAUNCH_LABEL = '';
+const SHOW_TESTS_BY_DEFAULT = LAUNCH_AT === null;
 
 const ALL_SIZES = ['1','2','3-5','6-10','11-16','17-24','25-50','51-100'];
 
@@ -547,7 +546,7 @@ function mergeSessions(rows){
     s.exitOptIn = rs.some(r => hasVal(r.exit_email));
     s.screenedOut = hasVal(s.exit_reason) || (hasVal(s.workplace) && s.workplace!=='agency') || s.team_size==='1';
     s.complete = !s.screenedOut && (rs.some(r => r.completed === true) || hasVal(s.gender));
-    s.isTest = s.firstTs < TEST_BEFORE;
+    s.isTest = LAUNCH_AT === null || s.firstTs < LAUNCH_AT;
     s.inTarget = !s.screenedOut;   // no size cut-off: everyone the form let through
     s.aiShown = hasVal(s.ai_tasks_shown) ? String(s.ai_tasks_shown).split(',').map(x=>x.trim()).filter(Boolean) : [];
     s.deepDives = [];
@@ -1298,7 +1297,7 @@ function setHeader(){
     const screened = all.filter(s => s.screenedOut).length;
     document.getElementById('pageSubtitle').textContent =
       `How small marketing and advertising agencies run their business: where it hurts, who carries the work, and how ready they are for an AI business assistant. ` +
-      `${all.length} unique session${all.length===1?'':'s'}. ${screened} ${screened===1?'was':'were'} screened out by the form, and ${tests} test session${tests===1?'':'s'} (started before ${TEST_BEFORE_LABEL}) ${state.showTests ? 'are currently included' : 'are excluded'}. Charts include every company size.`;
+      `${all.length} unique session${all.length===1?'':'s'}. ${screened} ${screened===1?'was':'were'} screened out by the form, and ${LAUNCH_AT === null ? `the survey hasn’t launched, so all ${tests} session${tests===1?' is a test':'s are tests'} and ${state.showTests ? 'shown' : 'hidden'}` : `${tests} test session${tests===1?'':'s'} (before launch on ${LAUNCH_LABEL}) ${state.showTests ? 'are currently included' : 'are excluded'}`}. Charts include every company size.`;
   }
 }
 
@@ -1354,9 +1353,9 @@ function render(){
     main.appendChild(el('div','notice', `<div><b>Years in business: ${esc(L.years_operating[state.years] || state.years)}.</b> Only owners and managing partners were asked this, so employees are left out while this filter is on.</div>`));
   }
   if (state.autoTests && state.showTests){
-    main.appendChild(el('div','notice', `<div><b>Test rows are shown.</b> The survey hasn’t launched yet, so sessions that started before ${esc(TEST_BEFORE_LABEL)} are included. Untick “Show test rows” to hide them.</div>`));
+    main.appendChild(el('div','notice', `<div><b>Test data.</b> The survey hasn’t launched yet, so every session here is a test run, and all of them are included.</div>`));
   } else if (state.showTests){
-    main.appendChild(el('div','notice', `<div><b>Test rows are included.</b> Sessions that started before ${esc(TEST_BEFORE_LABEL)} are internal test runs.</div>`));
+    main.appendChild(el('div','notice', `<div><b>Test rows are included.</b> Sessions that started before launch${LAUNCH_LABEL ? ' on ' + esc(LAUNCH_LABEL) : ''} are internal test runs.</div>`));
   }
 
   if (state.tab==='a') renderTabA(main);
