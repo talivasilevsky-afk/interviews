@@ -288,6 +288,20 @@
   .hl-meter .fill { position: absolute; left: 0; top: 4px; height: 1px; background: var(--tone); }
   .hl-meter .pt { position: absolute; top: 0; width: 9px; height: 9px; margin-left: -4.5px; background: var(--tone); }
   .hl-meter .pt.point { background: var(--point); }
+  .hl-card.wide { grid-column: 1 / -1; }
+  .tl { display: flex; align-items: flex-end; gap: 6px; height: 170px; padding-top: 18px; border-bottom: 1px solid var(--line-strong); overflow-x: auto; }
+  .tl-col { flex: 1 0 28px; max-width: 64px; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-end; height: 100%; position: relative; }
+  .tl-col .n { position: absolute; top: -18px; left: 0; right: 0; text-align: center; font-size: 0.72rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .tl-seg { width: 100%; }
+  .tl-seg.completed { background: var(--mark); }
+  .tl-seg.partial { background: var(--mark-muted); }
+  .tl-seg.exited { background: transparent; box-shadow: inset 0 0 0 1px var(--mark-muted); }
+  .tl-days { display: flex; gap: 6px; margin-top: 6px; overflow: hidden; }
+  .tl-days span { flex: 1 0 28px; max-width: 64px; text-align: center; font-size: 0.68rem; color: var(--ink-faint); white-space: nowrap; }
+  .tl-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.74rem; color: var(--ink-soft); margin: 2px 0 6px; }
+  .tl-legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .tl-legend i { display: inline-block; width: 9px; height: 9px; }
+  .hl-card .barlist { margin-top: 4px; }
   .hl-scale { display: flex; justify-content: space-between; font-size: 0.66rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
 
   footer.page-foot { color: var(--ink-faint); font-size: 0.76rem; padding: 36px 0 10px; }
@@ -836,6 +850,16 @@ function aiTaskCounts(rows){
   if (none) out.push({ key:'none', name: L.ai_tasks.none, count: none, emp: answered.filter(r => isEmp(r) && r.ai_tasks.includes('none')).length, denom: answered.length, pct: pct(none, answered.length) });
   return { list: out, n: answered.length, atLeastOne: answered.filter(r => r.ai_tasks.some(t => t!=='none')).length };
 }
+const SCREEN_ORDER = ['s0','sQ1','sQ1a','sQ1b','sQ1c','sQ2','sEQ1','sVip','sEMatrix','sEBottle','sQ3a','sQ3b','sAIntro','sA1','sA2','sA3','sQ7','sQ7a','sQ10','sQ10a','sQLowAi','sEAdopt','sEAdoptWhy','sQ9','sQ9a','sQ9b','sQ12Intro','sQ12','sQ13','sGender'];
+const SCREEN_LABEL = {
+  s0:'Welcome screen', sQ1:'Place of work', sQ1a:'Company size', sQ1b:'Role', sQ1c:'Country', sQ2:'Years in business',
+  sEQ1:'Professional title (employees)', sVip:'$100 interview invite', sEMatrix:'Frustration ratings (employees)', sEBottle:'What slows you down (employees)',
+  sQ3a:'Frustration ratings, part 1', sQ3b:'Frustration ratings, part 2', sAIntro:'Follow-up intro', sA1:'Follow-up area 1', sA2:'Follow-up area 2', sA3:'Follow-up area 3',
+  sQ7:'Tasks to hand to AI', sQ7a:'Why not the other tasks', sQ10:'How often they use AI', sQ10a:'What they use AI for', sQLowAi:'What keeps them from using AI more',
+  sEAdopt:'Working with an AI assistant (employees)', sEAdoptWhy:'What makes them hesitant (employees)', sQ9:'Tools used', sQ9a:'Monthly tool spend', sQ9b:'Willingness to pay',
+  sQ12Intro:'“Home stretch” screen', sQ12:'Statements they relate to', sQ13:'What weighs most', sGender:'Gender (last question)'
+};
+
 function deepDiveRows(rows){
   const out = [];
   rows.filter(isOwner).forEach(r => r.deepDives.forEach(d => out.push(Object.assign({ respId: r.id }, d))));
@@ -1240,13 +1264,67 @@ function renderTabC(main){
     hlCard(help, { eyebrow:'Would pay', stat: a.length ? pct(p, a.length)+'%' : '–', meter: a.length ? p/a.length : null,
       text: a.length ? `of owners would pay something monthly for an AI business assistant; ${hi} of ${a.length} would pay over $100 / mo.` : NA }); }
 
-  /* The sample */
-  const sample = hlGroup(s, 'The sample.', 'Who these numbers are based on', 'ink');
-  hlCard(sample, { eyebrow:'People in view', stat: String(n),
-    text: `got past screening (${rows.filter(r=>r.complete).length} completed, ${rows.filter(r=>!r.complete).length} partial), out of <b>${baseResponses().length}</b> in total${state.showTests ? ', <b>including test rows</b>' : ''}.` });
-  { const c = rows.filter(r => r.calendly).length;
-    hlCard(sample, { eyebrow:'Interview pool', stat: n ? pct(c, n)+'%' : '–', meter: n ? c/n : null,
-      text: n ? `clicked to book the $100 interview (${c} of ${n}), a starting pool for qualitative follow-up.` : NA }); }
+  /* Form activity: every session, whatever the filters */
+  const act = hlGroup(s, 'Form activity.', 'Every session, including people who exited. The size, role and years filters don’t change these.', 'ink');
+  const all = sessionsAll().filter(testVisible);
+  const exited = all.filter(x => x.screenedOut), completed = all.filter(x => !x.screenedOut && x.complete), partial = all.filter(x => !x.screenedOut && !x.complete);
+  hlCard(act, { eyebrow:'Unique sessions', stat: String(all.length),
+    text: all.length ? `<b>${completed.length}</b> completed, <b>${partial.length}</b> partly filled and <b>${exited.length}</b> exited at screening${state.showTests ? ' (test data included)' : ''}.` : NA });
+  { const rep = all.filter(x => x.reportOptIn).length, inv = all.filter(x => x.exitOptIn).length, any = all.filter(x => x.reportOptIn || x.exitOptIn).length;
+    hlCard(act, { eyebrow:'Left an email', stat: String(any), meter: all.length ? any/all.length : null,
+      text: all.length ? `unique people, ${pct(any, all.length)}% of all sessions: <b>${rep}</b> asked for the report and <b>${inv}</b> asked to be invited to a later round after exiting.` : NA }); }
+  { const c = all.filter(x => x.calendly).length, fin = completed.length;
+    hlCard(act, { eyebrow:'Clicked to book a meeting', stat: String(c), meter: fin ? c/fin : null,
+      text: fin ? `unique people clicked “Book my slot” for the $100 interview, ${pct(c, fin)}% of the ${fin} who completed the form.` : NA }); }
+
+  /* Submissions over time */
+  { const card = el('div','hl-card wide');
+    card.appendChild(el('div','hl-eyebrow','Submissions over time'));
+    const dayKey = ts => { const d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+    const byDay = new Map();
+    all.forEach(x => { const k = dayKey(x.firstTs); if (!byDay.has(k)) byDay.set(k, { completed:0, partial:0, exited:0 }); const b = byDay.get(k); b[x.screenedOut ? 'exited' : x.complete ? 'completed' : 'partial']++; });
+    if (!byDay.size){ card.appendChild(el('div','empty-state', NA)); }
+    else {
+      const keys = [...byDay.keys()].sort();
+      const days = []; const cur = new Date(keys[0] + 'T00:00:00'); const end = new Date(keys[keys.length-1] + 'T00:00:00');
+      while (cur <= end && days.length < 400){ days.push(dayKey(cur.getTime())); cur.setDate(cur.getDate()+1); }
+      const max = Math.max(...days.map(k => { const b = byDay.get(k); return b ? b.completed + b.partial + b.exited : 0; }), 1);
+      card.appendChild(el('div','tl-legend','<span><i style="background:var(--mark)"></i>Completed</span><span><i style="background:var(--mark-muted)"></i>Partly filled</span><span><i style="box-shadow:inset 0 0 0 1px var(--mark-muted)"></i>Exited at screening</span>'));
+      const tl = el('div','tl'), lab = el('div','tl-days');
+      const every = Math.ceil(days.length / 14);
+      days.forEach((k, i) => {
+        const b = byDay.get(k) || { completed:0, partial:0, exited:0 };
+        const tot = b.completed + b.partial + b.exited;
+        const col = el('div','tl-col');
+        col.title = `${k}: ${b.completed} completed, ${b.partial} partly filled, ${b.exited} exited`;
+        if (tot) col.appendChild(el('span','n', String(tot)));
+        ['exited','partial','completed'].forEach(kind => { if (!b[kind]) return; const seg = el('div','tl-seg ' + kind); seg.style.height = (100*b[kind]/max) + '%'; col.appendChild(seg); });
+        tl.appendChild(col);
+        const d = new Date(k + 'T00:00:00');
+        lab.appendChild(el('span','', i % every === 0 ? esc(d.toLocaleDateString(undefined, { month:'short', day:'numeric' })) : ''));
+      });
+      card.appendChild(tl); card.appendChild(lab);
+      const busiest = days.reduce((a, k) => { const b = byDay.get(k); const t = b ? b.completed + b.partial + b.exited : 0; return t > a.t ? { k, t } : a; }, { k:null, t:0 });
+      card.appendChild(el('div','hl-text', `<b>${all.length}</b> session${all.length===1?'':'s'} over ${days.length} day${days.length===1?'':'s'}, counted on the day each person started. The busiest day was <b>${esc(new Date(busiest.k + 'T00:00:00').toLocaleDateString(undefined, { month:'short', day:'numeric' }))}</b> with ${busiest.t}.`));
+    }
+    act.appendChild(card); }
+
+  /* Where partial sessions stopped */
+  { const card = el('div','hl-card wide');
+    card.appendChild(el('div','hl-eyebrow','Where partial sessions stopped'));
+    const map = new Map();
+    partial.forEach(x => { const k = x.lastScreen || 'unknown'; map.set(k, (map.get(k)||0) + 1); });
+    const counts = [...map.entries()].map(([k, c]) => ({ key: k, name: SCREEN_LABEL[k] || (k==='unknown' ? 'Not recorded' : k), count: c }))
+      .sort((a, b) => { const ia = SCREEN_ORDER.indexOf(a.key), ib = SCREEN_ORDER.indexOf(b.key); return (ia<0?99:ia) - (ib<0?99:ib); });
+    renderBarList(card, counts, partial.length, { emptyText: 'Nobody has stopped part-way yet.' });
+    if (counts.length){
+      const top = counts.slice().sort((a, b) => b.count - a.count)[0];
+      const tied = counts.filter(c => c.count === top.count).length;
+      card.appendChild(el('div','hl-text', `The question each partly-filled session was on when it was last saved, in form order. ` +
+        (tied === 1 ? `The most common stopping point is <b>${esc(top.name)}</b> (${top.count} of ${partial.length}).` : `No single stopping point stands out yet: ${tied} questions are tied at ${top.count} each.`)));
+    }
+    act.appendChild(card); }
+
 }
 
 /* ================= shell ================= */
