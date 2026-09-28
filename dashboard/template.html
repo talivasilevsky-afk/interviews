@@ -190,6 +190,7 @@
   .bl-track { background: var(--surface-2); height: 10px; position: relative; overflow: hidden; }
   .bl-fill { background: var(--mark); height: 100%; min-width: 2px; }
   .barrow.muted .bl-fill { background: var(--mark-muted); }
+  .barrow.top .bl-fill { background: var(--point); }   /* the top answer in each chart */
   .bl-val { font-size: 0.76rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; min-width: 4.4em; white-space: nowrap; }
 
   .insight { margin-top: 14px; padding: 10px 0 0; border-top: 1px solid var(--line); font-size: 0.84rem; color: var(--ink-soft); line-height: 1.5; }
@@ -575,11 +576,18 @@ function renderBarList(container, counts, n, opts){
   const wrap = el('div','barlist');
   if (!counts.length){ wrap.appendChild(el('div','empty-state', opts.emptyText || 'No responses in this segment yet.')); container.appendChild(wrap); return; }
   const max = Math.max(...counts.map(c => opts.byPct ? c.pct : c.count), 1);
+  // Top answer in Ochre: highest share among real answers ("Not sure", "None", "Other" skipped).
+  // Ties of up to three are all marked; a wider tie means there is no top answer yet.
+  const shareOf = c => { const d = c.denom != null ? c.denom : n; return d ? c.count / d : 0; };
+  const real = counts.filter(c => !['notsure','none','other'].includes(c.key) && c.count > 0);
+  const best = real.length ? Math.max(...real.map(shareOf)) : 0;
+  const tops = real.filter(c => shareOf(c) === best);
+  const topKeys = new Set(tops.length <= 3 && tops.length < real.length || real.length === 1 ? tops.map(c => c.key) : []);
   counts.forEach(c => {
     const denom = c.denom != null ? c.denom : n;
     const p = pct(c.count, denom);
     const muted = ['notsure','none'].includes(c.key);
-    const row = el('div','barrow' + (opts.tone==='warn' ? ' tone-warn' : '') + (muted ? ' muted' : ''));
+    const row = el('div','barrow' + (muted ? ' muted' : '') + (topKeys.has(c.key) ? ' top' : ''));
     row.appendChild(el('div','bl-label', esc(c.name)));
     const track = el('div','bl-track');
     const fill = el('div','bl-fill');
