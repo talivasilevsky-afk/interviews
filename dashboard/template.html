@@ -460,6 +460,10 @@ const REFRESH_LABEL = /*__REFRESH_LABEL__*/'within two hours';
 const LAUNCH_AT = Date.parse('2026-09-29T10:09:53Z');   // went live Sep 29, 2026, 13:09 Israel time
 const LAUNCH_LABEL = 'Sep 29, 2026, 13:09 Israel time';
 const SHOW_TESTS_BY_DEFAULT = LAUNCH_AT === null;
+/* Internal test runs made after launch, marked by hand. */
+const TEST_SESSION_IDS = new Set([
+  'pp26_3xd9sgpcmumyrcko',   // internal test, Sep 29
+]);
 
 const ALL_SIZES = ['1','2','3-5','6-10','11-16','17-24','25-50','51-100'];
 
@@ -652,7 +656,7 @@ function mergeSessions(rows){
     s.durationSec = Math.max(0, ...rs.map(r => Number(r.duration_sec) || 0));
     s.screenedOut = hasVal(s.exit_reason) || (hasVal(s.workplace) && s.workplace!=='agency') || s.team_size==='1';
     s.complete = !s.screenedOut && (rs.some(r => r.completed === true) || hasVal(s.gender));
-    s.isTest = LAUNCH_AT === null || s.firstTs < LAUNCH_AT;
+    s.isTest = LAUNCH_AT === null || s.firstTs < LAUNCH_AT || TEST_SESSION_IDS.has(sid);
     s.inTarget = !s.screenedOut;   // no size cut-off: everyone the form let through
     s.aiShown = hasVal(s.ai_tasks_shown) ? String(s.ai_tasks_shown).split(',').map(x=>x.trim()).filter(Boolean) : [];
     s.deepDives = [];
