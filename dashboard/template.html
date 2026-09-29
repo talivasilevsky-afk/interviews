@@ -307,6 +307,35 @@
   .tl-legend span { display: inline-flex; align-items: center; gap: 7px; }
   .tl-legend i { display: inline-block; width: 9px; height: 9px; }
   .hl-card .barlist { margin-top: 4px; }
+  /* Insights */
+  .ins-grid { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); align-items: start; }
+  .ins-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .ins-n { font-size: 0.7rem; color: var(--ink-faint); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .ins-n.early { color: var(--ink); border: 1px solid var(--line); padding: 1px 7px; }
+  .ins-headline { font-size: 1.02rem; font-weight: 500; line-height: 1.45; color: var(--ink); letter-spacing: -0.005em; }
+  .ins-headline b { font-weight: 700; }
+  .ins-body { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .ins-use { font-size: 0.82rem; color: var(--ink-soft); border-top: 1px solid var(--line); padding-top: 10px; margin-top: 4px; }
+  .ins-use b { color: var(--ink); font-weight: 600; }
+  .ins-label { font-size: 0.68rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-faint); margin-top: 6px; }
+  .ins-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 0.86rem; color: var(--ink); line-height: 1.45; }
+  .ins-sub { color: var(--ink-faint); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+  .ins-note { font-size: 0.76rem; color: var(--ink-faint); line-height: 1.45; }
+  .ins-table td .sq { margin-right: 7px; }
+  .ins-bar { display: inline-block; width: 110px; height: 8px; background: var(--surface-2); vertical-align: middle; }
+  .ins-bar i { display: block; height: 100%; background: var(--mark); }
+  .ins-card .role-legend { margin: 0; }
+  .quad .q-best { fill: var(--surface-2); }
+  .quad .q-lab { fill: var(--ink-soft); font-size: 11px; }
+  .quad .q-pt { fill: var(--ink); font-size: 11.5px; }
+  .pair-list { display: flex; flex-direction: column; gap: 10px; }
+  .pair-row { display: grid; grid-template-columns: minmax(110px, 36%) 1fr; gap: 12px; align-items: center; }
+  .pair-bars { display: flex; flex-direction: column; gap: 3px; }
+  .pair { display: flex; align-items: center; gap: 8px; }
+  .pair .pb { display: block; height: 7px; }
+  .pair .pb.own { background: var(--mark); } .pair .pb.em { background: var(--emp); }
+  .pair em { font-style: normal; font-size: 0.72rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  @media (max-width: 640px) { .ins-grid { grid-template-columns: 1fr; } .pair-row { grid-template-columns: 1fr; gap: 4px; } }
   .email-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .email-wrap { overflow-x: auto; margin-top: 6px; }
   table.emails { border-collapse: collapse; width: 100%; font-size: 0.84rem; }
@@ -365,6 +394,7 @@
   <div class="controlbar-sticky">
     <div class="tabs" id="tabs" role="tablist">
       <button class="tab-btn" data-tab="c" type="button">Highlights</button>
+      <button class="tab-btn" data-tab="e" type="button">Insights</button>
       <button class="tab-btn" data-tab="a" type="button">Research Questions</button>
       <button class="tab-btn" data-tab="b" type="button">Full Survey</button>
       <button class="tab-btn" data-tab="d" type="button">Form activity</button>
@@ -610,8 +640,8 @@ let LIVE = { status: 'idle', error: null };
 let SOURCE = 'snapshot';
 let SNAP_DATA = null, LIVE_DATA = null;
 
-try { const t = localStorage.getItem('smd_tab_v2'); if (t && ['a','b','c','d'].includes(t)) state.tab = t; } catch(e){}
-if (['a','b','c','d'].includes((location.hash||'').slice(1))) state.tab = location.hash.slice(1);
+try { const t = localStorage.getItem('smd_tab_v2'); if (t && ['a','b','c','d','e'].includes(t)) state.tab = t; } catch(e){}
+if (['a','b','c','d','e'].includes((location.hash||'').slice(1))) state.tab = location.hash.slice(1);
 
 function sessionsAll(){ return DATA ? DATA.sessions : []; }
 function testVisible(s){ return state.showTests || !s.isTest; }
@@ -1303,6 +1333,280 @@ function renderTabC(main){
 
 }
 
+/* ================= TAB E: insights ================= */
+/* Everyone who got past screening, whatever the size / years filters; owners and employees shown apart. */
+const TASK_AREAS = {
+  inbox_admin:['admin_work'], drafting:['admin_work'], billing:['collecting_payments','invoicing_paperwork'],
+  team_oversight:['work_rate','team_management'], team_quality:['team_professional_level','deliverables_quality'],
+  leads:['new_clients'], data_pull:['strategic_decisions'], screening:['hiring_retention'], prioritize:['work_rate']
+};
+const TASK_SHORT = {
+  inbox_admin:'Email & calendar', drafting:'Drafting documents', billing:'Invoicing & payments', team_oversight:'Tracking progress',
+  team_quality:'Quality & guidance', leads:'Lead generation', data_pull:'Data for decisions', screening:'Screening candidates', prioritize:'Prioritizing my tasks'
+};
+/* Reasons for hesitating, grouped into themes across the three "why not" questions. */
+const THEMES = [
+  { key:'privacy', name:'Privacy & client data', from:{ ai_reluctance:['trust_privacy'], ai_low_why:['trust'], emp_adopt_why:['privacy'] },
+    message:'Lead with how data is handled: where it lives, who can see it, and how client confidentiality is kept.',
+    need:'Clear data boundaries, access controls and a visible privacy policy inside the product.' },
+  { key:'quality', name:'Output quality', from:{ ai_reluctance:['quality_risk'], ai_low_why:['tried_quality'], emp_adopt_why:['reliability'] },
+    message:'Show real before-and-after examples from agency work, and say that nothing goes out without their review.',
+    need:'Approve-before-send, editable drafts and an easy way to correct the assistant.' },
+  { key:'human', name:'Human touch & role', from:{ ai_reluctance:['prefer_humans'], emp_adopt_why:['humans','job_security'] },
+    message:'Position it as support that takes admin off the team, not a replacement for people.',
+    need:'Keep a person in the loop: hand-offs to a named teammate and a visible log of what the assistant did.' },
+  { key:'effort', name:'Effort to learn & set up', from:{ ai_reluctance:['effort'], ai_low_why:['no_time'], emp_adopt_why:['learning'] },
+    message:'Promise a setup time in minutes and offer done-for-you onboarding.',
+    need:'Guided setup, ready-made templates for agency workflows, and working inside tools they already use.' },
+  { key:'price', name:'Price', from:{ ai_reluctance:['price'] },
+    message:'Anchor the price on hours saved each week.',
+    need:'A clear entry tier and in-product reporting of time saved.' },
+  { key:'relevance', name:'Not sure where it helps', from:{ ai_low_why:['no_need'] },
+    message:'Show specific agency use cases rather than general AI claims.',
+    need:'Suggested first tasks during onboarding, based on their role.' },
+  { key:'access', name:'Not allowed at work', from:{ ai_low_why:['not_available'] },
+    message:'Give employees material they can take to their manager or IT.',
+    need:'Admin controls and an approval flow for the business owner.' },
+];
+const EARLY_N = 20;
+
+function insCard(parent, o){
+  const c = el('div','hl-card ins-card' + (o.wide ? ' wide' : ''));
+  const top = el('div','ins-top');
+  top.appendChild(el('div','hl-eyebrow', (o.point ? '<span class="sq point"></span>' : '') + esc(o.title)));
+  if (o.n != null) top.appendChild(el('span','ins-n' + (o.n < EARLY_N ? ' early' : ''), o.n < EARLY_N ? `Early signal · ${o.n} people` : `${o.n} people`));
+  c.appendChild(top);
+  c.appendChild(el('div','ins-headline', o.headline || 'Not enough responses yet.'));
+  const body = el('div','ins-body'); c.appendChild(body);
+  if (o.use) c.appendChild(el('div','ins-use', '<b>Use it for:</b> ' + esc(o.use)));
+  parent.appendChild(c);
+  return body;
+}
+function roleLegend(){ return el('div','role-legend', '<span><i style="background:var(--mark)"></i>Owners &amp; partners</span><span><i style="background:var(--emp)"></i>Employees</span>'); }
+function ownerPain(r){ const v = AREAS.map(a => Number(r['pain_'+a.slug])).filter(x => x>=1 && x<=7); return v.length ? v.reduce((a,b)=>a+b,0)/v.length : null; }
+function openToAI(r){ return hasVal(r.ai_tasks) ? r.ai_tasks.some(t => t!=='none') : null; }
+function wtpPays(r){ return hasVal(r.wtp_ai) && r.wtp_ai!=='notsure' ? r.wtp_ai!=='0' : null; }
+function shareOf(rows, fn){ const v = rows.map(fn).filter(x => x!==null && x!==undefined); return v.length ? { share: v.filter(Boolean).length / v.length, n: v.length } : null; }
+function insTable(body, head, rows){
+  const wrap = el('div','email-wrap'); const t = el('table','emails ins-table');
+  t.innerHTML = '<thead><tr>' + head.map(h => `<th>${h}</th>`).join('') + '</tr></thead>';
+  const tb = el('tbody'); rows.forEach(r => { const tr = el('tr'); tr.innerHTML = r; tb.appendChild(tr); });
+  t.appendChild(tb); wrap.appendChild(t); body.appendChild(wrap);
+}
+function pctCell(x){ return x ? `${Math.round(100*x.share)}% <span class="ins-sub">of ${x.n}</span>` : '<span class="ins-sub">–</span>'; }
+
+function renderTabE(main){
+  const s = bandSection('Insights.', 'What the answers mean for marketing and for product. These always use everyone who got past screening; the size and years filters don’t apply. Owners and employees are shown apart wherever both answered.', 'ink');
+  main.appendChild(s);
+  const rows = qualified();
+  const owners = rows.filter(isOwner), emps = rows.filter(isEmp);
+  const bySize = ALL_SIZES.filter(v => v!=='1' && rows.some(r => r.team_size===v));
+
+  /* ---------- Marketing ---------- */
+  const mk = hlGroup(s, 'Marketing insights.', 'Who to target, what to say, and what to overcome', 'ink');
+  mk.classList.add('ins-grid');
+
+  // Best-fit segment
+  { const seg = bySize.map(v => {
+      const g = rows.filter(r => r.team_size===v), go = g.filter(isOwner);
+      const pains = go.map(ownerPain).filter(x => x!==null);
+      const pain = pains.length ? pains.reduce((a,b)=>a+b,0)/pains.length : null;
+      const pay = shareOf(go, wtpPays), open = shareOf(g, openToAI), booked = g.length ? { share: g.filter(r => r.calendly).length / g.length, n: g.length } : null;
+      const parts = [pain!==null ? (pain-1)/6 : null, pay ? pay.share : null, open ? open.share : null].filter(x => x!==null);
+      return { v, n: g.length, pain, pay, open, booked, score: parts.length ? parts.reduce((a,b)=>a+b,0)/parts.length : null };
+    });
+    const eligible = seg.filter(x => x.n >= 3 && x.score!==null).sort((a,b) => b.score - a.score);
+    const best = eligible[0];
+    const body = insCard(mk, { wide: true, title: 'Best-fit segment', point: !!best, n: rows.length,
+      headline: best ? `<b>${esc(L.team_size[best.v])}</b> agencies look like the strongest fit: frustration ${best.pain!==null ? best.pain.toFixed(1)+' / 7' : 'n/a'}, ${best.pay ? Math.round(100*best.pay.share)+'%' : 'n/a'} would pay, ${best.open ? Math.round(100*best.open.share)+'%' : 'n/a'} open to AI.` : 'No company size has 3 or more people yet, so there’s no clear best fit.',
+      use: 'Choosing which agency sizes campaigns and outreach go after first.' });
+    insTable(body, ['Company size','People','Avg frustration (owners)','Would pay (owners)','Open to AI','Booked meeting'],
+      seg.map(x => `<td>${x===best ? '<span class="sq point"></span>' : ''}${esc(L.team_size[x.v])}</td><td>${x.n}</td><td>${x.pain!==null ? x.pain.toFixed(1) : '<span class="ins-sub">–</span>'}</td><td>${pctCell(x.pay)}</td><td>${pctCell(x.open)}</td><td>${pctCell(x.booked)}</td>`));
+    body.appendChild(el('div','ins-note','The fit score averages frustration, share willing to pay and share open to AI. Sizes with fewer than 3 people aren’t ranked.')); }
+
+  // Messages that match their pain
+  { const st = likertStats(AREAS, owners, 'owner').slice(0, 3);
+    const d2dRows = rows.filter(r => hasVal(r.day2day));
+    const d = countsFor('day2day', true, null, d2dRows).counts.filter(c => c.key!=='other' && !['on_top','enjoy','eon_top','eenjoy','eequipped'].includes(c.key)).slice(0, 5);
+    addRoleSplit(d, 'day2day', d2dRows);
+    const body = insCard(mk, { title: 'Messages that match their pain', n: d2dRows.length,
+      headline: st.length ? `Owners feel it most in <b>${esc(st[0].name.toLowerCase())}</b>${st[1] ? `, then ${esc(st[1].name.toLowerCase())}` : ''}.` : 'Not enough ratings yet.',
+      use: 'Headlines, ad copy and landing-page language, in their own words.' });
+    if (st.length) body.appendChild(el('ol','ins-list', st.map(x => `<li>${esc(x.name)} <span class="ins-sub">mean ${x.mean.toFixed(1)} / 7</span></li>`).join('')));
+    if (d.length){ body.appendChild(el('div','ins-label','Weekly frustrations they picked')); renderBarList(body, d, d2dRows.length, { split: true }); }
+    const quotes = rows.filter(r => typeof r.heaviest_note === 'string' && r.heaviest_note.trim().length >= 15).sort((a,b) => b.lastTs - a.lastTs).slice(0, 3);
+    if (quotes.length){ body.appendChild(el('div','ins-label','In their words')); const q = el('div','quotes'); quotes.forEach(r => q.appendChild(el('div','quote', '“' + esc(r.heaviest_note.trim().slice(0, 240)) + '”'))); body.appendChild(q); } }
+
+  // Objections to answer
+  const themeRows = rows.filter(r => hasVal(r.ai_reluctance) || hasVal(r.ai_low_why) || hasVal(r.emp_adopt_why));
+  const themes = THEMES.map(t => {
+    const hit = r => Object.entries(t.from).some(([f, keys]) => Array.isArray(r[f]) && r[f].some(k => keys.includes(k)));
+    const who = themeRows.filter(hit);
+    return Object.assign({}, t, { count: who.length, emp: who.filter(isEmp).length });
+  }).filter(t => t.count).sort((a,b) => b.count - a.count);
+  { const body = insCard(mk, { title: 'Objections to answer', n: themeRows.length,
+      headline: themes.length ? `The biggest objection is <b>${esc(themes[0].name.toLowerCase())}</b>, raised by ${Math.round(100*themes[0].count/themeRows.length)}% of those who gave a reason.` : 'No objections recorded yet.',
+      use: 'Landing-page FAQs, sales talking points and onboarding emails.' });
+    if (themes.length){
+      renderBarList(body, themes.map(t => ({ key: t.key, name: t.name, count: t.count, emp: t.emp })), themeRows.length, { split: true });
+      body.appendChild(el('div','ins-label','Suggested answer'));
+      body.appendChild(el('ul','ins-list', themes.slice(0, 3).map(t => `<li><b>${esc(t.name)}:</b> ${esc(t.message)}</li>`).join('')));
+    } }
+
+  // Partner & channel signals
+  { const tRows = rows.filter(r => hasVal(r.tools_used));
+    const c = countsFor('tools_used', true, null, tRows).counts.filter(x => !['none','other'].includes(x.key)).slice(0, 6);
+    addRoleSplit(c, 'tools_used', tRows);
+    const body = insCard(mk, { title: 'Partner & channel signals', n: tRows.length,
+      headline: c.length ? `<b>${esc(c[0].name)}</b> is the most-used tool (${Math.round(100*c[0].count/tRows.length)}%)${c[1] ? `, followed by ${esc(c[1].name)}` : ''}.` : 'No tools recorded yet.',
+      use: 'Integration partnerships, marketplace listings and where to advertise.' });
+    if (c.length) renderBarList(body, c, tRows.length, { split: true });
+    const none = tRows.filter(r => r.tools_used.includes('none')).length;
+    if (none) body.appendChild(el('div','ins-note', `${none} ${none===1?'uses':'use'} none of the listed tools.`)); }
+
+  // Lead pool
+  { const all = sessionsAll().filter(testVisible);
+    const leads = r => r.reportOptIn || r.exitOptIn || r.calendly;
+    const roleRow = (label, g) => `<td>${label}</td><td>${g.length}</td><td>${g.filter(r => r.reportOptIn || r.exitOptIn).length}</td><td>${g.filter(r => r.calendly).length}</td>`;
+    const exitedLeads = all.filter(r => r.screenedOut && r.exitOptIn).length;
+    const body = insCard(mk, { title: 'Lead pool', n: rows.length,
+      headline: `<b>${rows.filter(leads).length}</b> qualified people left an email or clicked to book, plus <b>${exitedLeads}</b> screened-out people who asked to hear about a later round.`,
+      use: 'Nurture lists, the report send-out and recruiting interviewees.' });
+    insTable(body, ['Group','People','Left an email','Booked meeting'], [roleRow('Owners &amp; partners', owners), roleRow('Employees', emps)]
+      .concat(bySize.map(v => roleRow(esc(L.team_size[v]), rows.filter(r => r.team_size===v))))); }
+
+  /* ---------- Product ---------- */
+  const pr = hlGroup(s, 'Product insights.', 'Which problems to solve first, and what it takes for people to trust the product', 'ink');
+  pr.classList.add('ins-grid');
+
+  // Opportunity ranking
+  const dd = deepDiveRows(rows);
+  const PRIOR_N = 5;
+  const ddH = dd.filter(x => x.hours && x.hours!=='notsure'), ddW = dd.filter(x => x.handler);
+  const heavyAll = ddH.length ? ddH.filter(x => hoursHeavy(x.hours)).length / ddH.length : 0;
+  const unownedAll = ddW.length ? ddW.filter(x => x.handler==='you' || x.handler==='noone').length / ddW.length : 0;
+  const shrink = (k, n, prior) => (k + prior * PRIOR_N) / (n + PRIOR_N);
+  const areaScores = AREAS.map(a => {
+    const st = likertStats([a], owners, 'owner')[0];
+    const d = dd.filter(x => x.area===a.slug);
+    const withH = d.filter(x => x.hours && x.hours!=='notsure'), withW = d.filter(x => x.handler);
+    const heavy = withH.length ? withH.filter(x => hoursHeavy(x.hours)).length / withH.length : null;
+    const unowned = withW.length ? withW.filter(x => x.handler==='you' || x.handler==='noone').length / withW.length : null;
+    const heavyAdj = shrink(withH.filter(x => hoursHeavy(x.hours)).length, withH.length, heavyAll);
+    const unownedAdj = shrink(withW.filter(x => x.handler==='you' || x.handler==='noone').length, withW.length, unownedAll);
+    return { a, st, n: d.length, heavy, unowned, score: st ? (st.mean-1)/6*0.6 + heavyAdj*0.2 + unownedAdj*0.2 : null };
+  }).filter(x => x.score!==null).sort((a,b) => b.score - a.score);
+  { const top = areaScores[0];
+    const body = insCard(pr, { wide: true, title: 'Opportunity ranking', point: !!top, n: owners.length,
+      headline: top ? `<b>${esc(top.a.owner)}</b> is the biggest opportunity: frustrating (${top.st.mean.toFixed(1)} / 7)${top.heavy!==null ? `, ${Math.round(100*top.heavy)}% of follow-ups take 6+ hours a week` : ''}${top.unowned!==null ? `, and ${Math.round(100*top.unowned)}% land on the owner or nobody` : ''}.` : 'Not enough ratings yet.',
+      use: 'Deciding which problem the product solves first.' });
+    const max = Math.max(...areaScores.map(x => x.score), 0.01);
+    insTable(body, ['Area','Frustration','Followed up','6+ hours a week','On the owner or nobody','Opportunity'],
+      areaScores.map((x, i) => `<td>${i===0 ? '<span class="sq point"></span>' : ''}${esc(x.a.owner)}</td><td>${x.st.mean.toFixed(1)}</td><td>${x.n}</td><td>${x.heavy!==null ? Math.round(100*x.heavy)+'%' : '<span class="ins-sub">–</span>'}</td><td>${x.unowned!==null ? Math.round(100*x.unowned)+'%' : '<span class="ins-sub">–</span>'}</td><td><span class="ins-bar"><i style="width:${Math.round(100*x.score/max)}%"></i></span></td>`));
+    body.appendChild(el('div','ins-note','Opportunity weighs frustration (60%), the share of follow-ups taking 6+ hours a week (20%) and the share handled by the owner or nobody (20%). Owners only. Areas with few follow-ups are pulled toward the overall average, so one or two answers can’t dominate.')); }
+
+  // Build first vs build trust first
+  { const ow = owners.filter(r => hasVal(r.ai_tasks));
+    const areaMean = Object.fromEntries(areaScores.map(x => [x.a.slug, x.st.mean]));
+    const pts = Object.keys(TASK_AREAS).map(id => {
+      const shown = ow.filter(r => r.aiShown.length ? r.aiShown.includes(id) : true);
+      const m = TASK_AREAS[id].map(sl => areaMean[sl]).filter(x => x!=null);
+      if (!shown.length || !m.length) return null;
+      return { id, x: m.reduce((a,b)=>a+b,0)/m.length, y: shown.filter(r => r.ai_tasks.includes(id)).length / shown.length, n: shown.length };
+    }).filter(Boolean);
+    const buildFirst = pts.filter(p => p.x >= 4 && p.y >= 0.5).sort((a,b) => (b.x/7 + b.y) - (a.x/7 + a.y));
+    const trustFirst = pts.filter(p => p.x >= 4 && p.y < 0.5).sort((a,b) => b.x - a.x);
+    const body = insCard(pr, { wide: true, title: 'Build first vs build trust first', n: ow.length,
+      headline: pts.length ? (buildFirst.length ? `Build first: <b>${buildFirst.slice(0,2).map(p => esc(TASK_SHORT[p.id])).join('</b> and <b>')}</b>.` : 'No task is both painful and widely trusted yet.') + (trustFirst.length ? ` Trust is the feature for <b>${trustFirst.slice(0,2).map(p => esc(TASK_SHORT[p.id])).join('</b> and <b>')}</b>.` : '') : 'Not enough answers yet.',
+      use: 'Sequencing the roadmap: ship what they already trust, and design trust into the rest.' });
+    if (pts.length){
+      const W = Math.max(300, body.clientWidth || 640), H = 300, L0 = 44, R0 = 16, T0 = 16, B0 = 40;
+      const X = v => L0 + (W-L0-R0) * (v-1)/6, Y = v => T0 + (H-T0-B0) * (1-v);
+      let svg = `<svg class="lc quad" viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="Tasks by owner frustration and willingness to hand to AI">`;
+      svg += `<rect x="${X(4)}" y="${Y(1)}" width="${X(7)-X(4)}" height="${Y(0.5)-Y(1)}" class="q-best"/>`;
+      [1,2,3,4,5,6,7].forEach(v => { svg += `<text x="${X(v)}" y="${H-B0+16}" text-anchor="middle">${v}</text>`; });
+      [0,0.5,1].forEach(v => { svg += `<text x="${L0-8}" y="${Y(v)+4}" text-anchor="end">${Math.round(v*100)}%</text>`; });
+      svg += `<line x1="${X(4)}" x2="${X(4)}" y1="${T0}" y2="${H-B0}" class="axis"/><line x1="${L0}" x2="${W-R0}" y1="${Y(0.5)}" y2="${Y(0.5)}" class="axis"/>`;
+      svg += `<line x1="${L0}" x2="${W-R0}" y1="${H-B0}" y2="${H-B0}" class="grid"/>`;
+      svg += `<text x="${W-R0}" y="${T0+12}" text-anchor="end" class="q-lab">Build first</text><text x="${W-R0}" y="${H-B0-8}" text-anchor="end" class="q-lab">Build trust first</text><text x="${L0+6}" y="${T0+12}" class="q-lab">Easy win, lower pain</text><text x="${L0+6}" y="${H-B0-8}" class="q-lab">Lower priority</text>`;
+      svg += `<text x="${(L0+W-R0)/2}" y="${H-6}" text-anchor="middle">Owner frustration with the related area (1–7)</text>`;
+      const placed = pts.map(p => ({ p, cx: X(p.x), cy: Y(p.y), ly: Y(p.y) + 4 })).sort((a, b) => a.cy - b.cy);
+      placed.forEach((q, i) => { for (let j = 0; j < i; j++){ const o = placed[j]; if (Math.abs(o.cx - q.cx) < 140 && Math.abs(o.ly - q.ly) < 14) q.ly = o.ly + 14; } });
+      placed.forEach(({ p, cx, cy, ly }) => { const right = cx < W - 150;
+        svg += `<rect x="${cx-4}" y="${cy-4}" width="8" height="8" class="pt completed"><title>${esc(TASK_SHORT[p.id])}: frustration ${p.x.toFixed(1)}, ${Math.round(100*p.y)}% of ${p.n} would hand it to AI</title></rect>`;
+        if (Math.abs(ly - (cy + 4)) > 1) svg += `<line x1="${cx}" y1="${cy}" x2="${right ? cx+6 : cx-6}" y2="${ly-4}" class="grid"/>`;
+        svg += `<text x="${right ? cx+8 : cx-8}" y="${ly}" text-anchor="${right ? 'start' : 'end'}" class="q-pt">${esc(TASK_SHORT[p.id])}</text>`; });
+      svg += '</svg>';
+      body.insertAdjacentHTML('beforeend', svg);
+      body.appendChild(el('div','ins-note','Up = more owners would hand the task to AI (of those shown it). Right = owners find the related business area more frustrating.'));
+    } }
+
+  // What trust requires
+  { const body = insCard(pr, { title: 'What trust requires', n: themeRows.length,
+      headline: themes.length ? `To win over hesitant users, start with <b>${esc(themes[0].need.split(/[,.]/)[0].toLowerCase())}</b>.` : 'No hesitations recorded yet.',
+      use: 'Feature requirements and the onboarding checklist.' });
+    if (themes.length) body.appendChild(el('ol','ins-list', themes.map(t => `<li><b>${esc(t.name)}</b> <span class="ins-sub">${t.count} ${t.count===1?'person':'people'}${t.emp ? ` · ${t.emp} employee${t.emp===1?'':'s'}` : ''}</span><br>${esc(t.need)}</li>`).join(''))); }
+
+  // Integration priorities
+  { const tRows = rows.filter(r => hasVal(r.tools_used));
+    const c = countsFor('tools_used', true, null, tRows).counts.filter(x => !['none','other'].includes(x.key)).slice(0, 5);
+    const body = insCard(pr, { title: 'Integration priorities', n: tRows.length,
+      headline: c.length ? `Integrate with <b>${esc(c[0].name)}</b> first${c[1] ? `, then ${esc(c[1].name)}` : ''}${c[2] ? ` and ${esc(c[2].name)}` : ''}.` : 'No tools recorded yet.',
+      use: 'The order of integrations on the roadmap.' });
+    if (c.length) body.appendChild(el('ol','ins-list', c.map(x => `<li>${esc(x.name)} <span class="ins-sub">${x.count} of ${tRows.length} · ${Math.round(100*x.count/tRows.length)}%</span></li>`).join('')));
+    const other = tRows.filter(r => hasVal(r.tools_other)).length;
+    if (other) body.appendChild(el('div','ins-note', `${other} named other tools; see “Tools used” in Full Survey for their write-ins.`)); }
+
+  // Pricing signal
+  { const w = owners.filter(r => hasVal(r.wtp_ai));
+    const sure = w.filter(r => r.wtp_ai!=='notsure');
+    const over100 = sure.filter(r => ['101-250','251-500','500+'].includes(r.wtp_ai)).length;
+    const pays = sure.filter(r => r.wtp_ai!=='0').length;
+    const { counts } = countsFor('wtp_ai', false, ORDER.wtp_ai, w);
+    const paying = counts.filter(c => !['0','notsure'].includes(c.key));
+    const modal = paying.slice().sort((a,b) => b.count - a.count)[0];
+    const body = insCard(pr, { title: 'Pricing signal', n: w.length,
+      headline: sure.length ? `<b>${Math.round(100*pays/sure.length)}%</b> of owners would pay something, and <b>${Math.round(100*over100/sure.length)}%</b> more than $100 a month.${modal ? ` The most common paid band is ${esc(modal.name)}.` : ''}` : 'No price answers yet.',
+      use: 'Setting the entry price and testing tiers.' });
+    renderBarList(body, counts, w.length);
+    const spendRows = ORDER.tools_monthly_spend.filter(v => owners.some(r => r.tools_monthly_spend===v)).map(v => {
+      const g = owners.filter(r => r.tools_monthly_spend===v && hasVal(r.wtp_ai) && r.wtp_ai!=='notsure');
+      return `<td>${esc(L.tools_monthly_spend[v])}</td><td>${g.length}</td><td>${g.length ? Math.round(100*g.filter(r => r.wtp_ai!=='0').length/g.length)+'%' : '–'}</td><td>${g.length ? Math.round(100*g.filter(r => ['101-250','251-500','500+'].includes(r.wtp_ai)).length/g.length)+'%' : '–'}</td>`;
+    });
+    if (spendRows.length){ body.appendChild(el('div','ins-label','By current monthly tool spend')); insTable(body, ['Spend now','Owners','Would pay','Over $100'], spendRows); } }
+
+  // Owner vs employee gap
+  { const ansO = owners.filter(r => hasVal(r.ai_tasks)), ansE = emps.filter(r => hasVal(r.ai_tasks));
+    const rate = (g, id) => { const sh = g.filter(r => r.aiShown.length ? r.aiShown.includes(id) : true); return sh.length ? { p: sh.filter(r => r.ai_tasks.includes(id)).length / sh.length, n: sh.length } : null; };
+    const list = Object.keys(TASK_SHORT).map(id => ({ id, o: rate(ansO, id), e: rate(ansE, id) })).filter(x => x.o || x.e);
+    const gaps = list.filter(x => x.o && x.e).map(x => Object.assign(x, { gap: x.o.p - x.e.p })).sort((a,b) => Math.abs(b.gap) - Math.abs(a.gap));
+    const body = insCard(pr, { title: 'Owner vs employee gap', n: ansO.length + ansE.length,
+      headline: !ansE.length ? 'No employee answers yet, so there’s nothing to compare.' : gaps.length ? `The widest gap is <b>${esc(TASK_SHORT[gaps[0].id].toLowerCase())}</b>: ${Math.round(100*gaps[0].o.p)}% of owners vs ${Math.round(100*gaps[0].e.p)}% of employees would hand it to AI.` : 'Owners and employees saw different tasks, so there’s no direct comparison yet.',
+      use: 'Designing for the buyer (the owner) and the daily user (the employee).' });
+    body.appendChild(roleLegend());
+    const wrap = el('div','pair-list');
+    list.forEach(x => {
+      const row = el('div','pair-row');
+      row.innerHTML = `<div class="bl-label">${esc(TASK_SHORT[x.id])}</div><div class="pair-bars">` +
+        `<div class="pair"><span class="pb own" style="width:${x.o ? Math.max(2, Math.round(100*x.o.p)) : 0}%"></span><em>${x.o ? Math.round(100*x.o.p)+'%' : '–'}</em></div>` +
+        `<div class="pair"><span class="pb em" style="width:${x.e ? Math.max(2, Math.round(100*x.e.p)) : 0}%"></span><em>${x.e ? Math.round(100*x.e.p)+'%' : '–'}</em></div></div>`;
+      wrap.appendChild(row);
+    });
+    body.appendChild(wrap);
+    const cautious = emps.filter(r => ['cautious','reluctant'].includes(r.emp_ai_adopt)).length, answered = emps.filter(r => hasVal(r.emp_ai_adopt)).length;
+    if (answered) body.appendChild(el('div','ins-note', `${cautious} of ${answered} employees are cautious or reluctant about working with an AI assistant.`)); }
+
+  // Beta candidates
+  { const cands = rows.filter(r => ['daily','few_week'].includes(r.ai_frequency) && hasVal(r.ai_tasks) && r.ai_tasks.filter(t => !['none','other'].includes(t)).length >= 2 && (r.reportEmail || r.exitEmail || r.calendly))
+      .sort((a,b) => (b.calendly?1:0) - (a.calendly?1:0) || b.lastTs - a.lastTs);
+    const body = insCard(pr, { wide: true, title: 'Beta candidates', n: rows.length,
+      headline: cands.length ? `<b>${cands.length}</b> ${cands.length===1?'person uses':'people use'} AI at least a few times a week, would hand over 2+ tasks, and left a way to reach them.` : 'Nobody matches the beta profile yet.',
+      use: 'A shortlist for early access and design-partner calls.' });
+    if (cands.length) insTable(body, ['Session ID','Role','Company size','AI use','Tasks to hand over','Contact'],
+      cands.slice(0, 25).map(r => `<td class="mono">${esc(r.id)}</td><td>${esc(isEmp(r) ? 'Employee' : lab('role', r.role))}</td><td>${esc(r.team_size ? L.team_size[r.team_size] : '–')}</td><td>${esc(lab('ai_frequency', r.ai_frequency))}</td><td>${r.ai_tasks.filter(t => !['none','other'].includes(t)).length}</td><td class="addr">${esc(r.reportEmail || r.exitEmail || '')}${r.calendly ? `${r.reportEmail || r.exitEmail ? ' · ' : ''}Booked meeting` : ''}</td>`));
+    if (cands.length > 25) body.appendChild(el('div','ins-note', `Showing the 25 most recent of ${cands.length}.`)); }
+}
+
 /* ================= TAB D: form activity ================= */
 function renderTabD(main){
   const s = bandSection('Form activity.', 'How the form itself is doing. These count every session, including people who exited, so the size, role and years filters don’t change them.', 'ink');
@@ -1542,6 +1846,7 @@ function render(){
   if (state.tab==='a') renderTabA(main);
   else if (state.tab==='b') renderTabB(main);
   else if (state.tab==='d') renderTabD(main);
+  else if (state.tab==='e') renderTabE(main);
   else renderTabC(main);
   main.querySelectorAll('.chart-grid:not(.stacked)').forEach(packGrid);
 }
