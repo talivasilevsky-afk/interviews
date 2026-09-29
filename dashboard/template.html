@@ -307,6 +307,14 @@
   .tl-legend span { display: inline-flex; align-items: center; gap: 7px; }
   .tl-legend i { display: inline-block; width: 9px; height: 9px; }
   .hl-card .barlist { margin-top: 4px; }
+  .email-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .email-wrap { overflow-x: auto; margin-top: 6px; }
+  table.emails { border-collapse: collapse; width: 100%; font-size: 0.84rem; }
+  table.emails th { text-align: left; font-size: 0.68rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-faint); padding: 8px 14px 8px 0; border-bottom: 1px solid var(--line-strong); white-space: nowrap; }
+  table.emails td { padding: 9px 14px 9px 0; border-bottom: 1px solid var(--line); color: var(--ink); vertical-align: top; }
+  table.emails td.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem; color: var(--ink-soft); white-space: nowrap; }
+  table.emails td.addr { user-select: all; overflow-wrap: anywhere; }
+  .copy-note { font-size: 0.76rem; color: var(--ink-soft); }
   /* proposal: line chart for submissions over time */
   .lc { width: 100%; display: block; overflow: visible; }
   .lc .grid { stroke: var(--line); stroke-width: 1; }
@@ -575,6 +583,11 @@ function mergeSessions(rows){
     s.calendly = rs.some(r => r.calendly_clicked === true);
     s.reportOptIn = rs.some(r => hasVal(r.report_email));
     s.exitOptIn = rs.some(r => hasVal(r.exit_email));
+    const lastOf = f => { const w = rs.filter(r => typeof r[f] === 'string' && r[f].includes('@')); return w.length ? w[w.length-1][f].trim() : null; };
+    s.reportEmail = lastOf('report_email');
+    s.exitEmail = lastOf('exit_email');
+    const emailRows = rs.filter(r => hasVal(r.report_email) || hasVal(r.exit_email));
+    s.emailTs = emailRows.length ? emailRows[emailRows.length-1]._ts : null;
     s.screenedOut = hasVal(s.exit_reason) || (hasVal(s.workplace) && s.workplace!=='agency') || s.team_size==='1';
     s.complete = !s.screenedOut && (rs.some(r => r.completed === true) || hasVal(s.gender));
     s.isTest = LAUNCH_AT === null || s.firstTs < LAUNCH_AT;
@@ -1356,6 +1369,49 @@ function renderTabD(main){
       card.appendChild(el('div','hl-text', `<b>${all.length}</b> session${all.length===1?'':'s'} over ${days.length} day${days.length===1?'':'s'}, counted on the day each person started. The busiest day was <b>${esc(new Date(busiest.k + 'T00:00:00').toLocaleDateString(undefined, { month:'short', day:'numeric' }))}</b> with ${busiest.t}.`));
     }
     if (!card.parentNode) act.appendChild(card); }
+
+  /* Emails left, one row per address */
+  { const card = el('div','hl-card wide');
+    const head = el('div','email-head');
+    head.appendChild(el('div','hl-eyebrow','Emails left'));
+    const list = [];
+    all.forEach(x => {
+      const status = x.screenedOut ? 'Exited' : x.complete ? 'Completed' : 'Partly filled';
+      if (x.reportEmail) list.push({ email: x.reportEmail, id: x.id, why: 'The report', booked: x.calendly, status, ts: x.emailTs || x.lastTs });
+      if (x.exitEmail) list.push({ email: x.exitEmail, id: x.id, why: 'Invite to a later round', booked: x.calendly, status, ts: x.emailTs || x.lastTs });
+    });
+    list.sort((a, b) => b.ts - a.ts);
+    if (list.length){
+      const btnWrap = el('div','');
+      const btn = el('button','refresh-btn','Copy emails'); btn.type = 'button';
+      const note = el('span','copy-note','');
+      btn.addEventListener('click', () => {
+        const text = [...new Set(list.map(r => r.email))].join(', ');
+        const done = () => { note.textContent = ' Copied.'; };
+        const fallback = () => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(tbody); sel.removeAllRanges(); sel.addRange(range); note.textContent = ' Couldn’t copy automatically; the table is selected, so press Ctrl+C or ⌘C.'; };
+        try { navigator.clipboard.writeText(text).then(done, fallback); } catch(e){ fallback(); }
+      });
+      btnWrap.appendChild(btn); btnWrap.appendChild(note);
+      head.appendChild(btnWrap);
+    }
+    card.appendChild(head);
+    let tbody = null;
+    if (!list.length){ card.appendChild(el('div','empty-state','Nobody has left an email yet.')); }
+    else {
+      const wrap = el('div','email-wrap');
+      const table = el('table','emails');
+      table.innerHTML = '<thead><tr><th>Email</th><th>Session ID</th><th>Left for</th><th>Booked meeting</th><th>Status</th><th>Date</th></tr></thead>';
+      tbody = el('tbody');
+      list.forEach(r => {
+        const tr = el('tr');
+        tr.innerHTML = `<td class="addr">${esc(r.email)}</td><td class="mono">${esc(r.id)}</td><td>${esc(r.why)}</td><td>${r.booked ? 'Clicked' : '–'}</td><td>${esc(r.status)}</td><td class="mono">${esc(fmtTime(r.ts))}</td>`;
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody); wrap.appendChild(table); card.appendChild(wrap);
+      const uniq = new Set(list.map(r => r.email)).size;
+      card.appendChild(el('div','hl-text', `<b>${list.length}</b> email${list.length===1?'':'s'} from ${new Set(list.map(r => r.id)).size} session${new Set(list.map(r => r.id)).size===1?'':'s'} (${uniq} unique address${uniq===1?'':'es'}), newest first.`));
+    }
+    act.appendChild(card); }
 
   /* Where partial sessions stopped */
   { const card = el('div','hl-card wide');

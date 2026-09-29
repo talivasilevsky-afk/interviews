@@ -6,8 +6,9 @@ connector's list_records_for_table returns it (cellValuesByFieldId, select
 values as objects) or in the compact form ("fields" keyed by field name,
 select values as plain strings). Both are read by the page.
 
-Email addresses are replaced with `true` before anything is embedded, so the
-published page only knows whether someone left an email, never the address.
+The report and invite email addresses are kept, because the Form activity tab
+lists them with their session IDs. The page is visible to everyone it is
+shared with. `_replyto` only duplicates them and is dropped.
 
 Usage:
   python3 scripts/build_dashboard.py data/records.json \
@@ -19,13 +20,10 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 TEMPLATE = ROOT / "dashboard" / "template.html"
 OUT = ROOT / "stacked-marketing-dashboard.html"
 
-EMAIL_FIELDS = {
-    # by field id and by field name
-    "fldc3wZZ71PFwmLio", "report_email",
-    "flddFPQlT8haxZJba", "exit_email",
-    "flds2KmyjGSYlYy0c", "_replyto",
+DROP_FIELDS = {
+    "fldZm0HWRglCjD6Tv", "_subject",   # form subject line, not needed
+    "flds2KmyjGSYlYy0c", "_replyto",   # duplicate of report_email / exit_email
 }
-DROP_FIELDS = {"fldZm0HWRglCjD6Tv", "_subject"}  # form subject line, not needed
 
 
 def clean(rec):
@@ -34,8 +32,6 @@ def clean(rec):
     for k, v in (rec.get(src_key) or {}).items():
         if k in DROP_FIELDS:
             continue
-        if k in EMAIL_FIELDS:
-            v = bool(v)
         cells[k] = v
     return {"id": rec.get("id"), "createdTime": rec.get("createdTime"), src_key: cells}
 
