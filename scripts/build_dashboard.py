@@ -12,7 +12,7 @@ shared with. `_replyto` only duplicates them and is dropped.
 
 Usage:
   python3 scripts/build_dashboard.py data/records.json \
-      --as-of 2026-09-29T06:00:00Z --refresh-label "9:00 Israel time"
+      --as-of 2026-09-29T06:00:00Z --refresh-label "within two hours"
 """
 import argparse, datetime, json, pathlib, sys
 
@@ -40,7 +40,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("records")
     ap.add_argument("--as-of", help="ISO time the rows were read (default: now, UTC)")
-    ap.add_argument("--refresh-label", default="9:00")
+    ap.add_argument("--refresh-label", default="within two hours")
     args = ap.parse_args()
 
     data = json.loads(pathlib.Path(args.records).read_text())
@@ -53,11 +53,11 @@ def main():
     blob = json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
 
     html = TEMPLATE.read_text()
-    for marker in ("/*__SNAPSHOT__*/null", "/*__REFRESH_LABEL__*/'9:00'"):
+    for marker in ("/*__SNAPSHOT__*/null", "/*__REFRESH_LABEL__*/'within two hours'"):
         if marker not in html:
             sys.exit(f"template marker missing: {marker}")
     html = html.replace("/*__SNAPSHOT__*/null", blob, 1)
-    html = html.replace("/*__REFRESH_LABEL__*/'9:00'", json.dumps(args.refresh_label), 1)
+    html = html.replace("/*__REFRESH_LABEL__*/'within two hours'", json.dumps(args.refresh_label), 1)
     OUT.write_text(html)
 
     sessions = {((r.get("cellValuesByFieldId") or r.get("fields") or {}).get("fldptlBmysZwmHkjz")

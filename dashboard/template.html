@@ -350,7 +350,7 @@
         <div>
           <div class="label">Practice Pulse ’26 · Stacked marketer version</div>
           <div class="title-anchor"><span class="corner" aria-hidden="true"></span><h1>Stacked Marketing survey.</h1></div>
-          <p class="second-voice" id="nextLine">The next snapshot is prepared for 9:00.</p>
+          <p class="second-voice" id="nextLine">The next snapshot is prepared within two hours.</p>
         </div>
         <div class="asof-wrap">
           <span class="asof" id="asofLabel"><span class="sq"></span>Loading snapshot…</span>
@@ -397,7 +397,7 @@ const PAGE_SIZE = 1000;
 
 /* Filled in by scripts/build_dashboard.py: { asOf, records }. */
 const SNAPSHOT = /*__SNAPSHOT__*/null;
-const REFRESH_LABEL = /*__REFRESH_LABEL__*/'9:00';
+const REFRESH_LABEL = /*__REFRESH_LABEL__*/'within two hours';
 
 /* Launch time. Until it is set, the survey hasn't launched: every session is a test run and all of them are shown.
    Set it (e.g. Date.parse('2026-10-05T07:00:00Z')) only when told the survey has launched. */
@@ -1471,7 +1471,7 @@ function setHeader(){
   }
   document.getElementById('nextLine').textContent = SOURCE === 'live'
     ? 'Only your view has changed. Everyone else keeps the daily snapshot.'
-    : `The next snapshot is prepared for ${REFRESH_LABEL}.`;
+    : `The next snapshot is prepared ${REFRESH_LABEL}.`;
   if (DATA){
     const all = DATA.sessions;
     const tests = all.filter(s => s.isTest).length;
