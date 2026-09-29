@@ -308,6 +308,11 @@
   .tl-legend i { display: inline-block; width: 9px; height: 9px; }
   .hl-card .barlist { margin-top: 4px; }
   /* Insights */
+  .ins-switch { display: inline-flex; border: 1px solid var(--line-strong); margin: 4px 0 6px; }
+  .ins-switch-btn { font-family: inherit; font-size: 0.86rem; font-weight: 500; color: var(--ink); background: transparent; border: none; padding: 9px 18px; cursor: pointer; }
+  .ins-switch-btn + .ins-switch-btn { border-left: 1px solid var(--line-strong); }
+  .ins-switch-btn.on { background: var(--ink); color: var(--ground); font-weight: 600; }
+  .ins-switch-btn:not(.on):hover { background: var(--surface); }
   .ins-grid { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); align-items: start; }
   .ins-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .ins-n { font-size: 0.7rem; color: var(--ink-faint); white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -634,12 +639,13 @@ function mergeSessions(rows){
 }
 
 /* ================= state ================= */
-const state = { size: 'all', role: 'all', years: 'all', tab: 'c', showTests: false, autoTests: false };
+const state = { size: 'all', role: 'all', years: 'all', insView: 'marketing', tab: 'c', showTests: false, autoTests: false };
 let DATA = null;           // { rows, sessions, noSession, fetchedAt }
 let LIVE = { status: 'idle', error: null };
 let SOURCE = 'snapshot';
 let SNAP_DATA = null, LIVE_DATA = null;
 
+try { const v = localStorage.getItem('smd_ins_view'); if (v === 'marketing' || v === 'product') state.insView = v; } catch(e){}
 try { const t = localStorage.getItem('smd_tab_v2'); if (t && ['a','b','c','d','e'].includes(t)) state.tab = t; } catch(e){}
 if (['a','b','c','d','e'].includes((location.hash||'').slice(1))) state.tab = location.hash.slice(1);
 
@@ -1398,6 +1404,14 @@ function pctCell(x){ return x ? `${Math.round(100*x.share)}% <span class="ins-su
 function renderTabE(main){
   const s = bandSection('Insights.', 'What the answers mean for marketing and for product. These always use everyone who got past screening; the size and years filters don’t apply. Owners and employees are shown apart wherever both answered.', 'ink');
   main.appendChild(s);
+  const sw = el('div','ins-switch'); sw.setAttribute('role','tablist'); sw.setAttribute('aria-label','Insights view');
+  [['marketing','Marketing insights'],['product','Product insights']].forEach(([k, label]) => {
+    const b = el('button','ins-switch-btn' + (state.insView===k ? ' on' : ''), esc(label));
+    b.type = 'button'; b.setAttribute('role','tab'); b.setAttribute('aria-selected', state.insView===k);
+    b.addEventListener('click', () => { if (state.insView === k) return; state.insView = k; try { localStorage.setItem('smd_ins_view', k); } catch(e){} render(); });
+    sw.appendChild(b);
+  });
+  s.appendChild(sw);
   const rows = qualified();
   const owners = rows.filter(isOwner), emps = rows.filter(isEmp);
   const bySize = ALL_SIZES.filter(v => v!=='1' && rows.some(r => r.team_size===v));
@@ -1405,6 +1419,7 @@ function renderTabE(main){
   /* ---------- Marketing ---------- */
   const mk = hlGroup(s, 'Marketing insights.', 'Who to target, what to say, and what to overcome', 'ink');
   mk.classList.add('ins-grid');
+  mk.parentNode.hidden = state.insView !== 'marketing';
 
   // Best-fit segment
   { const seg = bySize.map(v => {
@@ -1478,6 +1493,7 @@ function renderTabE(main){
   /* ---------- Product ---------- */
   const pr = hlGroup(s, 'Product insights.', 'Which problems to solve first, and what it takes for people to trust the product', 'ink');
   pr.classList.add('ins-grid');
+  pr.parentNode.hidden = state.insView !== 'product';
 
   // Opportunity ranking
   const dd = deepDiveRows(rows);
