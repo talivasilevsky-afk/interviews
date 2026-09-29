@@ -1376,9 +1376,8 @@ function renderTabD(main){
     head.appendChild(el('div','hl-eyebrow','Emails left'));
     const list = [];
     all.forEach(x => {
-      const status = x.screenedOut ? 'Exited' : x.complete ? 'Completed' : 'Partly filled';
-      if (x.reportEmail) list.push({ email: x.reportEmail, id: x.id, why: 'The report', booked: x.calendly, status, ts: x.emailTs || x.lastTs });
-      if (x.exitEmail) list.push({ email: x.exitEmail, id: x.id, why: 'Invite to a later round', booked: x.calendly, status, ts: x.emailTs || x.lastTs });
+      if (x.reportEmail) list.push({ email: x.reportEmail, id: x.id, why: 'The report', booked: x.calendly, ts: x.emailTs || x.lastTs });
+      if (x.exitEmail) list.push({ email: x.exitEmail, id: x.id, why: 'Invite to a later round', booked: x.calendly, ts: x.emailTs || x.lastTs });
     });
     list.sort((a, b) => b.ts - a.ts);
     if (list.length){
@@ -1400,11 +1399,11 @@ function renderTabD(main){
     else {
       const wrap = el('div','email-wrap');
       const table = el('table','emails');
-      table.innerHTML = '<thead><tr><th>Email</th><th>Session ID</th><th>Left for</th><th>Booked meeting</th><th>Status</th><th>Date</th></tr></thead>';
+      table.innerHTML = '<thead><tr><th>Email</th><th>Session ID</th><th>Left for</th><th>Booked meeting</th><th>Date</th></tr></thead>';
       tbody = el('tbody');
       list.forEach(r => {
         const tr = el('tr');
-        tr.innerHTML = `<td class="addr">${esc(r.email)}</td><td class="mono">${esc(r.id)}</td><td>${esc(r.why)}</td><td>${r.booked ? 'Clicked' : '–'}</td><td>${esc(r.status)}</td><td class="mono">${esc(fmtTime(r.ts))}</td>`;
+        tr.innerHTML = `<td class="addr">${esc(r.email)}</td><td class="mono">${esc(r.id)}</td><td>${esc(r.why)}</td><td>${r.booked ? 'Clicked' : '–'}</td><td class="mono">${esc(fmtTime(r.ts))}</td>`;
         tbody.appendChild(tr);
       });
       table.appendChild(tbody); wrap.appendChild(table); card.appendChild(wrap);
