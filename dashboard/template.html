@@ -341,6 +341,26 @@
   .pair .pb.own { background: var(--mark); } .pair .pb.em { background: var(--emp); }
   .pair em { font-style: normal; font-size: 0.72rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
   @media (max-width: 640px) { .ins-grid { grid-template-columns: 1fr; } .pair-row { grid-template-columns: 1fr; gap: 4px; } }
+  /* Interviews: answers panel */
+  .view-link { color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; }
+  .drawer-back { position: fixed; inset: 0; background: rgba(42, 30, 51, 0.38); z-index: 60; display: flex; justify-content: flex-end; }
+  .drawer { width: min(620px, 100%); height: 100%; overflow-y: auto; background: var(--ground); border-left: 1px solid var(--line-strong);
+    padding: calc(24px + env(safe-area-inset-top, 0px)) 28px calc(40px + env(safe-area-inset-bottom, 0px)); }
+  .drawer-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .drawer-top .label { margin-bottom: 6px; }
+  .drawer-title { font-size: 1.3rem; font-weight: 600; letter-spacing: -0.015em; overflow-wrap: anywhere; }
+  .drawer-meta { font-size: 0.8rem; color: var(--ink-soft); margin-top: 4px; }
+  .drawer-meta .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.76rem; }
+  .drawer-links { font-size: 0.82rem; color: var(--ink-soft); padding: 12px 0 4px; }
+  .drawer-links a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+  dl.answers { margin: 10px 0 0; }
+  dl.answers dt { font-size: 0.78rem; color: var(--ink-soft); margin-top: 18px; line-height: 1.4; }
+  dl.answers dd { margin: 5px 0 0; font-size: 0.92rem; color: var(--ink); line-height: 1.45; overflow-wrap: anywhere; }
+  .ans-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+  .ans-list.ratings { list-style: none; padding-left: 0; }
+  .ans-list.ratings li { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding: 3px 0; }
+  .ans-list.ratings b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  @media (max-width: 640px) { .drawer { padding-left: 18px; padding-right: 18px; } }
   .email-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .email-wrap { overflow-x: auto; margin-top: 6px; }
   table.emails { border-collapse: collapse; width: 100%; font-size: 0.84rem; }
@@ -403,6 +423,7 @@
       <button class="tab-btn" data-tab="a" type="button">Research Questions</button>
       <button class="tab-btn" data-tab="b" type="button">Full Survey</button>
       <button class="tab-btn" data-tab="d" type="button">Form activity</button>
+      <button class="tab-btn" data-tab="f" type="button">Interviews</button>
     </div>
     <div class="filterbar">
       <label class="fl" for="fSize">Company size</label>
@@ -467,13 +488,13 @@ const FIELD_IDS = {
   fldcLJx6qGuO3dLoa:'completed', fldz8p5JmiTDcPJm5:'completed_at', fldkgVTiZ88nKZQQ8:'exit_reason',
   flddFPQlT8haxZJba:'exit_email', fldc3wZZ71PFwmLio:'report_email', flda8pNlQtz77DsL5:'calendly_clicked',
   fldyl4QrgnKTqsh53:'clicked_at', flds2KmyjGSYlYy0c:'_replyto', fldZm0HWRglCjD6Tv:'_subject',
-  fld7c8oNA8ahnLt6L:'submission_date', fld9WLZz26Mojjckl:'submission_created_time'
+  fld7c8oNA8ahnLt6L:'submission_date', fld9WLZz26Mojjckl:'submission_created_time', fld6tBkNeKUBRqsFW:'meeting_email'
 };
 const MULTI_FIELDS = new Set(['emp_bottlenecks','emp_adopt_why','ai_tasks','ai_reluctance','tools_used','ai_uses','ai_low_why','day2day']);
 /* Fields merged per session with "latest non-empty answer wins". Flags and event rows are handled separately. */
 const ANSWER_FIELDS = Object.values(FIELD_IDS).filter(f => ![
   'session_id','_partial','screen','completed','completed_at','calendly_clicked','clicked_at',
-  'exit_email','report_email','_replyto','_subject','submission_date','submission_created_time','vip_qualified'
+  'exit_email','report_email','meeting_email','_replyto','_subject','submission_date','submission_created_time','vip_qualified'
 ].includes(f));
 
 /* ================= labels (form wording) ================= */
@@ -623,6 +644,12 @@ function mergeSessions(rows){
     s.exitEmail = lastOf('exit_email');
     const emailRows = rs.filter(r => hasVal(r.report_email) || hasVal(r.exit_email));
     s.emailTs = emailRows.length ? emailRows[emailRows.length-1]._ts : null;
+    s.meetingEmail = lastOf('meeting_email');
+    const doneRow = rs.filter(r => r.completed === true || hasVal(r.completed_at)).pop();
+    s.submittedTs = doneRow ? (Date.parse(doneRow.completed_at || '') || doneRow._ts) : s.lastTs;
+    const fullest = rs.slice().sort((a, b) => Object.keys(b).length - Object.keys(a).length)[0];
+    s.mainRid = fullest ? fullest._rid : null;
+    s.durationSec = Math.max(0, ...rs.map(r => Number(r.duration_sec) || 0));
     s.screenedOut = hasVal(s.exit_reason) || (hasVal(s.workplace) && s.workplace!=='agency') || s.team_size==='1';
     s.complete = !s.screenedOut && (rs.some(r => r.completed === true) || hasVal(s.gender));
     s.isTest = LAUNCH_AT === null || s.firstTs < LAUNCH_AT;
@@ -646,8 +673,11 @@ let SOURCE = 'snapshot';
 let SNAP_DATA = null, LIVE_DATA = null;
 
 try { const v = localStorage.getItem('smd_ins_view'); if (v === 'marketing' || v === 'product') state.insView = v; } catch(e){}
-try { const t = localStorage.getItem('smd_tab_v2'); if (t && ['a','b','c','d','e'].includes(t)) state.tab = t; } catch(e){}
-if (['a','b','c','d','e'].includes((location.hash||'').slice(1))) state.tab = location.hash.slice(1);
+try { const t = localStorage.getItem('smd_tab_v2'); if (t && ['a','b','c','d','e','f'].includes(t)) state.tab = t; } catch(e){}
+if (['a','b','c','d','e','f'].includes((location.hash||'').slice(1))) state.tab = location.hash.slice(1);
+/* A session ID after # opens the Interviews tab with that person's answers. */
+const HASH_SESSION = /^pp26_[A-Za-z0-9]+$/.test((location.hash||'').slice(1)) ? location.hash.slice(1) : null;
+if (HASH_SESSION) state.tab = 'f';
 
 function sessionsAll(){ return DATA ? DATA.sessions : []; }
 function testVisible(s){ return state.showTests || !s.isTest; }
@@ -1623,6 +1653,134 @@ function renderTabE(main){
     if (cands.length > 25) body.appendChild(el('div','ins-note', `Showing the 25 most recent of ${cands.length}.`)); }
 }
 
+/* ================= TAB F: interviews ================= */
+/* Everyone who left a meeting email, with a panel showing their full answers. */
+function interviewees(){
+  return sessionsAll().filter(s => testVisible(s) && s.meetingEmail)
+    .sort((a, b) => (b.submittedTs || 0) - (a.submittedTs || 0));
+}
+function airtableUrl(rid){ return rid ? `https://airtable.com/${BASE_ID}/${TABLE_ID}/${rid}` : null; }
+
+function renderTabF(main){
+  const s = bandSection('Interviews.', 'People who left an email to book the $100 interview. Open anyone’s full survey answers before the call. The size, role and years filters don’t apply here.', 'ink');
+  main.appendChild(s);
+  const list = interviewees();
+  const card = el('div','hl-card wide');
+  const head = el('div','email-head');
+  head.appendChild(el('div','hl-eyebrow', `Interview sign-ups · ${list.length}`));
+  let tbody = null;
+  if (list.length){
+    const btnWrap = el('div','');
+    const btn = el('button','refresh-btn','Copy emails'); btn.type = 'button';
+    const note = el('span','copy-note','');
+    btn.addEventListener('click', () => {
+      const text = [...new Set(list.map(r => r.meetingEmail))].join(', ');
+      const fallback = () => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(tbody); sel.removeAllRanges(); sel.addRange(range); note.textContent = ' Couldn’t copy automatically; the table is selected, so press Ctrl+C or ⌘C.'; };
+      try { navigator.clipboard.writeText(text).then(() => { note.textContent = ' Copied.'; }, fallback); } catch(e){ fallback(); }
+    });
+    btnWrap.appendChild(btn); btnWrap.appendChild(note); head.appendChild(btnWrap);
+  }
+  card.appendChild(head);
+  if (!list.length){
+    card.appendChild(el('div','empty-state','Nobody has left a meeting email yet. People appear here as soon as they do (the page refreshes every two hours, or use “Load latest from Airtable”).'));
+  } else {
+    const wrap = el('div','email-wrap');
+    const table = el('table','emails');
+    table.innerHTML = '<thead><tr><th>Meeting email</th><th>Session ID</th><th>Submitted</th><th>Answers</th></tr></thead>';
+    tbody = el('tbody');
+    list.forEach(r => {
+      const tr = el('tr');
+      tr.innerHTML = `<td class="addr">${esc(r.meetingEmail)}</td><td class="mono">${esc(r.id)}</td><td class="mono">${esc(r.submittedTs ? fmtTime(r.submittedTs) : '–')}</td><td></td>`;
+      const a = el('a','view-link','View answers');
+      a.href = '#' + r.id;
+      a.addEventListener('click', ev => { ev.preventDefault(); openAnswers(r.id); });
+      tr.lastChild.appendChild(a);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody); wrap.appendChild(table); card.appendChild(wrap);
+    card.appendChild(el('div','hl-text', `<b>${list.length}</b> ${list.length===1?'person':'people'} signed up, newest first. “Submitted” is when they finished the survey, or their last save if they didn’t finish.`));
+  }
+  s.appendChild(card);
+}
+
+/* ---------- full answers panel ---------- */
+function answerRows(s){
+  const out = [];
+  const add = (q, a) => { if (a != null && a !== '') out.push({ q, a }); };
+  const one = f => hasVal(s[f]) ? esc(lab(f, s[f])) : null;
+  const many = (f, otherF) => {
+    if (!hasVal(s[f])) return null;
+    const items = s[f].map(v => v==='other' && otherF && hasVal(s[otherF]) ? `Other: “${esc(s[otherF])}”` : esc(lab(f, v)));
+    return '<ul class="ans-list">' + items.map(x => `<li>${x}</li>`).join('') + '</ul>';
+  };
+  const emp = isEmp(s);
+  add(Q.workplace, one('workplace'));
+  add(Q.team_size, one('team_size'));
+  add(Q.role, one('role'));
+  add(Q.country, one('country'));
+  add(Q.years_operating, one('years_operating'));
+  if (hasVal(s.emp_role)) add(Q.emp_role, s.emp_role==='other' && hasVal(s.emp_role_other) ? `Other: “${esc(s.emp_role_other)}”` : one('emp_role'));
+  const ratings = AREAS.map(a => ({ name: emp ? (a.emp || a.owner) : a.owner, v: Number(s['pain_'+a.slug]) })).filter(x => x.v>=1 && x.v<=7).sort((a,b) => b.v - a.v);
+  if (ratings.length) add(emp ? Q.pain_emp : Q.pain_owner, '<ul class="ans-list ratings">' + ratings.map(x => `<li><span>${esc(x.name)}</span><b>${x.v} / 7</b></li>`).join('') + '</ul>');
+  if (hasVal(s.pain_other)) add(Q.pain_other, `“${esc(s.pain_other)}”`);
+  if (s.deepDives.length) add('Follow-ups: who handles it and hours per week', '<ul class="ans-list">' + s.deepDives.map(d => `<li><b>${esc((AREA_BY_SLUG[d.area]||{}).owner || d.area)}</b><br>${esc(d.handler ? L.handler[d.handler] || d.handler : '–')} · ${esc(d.hours ? L.hours[d.hours] || d.hours : '–')}</li>`).join('') + '</ul>');
+  add(Q.emp_bottlenecks, many('emp_bottlenecks', 'emp_bottlenecks_other'));
+  add(Q.ai_tasks, many('ai_tasks', 'ai_tasks_other'));
+  add(Q.ai_reluctance, many('ai_reluctance', 'ai_reluctance_other'));
+  add(Q.ai_frequency, one('ai_frequency'));
+  add(Q.ai_uses, many('ai_uses', 'ai_uses_other'));
+  add(Q.ai_low_why, many('ai_low_why', 'ai_low_why_other'));
+  add(Q.emp_ai_adopt, one('emp_ai_adopt'));
+  add(Q.emp_adopt_why, many('emp_adopt_why', 'emp_adopt_why_other'));
+  add(Q.tools_used, many('tools_used', 'tools_other'));
+  add(Q.tools_monthly_spend, one('tools_monthly_spend'));
+  add(Q.wtp_ai, one('wtp_ai'));
+  add(Q.day2day, many('day2day', 'day2day_other'));
+  if (hasVal(s.heaviest)) add(Q.heaviest, s.heaviest==='other' && hasVal(s.day2day_other) ? `“${esc(s.day2day_other)}”` : one('heaviest'));
+  if (hasVal(s.heaviest_note)) add(Q.heaviest_note, `“${esc(s.heaviest_note)}”`);
+  add(Q.gender, one('gender'));
+  return out;
+}
+
+function openAnswers(id){
+  const s = sessionsAll().find(x => x.id === id);
+  if (!s) return;
+  closeAnswers();
+  const back = el('div','drawer-back'); back.id = 'answersDrawer';
+  const panel = el('div','drawer'); panel.setAttribute('role','dialog'); panel.setAttribute('aria-modal','true'); panel.setAttribute('aria-label', 'Survey answers for ' + id);
+  const status = s.screenedOut ? 'Exited at screening' : s.complete ? 'Completed' : 'Partly filled';
+  const top = el('div','drawer-top');
+  top.innerHTML = `<div><div class="label">Survey answers</div><div class="drawer-title">${esc(s.meetingEmail || s.reportEmail || id)}</div>` +
+    `<div class="drawer-meta"><span class="mono">${esc(id)}</span> · ${esc(status)}${s.submittedTs ? ' · ' + esc(fmtTime(s.submittedTs)) : ''}${s.durationSec ? ' · took ' + Math.round(s.durationSec/60) + ' min' : ''}</div></div>`;
+  const close = el('button','refresh-btn','Close'); close.type = 'button'; close.addEventListener('click', closeAnswers);
+  top.appendChild(close);
+  panel.appendChild(top);
+  const links = el('div','drawer-links');
+  const at = airtableUrl(s.mainRid);
+  if (at) links.innerHTML = `<a href="${esc(at)}" target="_blank" rel="noopener">Open in Airtable</a>`;
+  const extra = [];
+  if (s.reportEmail) extra.push('Asked for the report');
+  if (s.calendly) extra.push('Clicked “Book my slot”');
+  if (extra.length) links.appendChild(el('span','', ' · ' + esc(extra.join(' · '))));
+  panel.appendChild(links);
+  const rowsA = answerRows(s);
+  const dl = el('dl','answers');
+  if (!rowsA.length) dl.appendChild(el('div','empty-state','No answers saved for this session.'));
+  rowsA.forEach(({ q, a }) => { dl.appendChild(el('dt','', esc(q))); dl.appendChild(el('dd','', a)); });
+  panel.appendChild(dl);
+  back.appendChild(panel);
+  back.addEventListener('click', ev => { if (ev.target === back) closeAnswers(); });
+  document.body.appendChild(back);
+  document.body.style.overflow = 'hidden';
+  close.focus();
+  try { history.replaceState(null, '', '#' + id); } catch(e){}
+}
+function closeAnswers(){
+  const d = document.getElementById('answersDrawer');
+  if (d){ d.remove(); document.body.style.overflow = ''; try { history.replaceState(null, '', location.pathname + location.search); } catch(e){} }
+}
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape') closeAnswers(); });
+
 /* ================= TAB D: form activity ================= */
 function renderTabD(main){
   const s = bandSection('Form activity.', 'How the form itself is doing. These count every session, including people who exited, so the size, role and years filters don’t change them.', 'ink');
@@ -1863,6 +2021,7 @@ function render(){
   else if (state.tab==='b') renderTabB(main);
   else if (state.tab==='d') renderTabD(main);
   else if (state.tab==='e') renderTabE(main);
+  else if (state.tab==='f') renderTabF(main);
   else renderTabC(main);
   main.querySelectorAll('.chart-grid:not(.stacked)').forEach(packGrid);
 }
@@ -1969,6 +2128,7 @@ async function boot(){
     applyData(SNAP_DATA);
   }
   render();
+  if (HASH_SESSION && DATA){ const hs = DATA.sessions.find(x => x.id === HASH_SESSION); if (hs){ if (hs.isTest && !state.showTests){ state.showTests = true; render(); } openAnswers(HASH_SESSION); } }
   let mcp = null;
   try { mcp = (window.claude && typeof window.claude.use === 'function') ? await window.claude.use('mcp') : null; } catch(e){ mcp = null; }
   if (mcp){ MCP = mcp; setHeader(); }
