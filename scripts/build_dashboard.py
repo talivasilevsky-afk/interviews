@@ -14,11 +14,13 @@ Usage:
   python3 scripts/build_dashboard.py data/records.json \
       --as-of 2026-09-29T06:00:00Z --refresh-label "within two hours"
 """
-import argparse, datetime, json, pathlib, sys
+import argparse, datetime, hashlib, json, pathlib, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 TEMPLATE = ROOT / "dashboard" / "template.html"
 OUT = ROOT / "stacked-marketing-dashboard.html"
+TEST_HASHES = ROOT / "scripts" / "test_email_hashes.txt"
+SESSION_FIELD = "fldptlBmysZwmHkjz"
 
 DROP_FIELDS = {
     "fldZm0HWRglCjD6Tv", "_subject",   # form subject line, not needed
@@ -34,6 +36,21 @@ def clean(rec):
             continue
         cells[k] = v
     return {"id": rec.get("id"), "createdTime": rec.get("createdTime"), src_key: cells}
+
+
+def test_session_ids(records):
+    """Session IDs where any email cell matches a hashed test address."""
+    if not TEST_HASHES.exists():
+        return []
+    hashes = {l.strip() for l in TEST_HASHES.read_text().splitlines() if l.strip() and not l.startswith("#")}
+    hits = set()
+    for r in records:
+        cells = r.get("cellValuesByFieldId") or r.get("fields") or {}
+        sid = cells.get(SESSION_FIELD) or cells.get("session_id")
+        for v in cells.values():
+            if sid and isinstance(v, str) and "@" in v and hashlib.sha256(v.strip().lower().encode()).hexdigest() in hashes:
+                hits.add(sid)
+    return sorted(hits)
 
 
 def main():
@@ -53,17 +70,19 @@ def main():
     blob = json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
 
     html = TEMPLATE.read_text()
-    for marker in ("/*__SNAPSHOT__*/null", "/*__REFRESH_LABEL__*/'within two hours'"):
+    test_ids = test_session_ids(records)
+    for marker in ("/*__SNAPSHOT__*/null", "/*__REFRESH_LABEL__*/'within two hours'", "/*__EMAIL_TEST_IDS__*/[]"):
         if marker not in html:
             sys.exit(f"template marker missing: {marker}")
     html = html.replace("/*__SNAPSHOT__*/null", blob, 1)
     html = html.replace("/*__REFRESH_LABEL__*/'within two hours'", json.dumps(args.refresh_label), 1)
+    html = html.replace("/*__EMAIL_TEST_IDS__*/[]", json.dumps(test_ids), 1)
     OUT.write_text(html)
 
     sessions = {((r.get("cellValuesByFieldId") or r.get("fields") or {}).get("fldptlBmysZwmHkjz")
                  or (r.get("fields") or {}).get("session_id")) for r in records}
     sessions.discard(None)
-    print(f"wrote {OUT.relative_to(ROOT)}: {len(records)} rows, {len(sessions)} sessions, as of {as_of}")
+    print(f"wrote {OUT.relative_to(ROOT)}: {len(records)} rows, {len(sessions)} sessions, {len(test_ids)} marked test by email, as of {as_of}")
 
 
 if __name__ == "__main__":

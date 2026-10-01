@@ -460,9 +460,11 @@ const REFRESH_LABEL = /*__REFRESH_LABEL__*/'within two hours';
 const LAUNCH_AT = Date.parse('2026-09-29T10:09:53Z');   // went live Sep 29, 2026, 13:09 Israel time
 const LAUNCH_LABEL = 'Sep 29, 2026, 13:09 Israel time';
 const SHOW_TESTS_BY_DEFAULT = LAUNCH_AT === null;
-/* Internal test runs made after launch, marked by hand. */
+/* Internal test runs made after launch: marked by hand, plus sessions whose email matches
+   scripts/test_email_hashes.txt (filled in at build time). */
 const TEST_SESSION_IDS = new Set([
   'pp26_3xd9sgpcmumyrcko',   // internal test, Sep 29
+  ...(/*__EMAIL_TEST_IDS__*/[]),
 ]);
 
 const ALL_SIZES = ['1','2','3-5','6-10','11-16','17-24','25-50','51-100'];
