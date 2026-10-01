@@ -465,8 +465,8 @@ const REFRESH_LABEL = /*__REFRESH_LABEL__*/'within two hours';
 
 /* Launch time. Until it is set, the survey hasn't launched: every session is a test run and all of them are shown.
    Set it (e.g. Date.parse('2026-10-05T07:00:00Z')) only when told the survey has launched. */
-const LAUNCH_AT = null;
-const LAUNCH_LABEL = null;
+const LAUNCH_AT = Date.parse('2026-10-01T11:07:00Z');   // went live Oct 1, 2026, 14:07 Israel time
+const LAUNCH_LABEL = 'Oct 1, 2026, 14:07 Israel time';
 const SHOW_TESTS_BY_DEFAULT = LAUNCH_AT === null;
 /* Internal test runs made after launch: marked by hand, plus sessions whose email matches
    scripts/test_email_hashes.txt (filled in at build time). */
