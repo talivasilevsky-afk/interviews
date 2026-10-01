@@ -395,6 +395,11 @@
     .stat { border-right: none; border-bottom: 1px solid var(--line); margin-right: 0; }
     .asof-wrap { padding-top: 0; }
   }
+  .status-chip { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+  .status-chip::before { content:''; width:8px; height:8px; background:var(--mark-muted); }
+  .status-chip.st-completed::before { background:var(--mark); }
+  .status-chip.st-exited::before { background:transparent; border:1px solid var(--ink-faint); box-sizing:border-box; }
+  .status-chip.st-dropped::before { background:var(--mark-muted); }
 </style>
 
 <div class="wrap">
@@ -424,6 +429,7 @@
       <button class="tab-btn" data-tab="b" type="button">Full Survey</button>
       <button class="tab-btn" data-tab="d" type="button">Form activity</button>
       <button class="tab-btn" data-tab="f" type="button">Interviews</button>
+      <button class="tab-btn" data-tab="g" type="button">Prolific IDs</button>
     </div>
     <div class="filterbar">
       <label class="fl" for="fInd">Industry</label>
@@ -748,8 +754,8 @@ let SOURCE = 'snapshot';
 let SNAP_DATA = null, LIVE_DATA = null;
 
 try { const v = localStorage.getItem('pfd_ins_view'); if (v === 'marketing' || v === 'product') state.insView = v; } catch(e){}
-try { const t = localStorage.getItem('pfd_tab_v2'); if (t && ['a','b','c','d','e','f'].includes(t)) state.tab = t; } catch(e){}
-if (['a','b','c','d','e','f'].includes((location.hash||'').slice(1))) state.tab = location.hash.slice(1);
+try { const t = localStorage.getItem('pfd_tab_v2'); if (t && ['a','b','c','d','e','f','g'].includes(t)) state.tab = t; } catch(e){}
+if (['a','b','c','d','e','f','g'].includes((location.hash||'').slice(1))) state.tab = location.hash.slice(1);
 /* A session ID after # opens the Interviews tab with that person's answers. */
 const HASH_SESSION = /^pp26_[A-Za-z0-9]+$/.test((location.hash||'').slice(1)) ? location.hash.slice(1) : null;
 if (HASH_SESSION) state.tab = 'f';
@@ -1808,11 +1814,11 @@ function renderTabF(main){
   } else {
     const wrap = el('div','email-wrap');
     const table = el('table','emails');
-    table.innerHTML = '<thead><tr><th>Meeting email</th><th>Session ID</th><th>Submitted</th><th>Answers</th></tr></thead>';
+    table.innerHTML = '<thead><tr><th>Meeting email</th><th>Prolific ID</th><th>Session ID</th><th>Submitted</th><th>Answers</th></tr></thead>';
     tbody = el('tbody');
     list.forEach(r => {
       const tr = el('tr');
-      tr.innerHTML = `<td class="addr">${esc(r.meetingEmail)}</td><td class="mono">${esc(r.id)}</td><td class="mono">${esc(r.submittedTs ? fmtTime(r.submittedTs) : '–')}</td><td></td>`;
+      tr.innerHTML = `<td class="addr">${esc(r.meetingEmail)}</td><td class="mono">${esc(r.pid || '–')}</td><td class="mono">${esc(r.id)}</td><td class="mono">${esc(r.submittedTs ? fmtTime(r.submittedTs) : '–')}</td><td></td>`;
       const a = el('a','view-link','View answers');
       a.href = '#' + r.id;
       a.addEventListener('click', ev => { ev.preventDefault(); openAnswers(r.id); });
@@ -1903,6 +1909,60 @@ function closeAnswers(){
   if (d){ d.remove(); document.body.style.overflow = ''; try { history.replaceState(null, '', location.pathname + location.search); } catch(e){} }
 }
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape') closeAnswers(); });
+
+/* ================= TAB G: Prolific IDs ================= */
+/* Every respondent, one row per person, with how far they got. */
+const STATUS_ORDER = ['completed','exited','dropped'];
+const STATUS_LABEL = { completed:'Completed', exited:'Exited at screening', dropped:'Dropped' };
+function statusOf(x){ return x.screenedOut ? 'exited' : x.complete ? 'completed' : 'dropped'; }
+function renderTabG(main){
+  const s = bandSection('Prolific IDs.', 'Everyone who opened the survey, one row per person, with whether they completed, exited at screening or dropped part-way. The industry, size, role and years filters don’t apply here.', 'ink');
+  main.appendChild(s);
+  const all = sessionsAll().filter(testVisible).slice().sort((a, b) => b.lastTs - a.lastTs);
+  const by = k => all.filter(x => statusOf(x) === k);
+  const stats = el('div','stat-row');
+  renderStat(stats, 'Respondents', String(all.length), `${all.filter(x => x.pid).length} with a Prolific ID`);
+  STATUS_ORDER.forEach(k => renderStat(stats, STATUS_LABEL[k], String(by(k).length), all.length ? `${pct(by(k).length, all.length)}% of respondents` : ''));
+  s.appendChild(stats);
+
+  const card = el('div','hl-card wide');
+  const head = el('div','email-head');
+  head.appendChild(el('div','hl-eyebrow', `All respondents · ${all.length}`));
+  let tbody = null;
+  const withPid = all.filter(x => x.pid);
+  if (withPid.length){
+    const btnWrap = el('div','');
+    const btn = el('button','refresh-btn','Copy as table'); btn.type = 'button';
+    const note = el('span','copy-note','');
+    btn.addEventListener('click', () => {
+      const text = ['Prolific ID\tSession ID\tStatus'].concat(all.map(x => `${x.pid || ''}\t${x.id}\t${STATUS_LABEL[statusOf(x)]}`)).join('\n');
+      const fallback = () => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(tbody); sel.removeAllRanges(); sel.addRange(range); note.textContent = ' Couldn’t copy automatically; the table is selected, so press Ctrl+C or ⌘C.'; };
+      try { navigator.clipboard.writeText(text).then(() => { note.textContent = ' Copied. Paste it into a sheet.'; }, fallback); } catch(e){ fallback(); }
+    });
+    btnWrap.appendChild(btn); btnWrap.appendChild(note); head.appendChild(btnWrap);
+  }
+  card.appendChild(head);
+  if (!all.length) card.appendChild(el('div','empty-state','Nobody has opened the survey yet.'));
+  else {
+    const wrap = el('div','email-wrap');
+    const table = el('table','emails');
+    table.innerHTML = '<thead><tr><th>Prolific ID</th><th>Session ID</th><th>Status</th><th>Detail</th><th>Last activity</th><th>Clicked Finish</th></tr></thead>';
+    tbody = el('tbody');
+    all.forEach(x => {
+      const st = statusOf(x);
+      const detail = st === 'exited' ? (x.exit_reason === 'solo' ? '“Just me”' : x.exit_reason === 'freelance' ? 'Freelancer or vendor' : (x.exit_reason ? lab('exit_reason', x.exit_reason) : 'Screened out'))
+        : st === 'dropped' ? 'Stopped at: ' + (SCREEN_LABEL[x.lastScreen] || (x.lastScreen ? x.lastScreen : 'not recorded'))
+        : (x.durationSec ? 'Took ' + Math.max(1, Math.round(x.durationSec/60)) + ' min' : '');
+      const more = x.otherSessionIds && x.otherSessionIds.length ? `<div class="ins-sub">+ ${x.otherSessionIds.length} repeat session${x.otherSessionIds.length===1?'':'s'} merged</div>` : '';
+      const tr = el('tr');
+      tr.innerHTML = `<td class="mono">${esc(x.pid || '–')}</td><td class="mono">${esc(x.id)}${more}</td><td><span class="status-chip st-${st}">${esc(STATUS_LABEL[st])}</span></td><td>${esc(detail)}</td><td class="mono">${esc(fmtTime(x.lastTs))}</td><td>${x.finishClicked ? 'Yes' : '–'}</td>`;
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody); wrap.appendChild(table); card.appendChild(wrap);
+    card.appendChild(el('div','hl-text', `Newest activity first. “Dropped” means they got past screening but never reached the thank-you screen. Repeat sessions from the same Prolific ID are merged into one row, keeping the furthest one.${all.length - withPid.length ? ` ${all.length - withPid.length} row${all.length - withPid.length===1?' has':'s have'} no Prolific ID (opened outside Prolific, e.g. internal tests).` : ''}`));
+  }
+  s.appendChild(card);
+}
 
 /* ================= TAB D: form activity ================= */
 function renderTabD(main){
@@ -2206,6 +2266,7 @@ function render(){
   else if (state.tab==='d') renderTabD(main);
   else if (state.tab==='e') renderTabE(main);
   else if (state.tab==='f') renderTabF(main);
+  else if (state.tab==='g') renderTabG(main);
   else renderTabC(main);
   main.querySelectorAll('.chart-grid:not(.stacked)').forEach(packGrid);
 }
