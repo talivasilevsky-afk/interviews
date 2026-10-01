@@ -1878,7 +1878,7 @@ function openAnswers(id){
   const panel = el('div','drawer'); panel.setAttribute('role','dialog'); panel.setAttribute('aria-modal','true'); panel.setAttribute('aria-label', 'Survey answers for ' + id);
   const status = s.screenedOut ? 'Exited at screening' : s.complete ? 'Completed' : 'Partly filled';
   const top = el('div','drawer-top');
-  top.innerHTML = `<div><div class="label">Survey answers</div><div class="drawer-title">${esc(s.meetingEmail || s.reportEmail || id)}</div>` +
+  top.innerHTML = `<div><div class="label">Survey answers</div><div class="drawer-title">${esc(s.meetingEmail || s.reportEmail || (s.pid ? 'Prolific ' + s.pid : id))}</div>` +
     `<div class="drawer-meta"><span class="mono">${esc(id)}</span>${s.pid ? ` · Prolific <span class="mono">${esc(s.pid)}</span>` : ''} · ${esc(status)}${s.submittedTs ? ' · ' + esc(fmtTime(s.submittedTs)) : ''}${s.durationSec ? ' · took ' + Math.round(s.durationSec/60) + ' min' : ''}</div></div>`;
   const close = el('button','refresh-btn','Close'); close.type = 'button'; close.addEventListener('click', closeAnswers);
   top.appendChild(close);
@@ -1946,7 +1946,7 @@ function renderTabG(main){
   else {
     const wrap = el('div','email-wrap');
     const table = el('table','emails');
-    table.innerHTML = '<thead><tr><th>Prolific ID</th><th>Session ID</th><th>Status</th><th>Detail</th><th>Last activity</th><th>Clicked Finish</th></tr></thead>';
+    table.innerHTML = '<thead><tr><th>Prolific ID</th><th>Session ID</th><th>Status</th><th>Detail</th><th>Last activity</th><th>Clicked Finish</th><th>Answers</th></tr></thead>';
     tbody = el('tbody');
     all.forEach(x => {
       const st = statusOf(x);
@@ -1955,7 +1955,11 @@ function renderTabG(main){
         : (x.durationSec ? 'Took ' + Math.max(1, Math.round(x.durationSec/60)) + ' min' : '');
       const more = x.otherSessionIds && x.otherSessionIds.length ? `<div class="ins-sub">+ ${x.otherSessionIds.length} repeat session${x.otherSessionIds.length===1?'':'s'} merged</div>` : '';
       const tr = el('tr');
-      tr.innerHTML = `<td class="mono">${esc(x.pid || '–')}</td><td class="mono">${esc(x.id)}${more}</td><td><span class="status-chip st-${st}">${esc(STATUS_LABEL[st])}</span></td><td>${esc(detail)}</td><td class="mono">${esc(fmtTime(x.lastTs))}</td><td>${x.finishClicked ? 'Yes' : '–'}</td>`;
+      tr.innerHTML = `<td class="mono">${esc(x.pid || '–')}</td><td class="mono">${esc(x.id)}${more}</td><td><span class="status-chip st-${st}">${esc(STATUS_LABEL[st])}</span></td><td>${esc(detail)}</td><td class="mono">${esc(fmtTime(x.lastTs))}</td><td>${x.finishClicked ? 'Yes' : '–'}</td><td></td>`;
+      const a = el('a','view-link','View answers');
+      a.href = '#' + x.id;
+      a.addEventListener('click', ev => { ev.preventDefault(); openAnswers(x.id); });
+      tr.lastChild.appendChild(a);
       tbody.appendChild(tr);
     });
     table.appendChild(tbody); wrap.appendChild(table); card.appendChild(wrap);
