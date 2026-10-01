@@ -1,0 +1,2342 @@
+<title>Prolific Survey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@1,6..72,400&display=swap">
+<style>
+  /* Toppia Visual Direction v1 palette (exact values). Light environment: Cream ground, Deep Purple ink. */
+  :root {
+    --cream: #F6F0E6;
+    --deep-purple: #2A1E33;
+    --muted-purple: #ABA4A8;
+    --human-violet: #6A4C86;
+    --ochre: #A87A22;
+    --verdigris: #3C8A84;
+    --wine: #93314F;
+    --paper-surface: #FBF8F2;
+    --warm-surface: #F0E7D6;
+
+    --ground: var(--cream);
+    --surface: var(--paper-surface);
+    --surface-2: var(--warm-surface);
+    --ink: var(--deep-purple);
+    --ink-soft: rgba(42, 30, 51, 0.74);   /* proposal: secondary text as reduced-opacity Deep Purple, for legible contrast */
+    --ink-faint: rgba(42, 30, 51, 0.56);
+    --line: rgba(42, 30, 51, 0.16);        /* positional / rule lines: reduced opacity */
+    --line-strong: var(--deep-purple);      /* structural axis / corner */
+    --mark: var(--deep-purple);             /* data marks */
+    --mark-muted: var(--muted-purple);      /* "not sure", "none": what is secondary */
+    --point: var(--ochre);                  /* the one thing that matters */
+    --second-voice: var(--human-violet);
+    --scale-low: var(--verdigris);
+    --scale-high: var(--wine);
+    --emp: var(--verdigris);               /* employees: the second kind of respondent */
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: #2A1E33;
+    --surface: #3F2C4B;
+    --surface-2: #2A1E33;
+    --ink: #F6F0E6;
+    --ink-soft: rgba(246, 240, 230, 0.78);
+    --ink-faint: rgba(246, 240, 230, 0.6);
+    --line: rgba(246, 240, 230, 0.18);
+    --line-strong: #F6F0E6;
+    --mark: #F6F0E6;
+    --mark-muted: rgba(246, 240, 230, 0.4); /* proposal: muted tone on dark is not yet defined */
+    --point: #D9B062;
+    --second-voice: #CBB8DA;
+    --scale-low: #86C7C0;
+    --scale-high: #B95A78;
+    --emp: #86C7C0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --ground: #2A1E33;
+      --surface: #3F2C4B;
+      --surface-2: #2A1E33;
+      --ink: #F6F0E6;
+      --ink-soft: rgba(246, 240, 230, 0.78);
+      --ink-faint: rgba(246, 240, 230, 0.6);
+      --line: rgba(246, 240, 230, 0.18);
+      --line-strong: #F6F0E6;
+      --mark: #F6F0E6;
+      --mark-muted: rgba(246, 240, 230, 0.4);
+      --point: #D9B062;
+      --second-voice: #CBB8DA;
+      --scale-low: #86C7C0;
+      --scale-high: #B95A78;
+      --emp: #86C7C0;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 32px 100px; }
+
+  /* Header: one statement, anchored by the single corner; one second-voice line for what is prepared next. */
+  .top-inner { padding: 44px 0 26px; }
+  .top-row1 { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+  .label { font-size: 0.7rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 14px; }
+  .title-anchor { position: relative; }
+  .corner { position: absolute; left: -14px; top: -12px; width: 15px; height: 15px; border-left: 1px solid var(--line-strong); border-top: 1px solid var(--line-strong); }
+  h1 {
+    font-weight: 600;
+    font-size: clamp(1.9rem, 1.3rem + 2vw, 2.7rem);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .second-voice {
+    font-family: 'Newsreader', ui-serif, Georgia, serif; font-style: italic; font-weight: 400;
+    color: var(--second-voice); font-size: 1.15rem; line-height: 1.3;
+    margin: 8px 0 0 1.1em;
+  }
+  .asof-wrap { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 30px; }
+  .asof { font-size: 0.8rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .sq { display: inline-block; width: 7px; height: 7px; background: var(--mark-muted); margin-right: 7px; vertical-align: 1px; }
+  .sq.point { background: var(--point); }
+  .sq.ink { background: var(--mark); }
+  /* proposal: buttons are not yet defined; kept as quiet hairline text buttons */
+  button.refresh-btn, button.reset-btn {
+    font-family: inherit; font-size: 0.8rem; font-weight: 500; color: var(--ink);
+    background: transparent; border: 1px solid var(--line); border-radius: 2px; padding: 6px 11px; cursor: pointer;
+  }
+  button.refresh-btn:hover, button.reset-btn:hover { border-color: var(--line-strong); }
+  button.refresh-btn:disabled { opacity: 0.5; cursor: default; }
+  button.reset-btn { border-color: transparent; color: var(--ink-soft); }
+  .subtitle { color: var(--ink-soft); font-size: 0.9rem; margin: 22px 0 0; max-width: 72ch; line-height: 1.55; }
+
+  .controlbar-sticky {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+    background: var(--ground);
+    border-bottom: 1px solid var(--line);
+  }
+  .tabs { display: flex; gap: 28px; padding: 8px 0 0; overflow-x: auto; border-bottom: 1px solid var(--line); }
+  .tab-btn {
+    font-family: inherit; font-size: 0.88rem; font-weight: 500; color: var(--ink-faint);
+    background: transparent; border: none; border-bottom: 1px solid transparent; margin-bottom: -1px;
+    padding: 10px 0 12px; cursor: pointer; white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--ink); }
+  .tab-btn.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--line-strong); }
+
+  .filterbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 0; }
+  .filterbar label.fl { font-size: 0.68rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-faint); margin-right: -4px; }
+  select.filter-select {
+    font-family: inherit; font-size: 0.85rem; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 2px;
+    padding: 6px 28px 6px 10px; cursor: pointer; max-width: 100%;
+    appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M1 1l4 4 4-4' stroke='%23ABA4A8' stroke-width='1.4' fill='none' stroke-linecap='square'/></svg>");
+    background-repeat: no-repeat; background-position: right 9px center;
+  }
+  select.filter-select:focus-visible, button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--line-strong); outline-offset: 2px; }
+  .test-toggle { display: inline-flex; align-items: center; gap: 7px; font-size: 0.82rem; color: var(--ink-soft); cursor: pointer; padding: 5px 2px; }
+  .test-toggle.on { color: var(--ink); }
+  .test-toggle input { accent-color: var(--deep-purple); margin: 0; }
+  .match-count { margin-left: auto; font-size: 0.82rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .match-count b { color: var(--ink); font-weight: 600; }
+
+  main { padding-top: 34px; }
+
+  .notice {
+    display: flex; gap: 12px; align-items: baseline;
+    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    padding: 12px 0; margin-bottom: 26px; font-size: 0.86rem; color: var(--ink-soft);
+  }
+  .notice::before { content: ""; flex-shrink: 0; width: 7px; height: 7px; background: var(--mark); transform: translateY(-1px); }
+  .notice b { color: var(--ink); font-weight: 600; }
+  .notice button { margin-left: auto; flex-shrink: 0; }
+  .conn-state { max-width: 640px; padding: 30px 0; }
+  .conn-state h2 { font-weight: 600; font-size: 1.4rem; letter-spacing: -0.015em; margin: 0 0 8px; }
+  .conn-state p { color: var(--ink-soft); margin: 0 0 14px; font-size: 0.9rem; }
+
+  /* Sections: open bands on the ground, separated by hairlines. Research questions are a real sequence, so they keep their number. */
+  section.card, section.band { padding: 0 0 34px; margin-bottom: 34px; border-bottom: 1px solid var(--line); }
+  .section-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px; }
+  .badge-num { flex-shrink: 0; font-size: 0.72rem; font-weight: 500; letter-spacing: 0.12em; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  section h2 { font-weight: 600; font-size: 1.35rem; margin: 0; letter-spacing: -0.018em; line-height: 1.2; text-wrap: balance; color: var(--ink); }
+  section.band h2 { font-size: 1.55rem; }
+  .section-note { color: var(--ink-soft); font-size: 0.88rem; margin: 8px 0 16px; max-width: 72ch; }
+  .answered-by { font-size: 0.76rem; color: var(--ink-faint); margin: -8px 0 18px; }
+
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0; margin: 10px 0 6px; border-top: 1px solid var(--line); }
+  .stat { padding: 16px 18px 14px 0; border-right: 1px solid var(--line); margin-right: 18px; }
+  .stat:last-child { border-right: none; }
+  .stat-label { font-size: 0.68rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-faint); margin-bottom: 8px; }
+  .stat-value { font-weight: 600; font-size: 2rem; line-height: 1; font-variant-numeric: tabular-nums; color: var(--ink); letter-spacing: -0.02em; }
+  .stat-sub { font-size: 0.78rem; color: var(--ink-soft); margin-top: 8px; }
+  .stat-question { font-size: 0.72rem; color: var(--ink-faint); margin-top: 6px; line-height: 1.35; }
+
+  .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 18px; margin-top: 20px; align-items: start; }
+  .chart-grid.stacked { grid-template-columns: 1fr; }
+  /* Charts are packed into columns so a short chart never leaves a gap under it. */
+  .chart-grid.packed { display: flex; align-items: flex-start; gap: 18px; }
+  .chart-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 18px; }
+  .chart-block { min-width: 0; display: flex; flex-direction: column; background: var(--surface); border-radius: 2px; padding: 18px 20px 20px; }
+  .chart-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .chart-title { font-weight: 500; font-size: 0.68rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.12em; }
+  .chart-n { font-size: 0.74rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .chart-q { font-size: 0.8rem; color: var(--ink-soft); margin: 0 0 14px; line-height: 1.4; }
+  .chart-body { flex: 1; }
+
+  /* proposal: data visualisation beyond markers is not yet defined. Bars use the ink colour; secondary answers use Muted Purple. */
+  .barlist { display: flex; flex-direction: column; gap: 9px; }
+  .barrow { display: grid; grid-template-columns: minmax(90px, 38%) 1fr auto; gap: 12px; align-items: center; }
+  .bl-label { font-size: 0.82rem; color: var(--ink); text-align: right; line-height: 1.25; overflow-wrap: anywhere; }
+  .bl-track { background: var(--surface-2); height: 10px; position: relative; overflow: hidden; }
+  .bl-fill { background: var(--mark); height: 100%; min-width: 2px; }
+  .barrow.muted .bl-fill { background: var(--mark-muted); }
+  .barlist.emp .bl-fill { background: var(--emp); }
+  .bl-fill.split { display: flex; background: none; }
+  .bl-fill.split span { height: 100%; }
+  .bl-fill.split .own { background: var(--mark); }
+  .barrow.muted .bl-fill.split .own { background: var(--mark-muted); }
+  .bl-fill.split .em { background: var(--emp); }
+  .role-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.74rem; color: var(--ink-soft); margin: -4px 0 12px; }
+  .role-legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .role-legend i { display: inline-block; width: 9px; height: 9px; }
+  .barlist.emp .barrow.muted .bl-fill { background: var(--mark-muted); }
+  .chart-title .sq { width: 8px; height: 8px; margin-right: 7px; vertical-align: 0; }
+  .sq.emp { background: var(--emp); }
+  /* proposal: two-slice pie for role */
+  .pie-wrap { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+  .pie { width: 120px; height: 120px; border-radius: 50%; flex-shrink: 0; }
+  .pie-legend { flex: 1; min-width: 170px; display: flex; flex-direction: column; gap: 8px; }
+  .pie-row { display: flex; align-items: baseline; gap: 9px; font-size: 0.84rem; color: var(--ink); }
+  .pie-row i { display: inline-block; width: 9px; height: 9px; flex-shrink: 0; transform: translateY(1px); }
+  .pie-row .v { margin-left: auto; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pie-sub { font-size: 0.74rem; color: var(--ink-faint); margin: -4px 0 0 18px; }
+  .bl-val { font-size: 0.76rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; min-width: 4.4em; white-space: nowrap; }
+
+  .insight { margin-top: 16px; padding: 12px 0 0; border-top: 1px solid var(--line); font-size: 0.95rem; font-weight: 500; color: var(--ink); line-height: 1.45; letter-spacing: -0.005em; }
+  .insight.empty { color: var(--ink-faint); font-size: 0.84rem; font-weight: 400; }
+  .insight b { font-weight: 700; color: var(--ink); }
+
+  /* 1–7 scale, grouped into three bands (proposal). */
+  .lk-legend { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin: 0 0 16px; font-size: 0.76rem; color: var(--ink-soft); }
+  .lk-legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .lk-legend i { display: inline-block; width: 9px; height: 9px; }
+  .lkrow { display: grid; grid-template-columns: minmax(120px, 34%) 1fr auto; gap: 12px; align-items: center; margin-bottom: 10px; }
+  .lk-label { font-size: 0.82rem; color: var(--ink); text-align: right; line-height: 1.25; }
+  .lk-bar { display: flex; height: 12px; background: var(--surface-2); }
+  .lk-seg { height: 100%; }
+  .lk-mean { font-size: 0.76rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; min-width: 8.6em; white-space: nowrap; }
+  .lk-mean b { color: var(--ink); font-weight: 600; }
+
+  .heatmap-wrap { overflow-x: auto; }
+  table.heatmap { border-collapse: collapse; font-size: 0.78rem; min-width: 100%; }
+  table.heatmap th, table.heatmap td { padding: 9px 12px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  table.heatmap th.rowh { text-align: right; font-weight: 500; color: var(--ink); position: sticky; left: 0; background: var(--surface); }
+  table.heatmap th.colh { font-weight: 500; color: var(--ink-soft); font-size: 0.72rem; max-width: 120px; white-space: normal; vertical-align: bottom; }
+  table.heatmap td { color: var(--ink); font-variant-numeric: tabular-nums; }
+  table.heatmap td.zero { color: var(--ink-faint); }
+  table.heatmap .total { font-weight: 600; border-left: 1px solid var(--line); }
+  .hm-cell { display: inline-flex; align-items: center; gap: 8px; }
+  .hm-sq { display: inline-block; background: var(--mark); }
+  .hm-sq.point { background: var(--point); }
+
+  .quotes { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+  .quote { font-size: 0.86rem; color: var(--ink); padding: 2px 0 2px 14px; border-left: 1px solid var(--line-strong); line-height: 1.45; overflow-wrap: anywhere; }
+  .quote-meta { font-size: 0.72rem; color: var(--ink-faint); margin-top: 3px; }
+  .oe-count { font-size: 0.82rem; color: var(--ink-soft); margin-bottom: 10px; }
+  .oe-count b { color: var(--ink); font-weight: 600; }
+
+  .empty-state { color: var(--ink-faint); font-size: 0.86rem; padding: 8px 0; }
+
+  .snap-row { display: grid; grid-template-columns: 56px 1fr; gap: 18px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+  .snap-row:first-child { padding-top: 6px; }
+  .snap-idx { font-weight: 500; font-size: 0.72rem; letter-spacing: 0.08em; color: var(--ink-faint); padding-top: 3px; font-variant-numeric: tabular-nums; }
+  .snap-q { font-size: 0.95rem; font-weight: 600; color: var(--ink); margin: 0 0 4px; line-height: 1.4; text-wrap: balance; }
+  .snap-meta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .snap-n { font-size: 0.76rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  .chip { font-size: 0.72rem; color: var(--ink-soft); }
+  .chip.type { color: var(--ink); font-weight: 500; }
+  .chip + .chip::before { content: "·"; margin-right: 12px; color: var(--ink-faint); }
+  .snap-body { max-width: 720px; min-width: 0; }
+  .snap-group { font-weight: 600; font-size: 1.15rem; letter-spacing: -0.012em; margin: 34px 0 2px; color: var(--ink); }
+  .snap-group-note { font-size: 0.8rem; color: var(--ink-faint); margin-bottom: 4px; }
+
+  .hl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; }
+  .hl-card { background: var(--surface); border-radius: 2px; padding: 22px 22px 24px; display: flex; flex-direction: column; gap: 10px; }
+  .hl-eyebrow { font-size: 0.68rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-faint); display: flex; align-items: center; }
+  .hl-stat { font-weight: 600; font-size: 2.3rem; color: var(--ink); letter-spacing: -0.025em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .hl-text { font-size: 0.88rem; color: var(--ink-soft); line-height: 1.5; }
+  .hl-text b { color: var(--ink); font-weight: 600; }
+  /* Highlights: grouped by kind of finding. Secondary colours only mark the group (Wine = pain, Verdigris = opportunity). */
+  .hl-group { margin-top: 30px; }
+  .hl-group:first-of-type { margin-top: 8px; }
+  .hl-group-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .hl-group-head i { display: inline-block; width: 9px; height: 9px; background: var(--tone); }
+  .hl-group-head h3 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.012em; margin: 0; }
+  .hl-group-head span { font-size: 0.8rem; color: var(--ink-faint); }
+  .tone-hurt { --tone: var(--scale-high); }
+  .tone-help { --tone: var(--scale-low); }
+  .tone-ink { --tone: var(--mark); }
+  .hl-card { border-top: 2px solid var(--tone); }
+  .hl-meter { position: relative; height: 9px; margin: 4px 0 2px; }
+  .hl-meter::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 1px; background: var(--line); }
+  .hl-meter .fill { position: absolute; left: 0; top: 4px; height: 1px; background: var(--tone); }
+  .hl-meter .pt { position: absolute; top: 0; width: 9px; height: 9px; margin-left: -4.5px; background: var(--tone); }
+  .hl-meter .pt.point { background: var(--point); }
+  .hl-card.wide { grid-column: 1 / -1; }
+  /* Research questions share the Highlights treatment: a tone square by the heading and a tone line on each card. */
+  .section-head .tone-sq { flex-shrink: 0; width: 9px; height: 9px; background: var(--tone); align-self: center; }
+  section.toned .chart-block { border-top: 2px solid var(--tone); }
+  section.toned .stat-row { border-top-color: var(--tone); }
+  .stat .hl-meter { margin: 10px 0 2px; max-width: 220px; }
+  .tl { display: flex; align-items: flex-end; gap: 6px; height: 170px; padding-top: 18px; border-bottom: 1px solid var(--line-strong); overflow-x: auto; }
+  .tl-col { flex: 1 0 28px; max-width: 64px; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-end; height: 100%; position: relative; }
+  .tl-col .n { position: absolute; top: -18px; left: 0; right: 0; text-align: center; font-size: 0.72rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .tl-seg { width: 100%; }
+  .tl-seg.completed { background: var(--mark); }
+  .tl-seg.partial { background: var(--mark-muted); }
+  .tl-seg.exited { background: transparent; box-shadow: inset 0 0 0 1px var(--mark-muted); }
+  .tl-days { display: flex; gap: 6px; margin-top: 6px; overflow: hidden; }
+  .tl-days span { flex: 1 0 28px; max-width: 64px; text-align: center; font-size: 0.68rem; color: var(--ink-faint); white-space: nowrap; }
+  .tl-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.74rem; color: var(--ink-soft); margin: 2px 0 6px; }
+  .tl-legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .tl-legend i { display: inline-block; width: 9px; height: 9px; }
+  .hl-card .barlist { margin-top: 4px; }
+  /* Insights */
+  .ins-switch { display: inline-flex; border: 1px solid var(--line-strong); margin: 4px 0 6px; }
+  .ins-switch-btn { font-family: inherit; font-size: 0.86rem; font-weight: 500; color: var(--ink); background: transparent; border: none; padding: 9px 18px; cursor: pointer; }
+  .ins-switch-btn + .ins-switch-btn { border-left: 1px solid var(--line-strong); }
+  .ins-switch-btn.on { background: var(--ink); color: var(--ground); font-weight: 600; }
+  .ins-switch-btn:not(.on):hover { background: var(--surface); }
+  .ins-grid { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); align-items: start; }
+  .ins-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .ins-n { font-size: 0.7rem; color: var(--ink-faint); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .ins-n.early { color: var(--ink); border: 1px solid var(--line); padding: 1px 7px; }
+  .ins-headline { font-size: 1.02rem; font-weight: 500; line-height: 1.45; color: var(--ink); letter-spacing: -0.005em; }
+  .ins-headline b { font-weight: 700; }
+  .ins-body { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .ins-use { font-size: 0.82rem; color: var(--ink-soft); border-top: 1px solid var(--line); padding-top: 10px; margin-top: 4px; }
+  .ins-use b { color: var(--ink); font-weight: 600; }
+  .ins-label { font-size: 0.68rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-faint); margin-top: 6px; }
+  .ins-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 0.86rem; color: var(--ink); line-height: 1.45; }
+  .ins-sub { color: var(--ink-faint); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+  .ins-note { font-size: 0.76rem; color: var(--ink-faint); line-height: 1.45; }
+  .ins-table td .sq { margin-right: 7px; }
+  .ins-bar { display: inline-block; width: 110px; height: 8px; background: var(--surface-2); vertical-align: middle; }
+  .ins-bar i { display: block; height: 100%; background: var(--mark); }
+  .ins-card .role-legend { margin: 0; }
+  .quad .q-best { fill: var(--surface-2); }
+  .quad .q-lab { fill: var(--ink-soft); font-size: 11px; }
+  .quad .q-pt { fill: var(--ink); font-size: 11.5px; }
+  .pair-list { display: flex; flex-direction: column; gap: 10px; }
+  .pair-row { display: grid; grid-template-columns: minmax(110px, 36%) 1fr; gap: 12px; align-items: center; }
+  .pair-bars { display: flex; flex-direction: column; gap: 3px; }
+  .pair { display: flex; align-items: center; gap: 8px; }
+  .pair .pb { display: block; height: 7px; }
+  .pair .pb.own { background: var(--mark); } .pair .pb.em { background: var(--emp); }
+  .pair em { font-style: normal; font-size: 0.72rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  @media (max-width: 640px) { .ins-grid { grid-template-columns: 1fr; } .pair-row { grid-template-columns: 1fr; gap: 4px; } }
+  /* Interviews: answers panel */
+  .view-link { color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; }
+  .drawer-back { position: fixed; inset: 0; background: rgba(42, 30, 51, 0.38); z-index: 60; display: flex; justify-content: flex-end; }
+  .drawer { width: min(620px, 100%); height: 100%; overflow-y: auto; background: var(--ground); border-left: 1px solid var(--line-strong);
+    padding: calc(24px + env(safe-area-inset-top, 0px)) 28px calc(40px + env(safe-area-inset-bottom, 0px)); }
+  .drawer-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .drawer-top .label { margin-bottom: 6px; }
+  .drawer-title { font-size: 1.3rem; font-weight: 600; letter-spacing: -0.015em; overflow-wrap: anywhere; }
+  .drawer-meta { font-size: 0.8rem; color: var(--ink-soft); margin-top: 4px; }
+  .drawer-meta .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.76rem; }
+  .drawer-links { font-size: 0.82rem; color: var(--ink-soft); padding: 12px 0 4px; }
+  .drawer-links a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+  dl.answers { margin: 10px 0 0; }
+  dl.answers dt { font-size: 0.78rem; color: var(--ink-soft); margin-top: 18px; line-height: 1.4; }
+  dl.answers dd { margin: 5px 0 0; font-size: 0.92rem; color: var(--ink); line-height: 1.45; overflow-wrap: anywhere; }
+  .ans-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+  .ans-list.ratings { list-style: none; padding-left: 0; }
+  .ans-list.ratings li { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding: 3px 0; }
+  .ans-list.ratings b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  @media (max-width: 640px) { .drawer { padding-left: 18px; padding-right: 18px; } }
+  .email-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .email-wrap { overflow-x: auto; margin-top: 6px; }
+  table.emails { border-collapse: collapse; width: 100%; font-size: 0.84rem; }
+  table.emails th { text-align: left; font-size: 0.68rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-faint); padding: 8px 14px 8px 0; border-bottom: 1px solid var(--line-strong); white-space: nowrap; }
+  table.emails td { padding: 9px 14px 9px 0; border-bottom: 1px solid var(--line); color: var(--ink); vertical-align: top; }
+  table.emails td.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem; color: var(--ink-soft); white-space: nowrap; }
+  table.emails td.addr { user-select: all; overflow-wrap: anywhere; }
+  .copy-note { font-size: 0.76rem; color: var(--ink-soft); }
+  /* proposal: line chart for submissions over time */
+  .lc { width: 100%; display: block; overflow: visible; }
+  .lc .grid { stroke: var(--line); stroke-width: 1; }
+  .lc .axis { stroke: var(--line-strong); stroke-width: 1; }
+  .lc text { fill: var(--ink-faint); font-size: 11px; font-family: inherit; font-variant-numeric: tabular-nums; }
+  .lc .ln { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .lc .completed { stroke: var(--mark); } .lc .pt.completed { fill: var(--mark); stroke: none; }
+  .lc .partial { stroke: var(--mark-muted); } .lc .pt.partial { fill: var(--mark-muted); stroke: none; }
+  .lc .exited { stroke: var(--mark-muted); stroke-dasharray: 4 4; } .lc .pt.exited { fill: var(--surface); stroke: var(--mark-muted); stroke-width: 1.5; stroke-dasharray: none; }
+  .tl-legend .dash { width: 16px; height: 0; border-top: 2px dashed var(--mark-muted); background: none; }
+  .tl-legend .line { width: 16px; height: 2px; }
+  .hl-scale { display: flex; justify-content: space-between; font-size: 0.66rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+
+  footer.page-foot { color: var(--ink-faint); font-size: 0.76rem; padding: 36px 0 10px; }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 0 16px 80px; }
+    .corner { left: -8px; top: -9px; width: 11px; height: 11px; }
+    .barrow, .lkrow { grid-template-columns: 1fr; gap: 5px; }
+    .bl-label, .lk-label { text-align: left; }
+    table.heatmap th.rowh { position: static; }
+    .snap-row { grid-template-columns: 1fr; gap: 4px; }
+    .match-count { margin-left: 0; width: 100%; }
+    .stat { border-right: none; border-bottom: 1px solid var(--line); margin-right: 0; }
+    .asof-wrap { padding-top: 0; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="top-inner">
+      <div class="top-row1">
+        <div>
+          <div class="label">Business Pulse ’26 · Prolific version</div>
+          <div class="title-anchor"><span class="corner" aria-hidden="true"></span><h1>Prolific Survey.</h1></div>
+          <p class="second-voice" id="nextLine">The next snapshot is prepared within two hours.</p>
+        </div>
+        <div class="asof-wrap">
+          <span class="asof" id="asofLabel"><span class="sq"></span>Loading snapshot…</span>
+          <button class="refresh-btn" id="liveBtn" type="button" hidden>Load latest from Airtable</button>
+          <button class="reset-btn" id="snapBtn" type="button" hidden>Back to snapshot</button>
+        </div>
+      </div>
+      <p class="subtitle" id="pageSubtitle">How small professional-services businesses run day to day: where it hurts, who carries the work, and how ready they are for an AI business assistant.</p>
+    </div>
+  </header>
+
+  <div class="controlbar-sticky">
+    <div class="tabs" id="tabs" role="tablist">
+      <button class="tab-btn" data-tab="c" type="button">Highlights</button>
+      <button class="tab-btn" data-tab="e" type="button">Insights</button>
+      <button class="tab-btn" data-tab="a" type="button">Research Questions</button>
+      <button class="tab-btn" data-tab="b" type="button">Full Survey</button>
+      <button class="tab-btn" data-tab="d" type="button">Form activity</button>
+      <button class="tab-btn" data-tab="f" type="button">Interviews</button>
+    </div>
+    <div class="filterbar">
+      <label class="fl" for="fInd">Industry</label>
+      <select id="fInd" class="filter-select"></select>
+      <label class="fl" for="fSize">Company size</label>
+      <select id="fSize" class="filter-select"></select>
+      <label class="fl" for="fRole">Role</label>
+      <select id="fRole" class="filter-select"></select>
+      <label class="fl" for="fYears">Years in business</label>
+      <select id="fYears" class="filter-select" title="Asked of owners and managing partners only"></select>
+      <label class="test-toggle" id="testToggleWrap" for="fTests"><input type="checkbox" id="fTests"> Show test rows</label>
+      <button class="reset-btn" id="resetBtn" type="button">Reset filters</button>
+      <span class="match-count" id="matchCount"></span>
+    </div>
+  </div>
+
+  <main id="main"></main>
+
+  <footer class="page-foot">Built for internal ThinkUp research use · not for external distribution</footer>
+</div>
+
+<script>
+/* ================= source ================= */
+const SERVER = 'Airtable';
+const TOOL = 'list_records_for_table';
+const BASE_ID = 'appo5swnwzMKInvl5';
+const TABLE_ID = 'tbltbSUKIxPHTXQTD';
+const PAGE_SIZE = 1000;
+
+/* Filled in by scripts/build_dashboard.py: { asOf, records }. */
+const SNAPSHOT = /*__SNAPSHOT__*/null;
+const REFRESH_LABEL = /*__REFRESH_LABEL__*/'within two hours';
+
+/* Launch time. Until it is set, the survey hasn't launched: every session is a test run and all of them are shown.
+   Set it (e.g. Date.parse('2026-10-05T07:00:00Z')) only when told the survey has launched. */
+const LAUNCH_AT = null;
+const LAUNCH_LABEL = null;
+const SHOW_TESTS_BY_DEFAULT = LAUNCH_AT === null;
+/* Internal test runs made after launch: marked by hand, plus sessions whose email matches
+   scripts/test_email_hashes.txt (filled in at build time). */
+const TEST_SESSION_IDS = new Set([
+  ...(/*__EMAIL_TEST_IDS__*/[]),
+]);
+
+const ALL_SIZES = ['1','2','3-5','6-10','11-16','17-24','25-50','51-100'];
+
+const FIELD_IDS = {
+  fldOHONlVP5gVwwYP:'session_id', fld2sQzk9zgFEUznB:'survey_version', fldbY1TXp7OT3Ujqp:'_partial',
+  fldNy3r5DrPZBgVnp:'screen', flduWvYkeB3VPD7wl:'industry', fldyIreQCXwtx1EOQ:'industry_other',
+  fldcGfcit7sS9isra:'team_size', fld1s8ocjr0SBYoD7:'role', fld49WqnTD268WO5K:'country',
+  fldhLTyfEhMvR1B3f:'years_operating', fldIezsVdgZXdl05j:'emp_role', fldu2duSvXapCS7eD:'emp_bottlenecks',
+  fld2NSkjOHa4ld1Bo:'emp_bottlenecks_other', fldR8SadTeM7dCmWW:'emp_ai_adopt', fld3WG3pHZDoRuOJ7:'emp_adopt_why',
+  fldfUzR2UOlH5xR8I:'emp_adopt_why_other', fldIQQM1PFhquCBJ7:'emp_role_other', fldPwWlP3i3WGgVXJ:'vip_qualified',
+  fldEAQIQkkOaBg4BD:'pain_other', fldT6xeprMyqRL3nb:'ai_tasks', fldnEChVNyis5oJCD:'ai_tasks_shown',
+  fldaEgIn48Ljy9EJA:'ai_tasks_other', fldIyuiL87JUrxRpa:'ai_reluctance', fldwe7IAqnTMvdwWv:'ai_reluctance_other',
+  fldq88p6qvaEuNckS:'tools_used', fldoJpVwVlQf3Dqte:'tools_other', fldUsXTOm4i21n5tB:'tools_monthly_spend',
+  fld0xfJ1X056615Ml:'wtp_ai', fldODd1HQPzcDrPEc:'ai_frequency', fldPmbTc8fTjlvG6H:'ai_uses',
+  fldLcKS4XHVuwPRSp:'ai_low_why', fld57ySThDhObKrRU:'ai_low_why_other', fldHFgKEeKY8Yc7Ut:'ai_uses_other',
+  fldQPDwLqwv3PGWNw:'day2day', fldQY8CktO2hwIdDg:'day2day_other', fldwqlAZyBGJZlGzn:'heaviest',
+  fldo5eJPvlsyMUUED:'heaviest_note', flduDxkyw4Gl7MKmN:'gender', fldocbMcRhCf8dfKM:'duration_sec',
+  flda1AfioJmIAwEYT:'pain_new_clients', fldLsyaS4DGevAcOE:'pain_collecting_payments', fldfboi8Ev2jLCCkL:'pain_invoicing_paperwork',
+  fldFyhMNjFGuoIx6q:'pain_team_professional_level', fld3jtrFNzaUpl8IV:'pain_hiring_retention', fldLIqPutlJWhTS7m:'pain_work_rate',
+  fldPbv7QjunTylkW9:'pain_deliverables_quality', fldTdNU005w0PDLvX:'pain_team_management', fldhc6NIjXDpY53qG:'pain_strategic_decisions',
+  fldeeKBBdnN3odN42:'pain_admin_work', fldm28SRJEjVRtCuk:'area1_key', fld0NCQZYJqZJxETx:'area1_handler',
+  fldfY25RamKrt4cIQ:'area1_hours', fldpLIlXgRQyyBwUq:'area2_key', fld8TLYxZO8tIWIPC:'area2_handler',
+  fldzZm85BL3NciCvG:'area2_hours', fldf7J6o7x303eX7D:'area3_key', fld3rFeBi11uquqRN:'area3_handler',
+  fldT7Cji2YWc6pjSj:'area3_hours', fldl0udtBUGq3q7gL:'area4_key', fldxu0FF7eNh1xI93:'area4_handler',
+  fld3Kfmyw9RRuRVcD:'area4_hours', fldjAox1ELQ4XD4Bz:'area5_key', fldNHrHq0JvpsWo1J:'area5_handler',
+  fldHNJ4AJ7wlgOrNG:'area5_hours', fldoC0k29yY5K8Zom:'area6_key', fld5Va9W3ckYM4dAA:'area6_handler',
+  fldvCwCRCHGYkH7Yn:'area6_hours', fldb49GHgbr4AbEAD:'area7_key', fldQDKkafskg8gKx7:'area7_handler',
+  fldsEFOU3PnfDnmeY:'area7_hours', fldzIIlSnoReD5g4i:'area8_key', fldEwm27wUUjcjhCE:'area8_handler',
+  fldZtnlXBUzFskoke:'area8_hours', fld3Bu5bdA3pxcIyP:'area9_key', fldaoZZmHWnOEk0Pw:'area9_handler',
+  fldSasoDi8h2JSiRa:'area9_hours', fldE30xZfFPCcuj9I:'area10_key', fld4XdTTJEhXd2WVE:'area10_handler',
+  fldz9jMJcu9hKKPSt:'area10_hours', fldKo40DGIIQod0wg:'completed', fldQRSghnLUypUjvo:'completed_at',
+  fldQZKxgK1dNJQAlf:'exit_reason', fldgOFedle7ClEe0p:'exit_email', fldUQsE9HHGITc3pg:'report_email',
+  fld7rePS11XkhxOrl:'calendly_clicked', fldIR8bFD1hHjPjOM:'clicked_at', fldAJnzV4herIpZhD:'_replyto',
+  fldfny4oMYbbmy1Bn:'_subject', fldqQrNqYtpjc3NzQ:'meeting_email', fldH95uiuCP9GVRSM:'prolific_pid',
+  fldiCXTdm1H0MUg5X:'prolific_study_id', fldoVM6897LFV0RCN:'prolific_session_id', fldRcbDT7PUxmB2Ny:'prolific_finish_clicked',
+  fldNGThQioRplFf3I:'finish_clicked_at', fldZ0cWPHZExOXimD:'is_complete', fldnz0iP1T50ciFED:'clicked_booking',
+  fld8srzBS4JxPyFCl:'left_email', fldzhUsPXYdpYPI4q:'screened_out', fldOwCSagO6bySXCe:'Respondents',
+  fldm3Y39KbtdexKti:'respondent'
+};
+const MULTI_FIELDS = new Set(['emp_bottlenecks','emp_adopt_why','ai_tasks','ai_reluctance','tools_used','ai_uses','ai_low_why','day2day']);
+/* Fields merged per session with "latest non-empty answer wins". Flags and event rows are handled separately. */
+const ANSWER_FIELDS = Object.values(FIELD_IDS).filter(f => ![
+  'session_id','_partial','screen','completed','completed_at','calendly_clicked','clicked_at',
+  'exit_email','report_email','meeting_email','_replyto','_subject','vip_qualified',
+  'prolific_pid','prolific_study_id','prolific_session_id','prolific_finish_clicked','finish_clicked_at',
+  'is_complete','clicked_booking','left_email','screened_out','Respondents','respondent'
+].includes(f));
+/* Text flags arrive as "true" / "false" strings in this table. */
+function isTrue(v){ return v === true || v === 1 || (typeof v === 'string' && /^(true|1|yes)$/i.test(v.trim())); }
+
+/* ================= labels (form wording) ================= */
+const L = {
+  industry: { arch:'Architecture, engineering, or interior design', consult:'Management or technical consulting', design:'Graphic or industrial design studio', agency:'Advertising, PR, or marketing agency', other:'Other professional service' },
+  team_size: { '1':'Just me','2':'2 people','3-5':'3 – 5 people','6-10':'6 – 10 people','11-16':'11 – 16 people','17-24':'17 – 24 people','25-50':'25 – 50 people','51-100':'51 – 100 people' },
+  role: { owner:'Owner or co-owner', partner:'Managing partner', employee:'Full- or part-time employee', freelance:'Freelancer, vendor, or external consultant' },
+  years_operating: { '<1':'Less than a year','1-2':'1 – 2 years','3-5':'3 – 5 years','6-10':'6 – 10 years','10+':'More than 10 years' },
+  emp_role: { mgmt:'Team manager / C-level executive', craft:'Practitioner — the client work itself', ops:'Project / operations manager', admin:'PA / office manager', finance:'Bookkeeper / accountant / finance manager', hr:'HR manager / recruiter', other:'Other' },
+  emp_bottlenecks: { approvals:'Waiting for answers or approvals', priorities:'Unclear or shifting priorities', admin:'Admin — emails, scheduling, paperwork, reporting & status updates', chasing:'Chasing people for inputs I need', meetings:'Too many meetings & interruptions', rework:'Rework from unclear briefs or last-minute changes', tools:'Juggling too many tools & systems', other:'Something else' },
+  emp_ai_adopt: { embrace:'I’d embrace it — bring it on', try:'I’d give it a fair try', cautious:'Cautious — I’d need to see it work first', reluctant:'Reluctant — I’d rather not' },
+  emp_adopt_why: { reliability:'I don’t trust it to get things right', job_security:'Worried about what it means for my role', privacy:'Privacy — I’m not comfortable with what it might see', learning:'One more system to learn on top of everything', humans:'I prefer working with people', other:'Other' },
+  ai_tasks: { inbox_admin:'Email, calendar & meeting scheduling', drafting:'Drafting documents, proposals & client communication', billing:'Invoicing, financial paperwork & chasing payments', team_oversight:'Tracking progress, deadlines & keeping the team aligned', team_quality:'Overseeing work quality, guidance & professional research', leads:'Lead generation', data_pull:'Pulling together data & insights for decisions', screening:'Screening job candidates', prioritize:'Productivity — prioritizing & organizing my tasks', other:'Other', none:'None of these' },
+  ai_reluctance: { trust_privacy:'Data safety & client confidentiality', quality_risk:'The output isn’t good enough', prefer_humans:'I prefer working with humans', price:'Too expensive', effort:'Too much effort to learn & set up', other:'Other' },
+  ai_frequency: { daily:'Every day', few_week:'A few times a week', weekly:'About once a week', few_month:'A few times a month', rarely:'Rarely', never:'Never' },
+  ai_uses: { content:'Content creation — writing, marketing copy', design:'Design or visual assets', research:'Professional research', data:'Business data analysis', client_docs:'Drafting client emails or proposals', admin:'Admin — email, calendar, meeting scheduling', other:'Other' },
+  ai_low_why: { no_need:'I don’t see where it would help my work', tried_quality:'I tried it — the results weren’t good enough', no_time:'No time to learn it properly', trust:'Privacy — I don’t trust it with my work & data', not_available:'It’s not available or not allowed at work', other:'Other' },
+  tools_used: { monograph:'Monograph', bqe:'BQE Core', houzzpro:'Houzz Pro', programa:'Programa', autodesk:'Autodesk (CAD / Revit)',
+    scoro:'Scoro', accelo:'Accelo', productive:'Productive', figma:'Figma', adobe:'Adobe Creative Cloud', milanote:'Milanote', dubsado:'Dubsado',
+    functionpoint:'Function Point', semrush:'Semrush', sprout:'Sprout Social', muckrack:'Muck Rack',
+    quickbooks:'QuickBooks', xero:'Xero', asana:'Asana', monday:'Monday.com', clickup:'ClickUp', notion:'Notion', harvest:'Harvest', toggl:'Toggl',
+    hubspot:'HubSpot', pipedrive:'Pipedrive', bonsai:'Bonsai', honeybook:'HoneyBook', calendly:'Calendly', trello:'Trello', freshbooks:'FreshBooks',
+    other:'Other', none:'None of these' },
+  tools_monthly_spend: { '<50':'Under $50 / mo','50-150':'$50 – $150 / mo','151-300':'$151 – $300 / mo','301-500':'$301 – $500 / mo','501-1000':'$501 – $1,000 / mo','1000+':'More than $1,000 / mo', notsure:'Not sure' },
+  wtp_ai: { '0':'Nothing — I wouldn’t pay for it','<50':'Under $50 / mo','50-100':'$50 – $100 / mo','101-250':'$101 – $250 / mo','251-500':'$251 – $500 / mo','500+':'More than $500 / mo', notsure:'Not sure' },
+  day2day: {
+    fires:'I’m busy putting out fires', on_top:'I generally feel I’m on top of things', enjoy:'I really enjoy the managerial side of my work',
+    chasing:'I’m wasting time chasing people — employees, vendors, clients', cracks:'Things fall through the cracks more often than I’d like',
+    managing_not_making:'I spend more time managing than doing the work I love',
+    ereact:'I’m mostly reacting — my plans rarely survive the day', eon_top:'I generally feel on top of my work', echasing:'I’m always chasing people for answers or approvals',
+    ecracks:'Things fall through the cracks between people', eadmin:'Admin and reporting eat into my real work', eenjoy:'I genuinely enjoy my day-to-day',
+    eequipped:'I have everything I need to do my best work', other:'Something else' },
+  gender: { male:'Male', female:'Female', nonbinary:'Non-binary', na:'Prefer not to answer' },
+  handler: { you:'Me — the owner / managing partner', expert:'A specific expert employee (HR, marketing, PA…)', anyone:'Whoever’s available — no one specific', vendor:'An external vendor', software:'Software or a tool', noone:'No one — it isn’t handled' },
+  handlerShort: { you:'Owner / partner', expert:'Expert employee', anyone:'Whoever’s available', vendor:'External vendor', software:'Software / tool', noone:'No one' },
+  hours: { '0':'0 / almost none','<2':'Under 2h','2-5':'2–5h','6-10':'6–10h','11-20':'11–20h','20+':'20h+', notsure:'Not sure' },
+};
+L.heaviest = Object.assign({}, L.day2day, { positive_week:'None — a positive week' });
+
+/* The tool list in the form depends on the industry picked. The agency list uses "productive2" / "scoro2" for the same tools. */
+const TOOL_ALIAS = { productive2:'productive', scoro2:'scoro' };
+const TOOL_STACKS = {
+  arch:['monograph','bqe','houzzpro','programa','autodesk','asana','monday','harvest','quickbooks','xero'],
+  consult:['scoro','accelo','productive','bonsai','hubspot','pipedrive','notion','asana','harvest','quickbooks'],
+  design:['figma','adobe','milanote','dubsado','honeybook','bonsai','notion','clickup','harvest','quickbooks'],
+  agency:['productive','functionpoint','scoro','semrush','sprout','muckrack','hubspot','monday','harvest','quickbooks'],
+  other:['quickbooks','xero','freshbooks','hubspot','honeybook','bonsai','calendly','notion','asana','harvest'],
+};
+function toolsShown(r){ return TOOL_STACKS[r.industry] || TOOL_STACKS.other; }
+const INDUSTRIES = ['arch','consult','design','agency','other'];
+
+const ORDER = {
+  industry: INDUSTRIES,
+  team_size: ALL_SIZES,
+  years_operating: ['<1','1-2','3-5','6-10','10+'],
+  emp_ai_adopt: ['embrace','try','cautious','reluctant'],
+  ai_frequency: ['daily','few_week','weekly','few_month','rarely','never'],
+  tools_monthly_spend: ['<50','50-150','151-300','301-500','501-1000','1000+','notsure'],
+  wtp_ai: ['0','<50','50-100','101-250','251-500','500+','notsure'],
+  hours: ['0','<2','2-5','6-10','11-20','20+','notsure'],
+  handler: ['you','expert','anyone','vendor','software','noone'],
+};
+
+const AREAS = [
+  { slug:'new_clients', owner:'New clients & a steady stream of work', short:'New clients & work stream' },
+  { slug:'collecting_payments', owner:'Charging & collecting payment', short:'Collecting payments' },
+  { slug:'invoicing_paperwork', owner:'Invoicing & financial paperwork', short:'Invoicing & paperwork' },
+  { slug:'team_professional_level', owner:'Maintaining the team’s professional level', short:'Team’s professional level', emp:'Professional growth & guidance' },
+  { slug:'hiring_retention', owner:'Sourcing staff & retaining employees', short:'Hiring & retention', emp:'Understaffing & turnover — too few hands, people leaving' },
+  { slug:'work_rate', owner:'Keeping a high work rate', short:'Work rate', emp:'Workload & pace — too much to do, not enough time' },
+  { slug:'deliverables_quality', owner:'Maintaining a high deliverables quality standard', short:'Deliverables quality', emp:'Keeping quality high under time pressure' },
+  { slug:'team_management', owner:'Managing & motivating the team', short:'Managing the team', emp:'Coordination — deadlines, alignment & follow-ups between people' },
+  { slug:'strategic_decisions', owner:'Making informed strategic decisions', short:'Strategic decisions' },
+  { slug:'admin_work', owner:'Administrative work — email, calendar, meeting scheduling', short:'Admin work', emp:'Administrative work — emails, scheduling, reporting' },
+];
+const AREA_BY_SLUG = Object.fromEntries(AREAS.map(a => [a.slug, a]));
+const D2D_OWNER = ['fires','on_top','enjoy','chasing','cracks','managing_not_making','other'];
+const D2D_EMP = ['ereact','eon_top','echasing','ecracks','eadmin','eenjoy','eequipped','other'];
+
+const Q = {
+  industry:'Which best describes your company?',
+  team_size:'Including yourself, how many people work at the company?',
+  role:'Which of these best describes your role?',
+  country:'What country are you based in?',
+  years_operating:'How long has your business been operating?',
+  pain_owner:'Rate how frustrating each area is for you right now (1 = not at all frustrating · 7 = extremely frustrating)',
+  pain_emp:'Rate how frustrating each of these is in your day-to-day (1 = not at all frustrating · 7 = extremely frustrating)',
+  pain_other:'Anything that’s a real problem for your business and isn’t listed?',
+  handler:'Who mostly handles this today?',
+  hours:'Hours per week spent on it, across the business — best guess',
+  emp_role:'Which best describes your role?',
+  emp_bottlenecks:'What slows you down most in a typical week? (Pick up to 3.)',
+  ai_tasks:'If it were done well — which of these would you feel comfortable letting AI handle?',
+  ai_reluctance:'Why not let AI handle the tasks you didn’t pick? (or any of them, if they picked none)',
+  ai_frequency:'How often do you use AI tools during your work day?',
+  ai_uses:'What do you use AI for?',
+  ai_low_why:'What keeps you from using AI more?',
+  emp_ai_adopt:'If your company brought in an AI business assistant — handling admin, follow-ups & tracking — how would you feel about working with it?',
+  emp_adopt_why:'What makes you hesitant?',
+  tools_used:'Which tools does your business actively use?',
+  tools_monthly_spend:'Roughly how much does your business pay per month for tools, in total?',
+  wtp_ai:'How much would you pay for an AI business assistant — boosting productivity, handling admin & follow-ups, and partnering with you on strategy? (Per month, for the whole business.)',
+  day2day:'Which of these do you relate to? (Pick up to 3.)',
+  heaviest:'Of these — which weighs on you most?',
+  heaviest_note:'Tell us a bit more about it — what does that look like in practice?',
+  gender:'What’s your gender?',
+  calendly:'Book a meeting with us, get a $100 Amazon gift card',
+  report:'Business Pulse ’26 — the report: want first access?',
+};
+
+
+/* ================= helpers ================= */
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function hasVal(v){ if (v===undefined||v===null||v===false) return false; if (Array.isArray(v)) return v.length>0; return String(v).trim()!==''; }
+function lab(field, v){ const m = L[field]; return (m && m[v]) || String(v).replace(/_/g,' '); }
+function pct(a, b){ return b ? Math.round(100*a/b) : 0; }
+function el(tag, cls, html){ const e = document.createElement(tag); if (cls) e.className = cls; if (html!==undefined) e.innerHTML = html; return e; }
+function isOwner(r){ return r.role==='owner' || r.role==='partner'; }
+function isEmp(r){ return r.role==='employee'; }
+function fmtTime(ms){
+  try { return new Date(ms).toLocaleString(undefined, { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }); }
+  catch(e){ return new Date(ms).toISOString(); }
+}
+
+/* ================= data: records → rows → sessions ================= */
+function normVal(v){
+  if (v===null || v===undefined) return null;
+  if (Array.isArray(v)) return v.map(x => (x && typeof x==='object') ? (x.name ?? x.email ?? x.id) : x).filter(x => x!==null && x!=='');
+  if (typeof v==='object') return v.name ?? v.email ?? v.id ?? null;
+  return v;
+}
+function rowFromRecord(rec){
+  const src = rec.cellValuesByFieldId || rec.fields || {};
+  const out = { _rid: rec.id };
+  Object.keys(src).forEach(k => { out[FIELD_IDS[k] || k] = normVal(src[k]); });
+  MULTI_FIELDS.forEach(f => { if (typeof out[f]==='string') out[f] = out[f].split(',').map(s=>s.trim()).filter(Boolean); });
+  if (Array.isArray(out.tools_used)) out.tools_used = [...new Set(out.tools_used.map(t => TOOL_ALIAS[t] || t))];
+  const t = Date.parse(rec.createdTime || '');
+  out._ts = isNaN(t) ? 0 : t;
+  return out;
+}
+
+function mergeSessions(rows){
+  const groups = new Map();
+  const noSession = [];
+  rows.forEach(r => {
+    const sid = r.session_id ? String(r.session_id).trim() : '';
+    if (!sid){ noSession.push(r); return; }
+    if (!groups.has(sid)) groups.set(sid, []);
+    groups.get(sid).push(r);
+  });
+  const sessions = [];
+  groups.forEach((rs, sid) => {
+    rs.sort((a,b) => a._ts - b._ts);
+    const s = { id: sid, rowCount: rs.length, firstTs: rs[0]._ts, lastTs: rs[rs.length-1]._ts };
+    // Latest non-empty answer wins, per question. A later blank never erases an earlier answer.
+    // Multi-selects take the whole latest submitted set.
+    rs.forEach(r => { ANSWER_FIELDS.forEach(f => { if (hasVal(r[f])) s[f] = r[f]; }); });
+    const withScreen = rs.filter(r => hasVal(r.screen));
+    s.lastScreen = withScreen.length ? withScreen[withScreen.length-1].screen : null;
+    s.calendly = rs.some(r => isTrue(r.calendly_clicked));
+    const pidRow = rs.filter(r => hasVal(r.prolific_pid)).pop();
+    s.pid = pidRow ? String(pidRow.prolific_pid).trim() : null;
+    s.studyId = pidRow && hasVal(pidRow.prolific_study_id) ? String(pidRow.prolific_study_id).trim() : null;
+    const finRow = rs.filter(r => isTrue(r.prolific_finish_clicked)).pop();
+    s.finishClicked = !!finRow;
+    s.finishTs = finRow ? (Date.parse(finRow.finish_clicked_at || '') || finRow._ts) : null;
+    s.reportOptIn = rs.some(r => hasVal(r.report_email));
+    s.exitOptIn = rs.some(r => hasVal(r.exit_email));
+    const lastOf = f => { const w = rs.filter(r => typeof r[f] === 'string' && r[f].includes('@')); return w.length ? w[w.length-1][f].trim() : null; };
+    s.reportEmail = lastOf('report_email');
+    s.exitEmail = lastOf('exit_email');
+    const emailRows = rs.filter(r => hasVal(r.report_email) || hasVal(r.exit_email));
+    s.emailTs = emailRows.length ? emailRows[emailRows.length-1]._ts : null;
+    s.meetingEmail = lastOf('meeting_email');
+    const doneRow = rs.filter(r => isTrue(r.completed) || hasVal(r.completed_at)).pop();
+    s.submittedTs = doneRow ? (Date.parse(doneRow.completed_at || '') || doneRow._ts) : s.lastTs;
+    const fullest = rs.slice().sort((a, b) => Object.keys(b).length - Object.keys(a).length)[0];
+    s.mainRid = fullest ? fullest._rid : null;
+    s.durationSec = Math.max(0, ...rs.map(r => Number(r.duration_sec) || 0));
+    s.screenedOut = hasVal(s.exit_reason) || s.team_size==='1' || s.role==='freelance';
+    s.complete = !s.screenedOut && !!doneRow;   // reached the thank-you screen; the Prolific Finish click is tracked apart
+    s.isTest = LAUNCH_AT === null || s.firstTs < LAUNCH_AT || TEST_SESSION_IDS.has(sid);
+    s.inTarget = !s.screenedOut;   // no size cut-off: everyone the form let through
+    s.aiShown = hasVal(s.ai_tasks_shown) ? String(s.ai_tasks_shown).split(',').map(x=>x.trim()).filter(Boolean) : [];
+    s.deepDives = [];
+    [1,2,3,4,5,6,7,8,9,10].forEach(n => {
+      const key = s['area'+n+'_key'];
+      if (hasVal(key)) s.deepDives.push({ area: key, handler: s['area'+n+'_handler'] || null, hours: s['area'+n+'_hours'] || null });
+    });
+    sessions.push(s);
+  });
+  return Object.assign(dedupeByPid(sessions), { noSession });
+}
+
+/* One Prolific participant can open the survey more than once (a reload starts a new session ID).
+   Keep one session per Prolific PID: a completed one first, then the one that got furthest, then the latest.
+   Opt-ins and the Finish click from the other sessions are carried over. Sessions with no PID are kept as they are. */
+function progressOf(s){ const i = SCREEN_ORDER.indexOf(s.lastScreen); return s.complete ? 999 : s.screenedOut ? 500 : (i < 0 ? 0 : i); }
+function dedupeByPid(sessions){
+  const byPid = new Map(), out = [];
+  let merged = 0;
+  sessions.forEach(s => { if (!s.pid){ s.pidSessions = 1; out.push(s); return; } if (!byPid.has(s.pid)) byPid.set(s.pid, []); byPid.get(s.pid).push(s); });
+  byPid.forEach(group => {
+    group.sort((a, b) => progressOf(b) - progressOf(a) || b.lastTs - a.lastTs);
+    const keep = group[0];
+    keep.pidSessions = group.length;
+    keep.otherSessionIds = group.slice(1).map(x => x.id);
+    group.slice(1).forEach(o => {
+      merged++;
+      keep.calendly = keep.calendly || o.calendly;
+      keep.reportOptIn = keep.reportOptIn || o.reportOptIn;
+      keep.exitOptIn = keep.exitOptIn || o.exitOptIn;
+      keep.reportEmail = keep.reportEmail || o.reportEmail;
+      keep.exitEmail = keep.exitEmail || o.exitEmail;
+      keep.meetingEmail = keep.meetingEmail || o.meetingEmail;
+      if (o.finishClicked && !keep.finishClicked){ keep.finishClicked = true; keep.finishTs = o.finishTs; }
+      keep.firstTs = Math.min(keep.firstTs, o.firstTs);
+      keep.isTest = keep.isTest || o.isTest;
+    });
+    out.push(keep);
+  });
+  return { sessions: out, mergedDupes: merged };
+}
+
+/* ================= state ================= */
+const state = { industry: 'all', size: 'all', role: 'all', years: 'all', insView: 'marketing', tab: 'c', showTests: false, autoTests: false };
+let DATA = null;           // { rows, sessions, noSession, fetchedAt }
+let LIVE = { status: 'idle', error: null };
+let SOURCE = 'snapshot';
+let SNAP_DATA = null, LIVE_DATA = null;
+
+try { const v = localStorage.getItem('pfd_ins_view'); if (v === 'marketing' || v === 'product') state.insView = v; } catch(e){}
+try { const t = localStorage.getItem('pfd_tab_v2'); if (t && ['a','b','c','d','e','f'].includes(t)) state.tab = t; } catch(e){}
+if (['a','b','c','d','e','f'].includes((location.hash||'').slice(1))) state.tab = location.hash.slice(1);
+/* A session ID after # opens the Interviews tab with that person's answers. */
+const HASH_SESSION = /^pp26_[A-Za-z0-9]+$/.test((location.hash||'').slice(1)) ? location.hash.slice(1) : null;
+if (HASH_SESSION) state.tab = 'f';
+
+function sessionsAll(){ return DATA ? DATA.sessions : []; }
+function testVisible(s){ return state.showTests || !s.isTest; }
+function qualified(){ return sessionsAll().filter(s => !s.screenedOut && testVisible(s)); }
+function baseResponses(){ return qualified().filter(s => s.inTarget); }
+function sizeMatch(s, size){ return size==='all' || s.team_size===size; }
+function yearsMatch(s, years){ return years==='all' || s.years_operating===years; }
+function industryMatch(s, ind){ return ind==='all' || s.industry===ind; }
+function filtersActive(){ return state.industry!=='all' || state.size!=='all' || state.role!=='all' || state.years!=='all'; }
+function roleMatch(s, role){ return role==='all' || (role==='owner' ? isOwner(s) : isEmp(s)); }
+function filteredResponses(){
+  return baseResponses().filter(s => industryMatch(s, state.industry) && sizeMatch(s, state.size) && roleMatch(s, state.role) && yearsMatch(s, state.years));
+}
+function sizeChartResponses(){
+  return sessionsAll().filter(s => testVisible(s) && hasVal(s.team_size) && roleMatch(s, state.role) && industryMatch(s, state.industry));
+}
+
+function countsFor(field, multi, order, rows){
+  rows = rows || filteredResponses();
+  const map = new Map(); let n = 0;
+  rows.forEach(r => {
+    const v = r[field];
+    if (!hasVal(v)) return;
+    n++;
+    if (multi) v.forEach(x => map.set(x, (map.get(x)||0)+1));
+    else map.set(String(v), (map.get(String(v))||0)+1);
+  });
+  let arr = [...map.entries()].map(([key,count]) => ({ key, name: lab(field, key), count }));
+  if (order) arr.sort((a,b) => { const ia = order.indexOf(a.key), ib = order.indexOf(b.key); return (ia<0?99:ia) - (ib<0?99:ib); });
+  else arr.sort((a,b) => b.count - a.count || a.name.localeCompare(b.name));
+  return { counts: arr, n };
+}
+
+function insightSentence(counts, n, opts){
+  opts = opts || {};
+  if (!n || !counts.length) return null;
+  const pool = counts.filter(c => !['notsure','other','none'].includes(c.key));
+  const sorted = (pool.length ? pool : counts).slice().sort((a,b) => b.count - a.count);
+  const top = sorted[0];
+  const ties = sorted.filter(c => c.count===top.count);
+  const p = pct(top.count, n);
+  const verb = opts.multi ? 'picked' : 'chose';
+  const who = opts.who || 'respondents who reached this question';
+  if (ties.length > 1 && ties.length <= 3){
+    return `${ties.length} answers are tied for the top spot at ${p}% each of the ${n} ${who}: ${ties.map(t => '<b>“'+esc(t.name)+'”</b>').join(', ')}.`;
+  }
+  if (ties.length > 3) return `No single answer leads yet: ${ties.length} answers are tied at ${p}% of the ${n} ${who}.`;
+  return `<b>“${esc(top.name)}”</b> is the top answer — ${verb} by <b>${p}%</b> of the ${n} ${who}.`;
+}
+
+/* ================= renderers ================= */
+/* For charts both groups answer: how many of each bar's answers came from employees. */
+function addRoleSplit(counts, field, rows){
+  const multi = MULTI_FIELDS.has(field);
+  const emps = rows.filter(isEmp);
+  counts.forEach(c => { c.emp = emps.filter(r => multi ? (Array.isArray(r[field]) && r[field].includes(c.key)) : String(r[field]) === c.key).length; });
+  return counts;
+}
+
+function renderBarList(container, counts, n, opts){
+  opts = opts || {};
+  const wrap = el('div','barlist' + (opts.emp ? ' emp' : ''));
+  if (!counts.length){ wrap.appendChild(el('div','empty-state', opts.emptyText || 'No responses in this segment yet.')); container.appendChild(wrap); return; }
+  const max = Math.max(...counts.map(c => opts.byPct ? c.pct : c.count), 1);
+  if (opts.split){
+    container.appendChild(el('div','role-legend', '<span><i style="background:var(--mark)"></i>Owners &amp; partners</span><span><i style="background:var(--emp)"></i>Employees</span>'));
+  }
+  counts.forEach(c => {
+    const denom = c.denom != null ? c.denom : n;
+    const p = pct(c.count, denom);
+    const muted = ['notsure','none'].includes(c.key);
+    const row = el('div','barrow' + (opts.tone==='warn' ? ' tone-warn' : '') + (muted ? ' muted' : ''));
+    row.appendChild(el('div','bl-label', esc(c.name)));
+    const track = el('div','bl-track');
+    const fill = el('div','bl-fill' + (opts.split ? ' split' : ''));
+    fill.style.width = Math.max(3, Math.round(100*(opts.byPct ? c.pct : c.count)/max)) + '%';
+    if (opts.split && c.count){
+      const em = c.emp || 0, own = c.count - em;
+      if (own) { const a = el('span','own'); a.style.width = (100*own/c.count) + '%'; a.title = `Owners & partners: ${own}`; fill.appendChild(a); }
+      if (em) { const b = el('span','em'); b.style.width = (100*em/c.count) + '%'; b.title = `Employees: ${em}`; fill.appendChild(b); }
+    }
+    track.appendChild(fill); row.appendChild(track);
+    row.appendChild(el('div','bl-val', c.denom != null ? `${c.count}/${denom} · ${p}%` : `${c.count} · ${p}%`));
+    wrap.appendChild(row);
+  });
+  container.appendChild(wrap);
+}
+
+function renderPie(container, slices){
+  const total = slices.reduce((a, x) => a + x.count, 0);
+  if (!total){ container.appendChild(el('div','empty-state','No responses in this segment yet.')); return; }
+  const wrap = el('div','pie-wrap');
+  const pie = el('div','pie');
+  let acc = 0;
+  pie.style.background = 'conic-gradient(' + slices.filter(x => x.count).map(x => { const a0 = acc/total*360; acc += x.count; return `${x.color} ${a0}deg ${acc/total*360}deg`; }).join(', ') + ')';
+  pie.setAttribute('role', 'img');
+  pie.setAttribute('aria-label', slices.map(x => `${x.name}: ${x.count}`).join(', '));
+  wrap.appendChild(pie);
+  const legend = el('div','pie-legend');
+  slices.forEach(x => {
+    const row = el('div','pie-row');
+    const sw = el('i',''); sw.style.background = x.color;
+    row.appendChild(sw); row.appendChild(document.createTextNode(x.name));
+    row.appendChild(el('span','v', `${x.count} · ${pct(x.count, total)}%`));
+    legend.appendChild(row);
+    if (x.sub) legend.appendChild(el('div','pie-sub', esc(x.sub)));
+  });
+  wrap.appendChild(legend);
+  container.appendChild(wrap);
+}
+
+function renderStat(container, label, value, sub, question, meter){
+  const s = el('div','stat');
+  s.appendChild(el('div','stat-label', esc(label)));
+  s.appendChild(el('div','stat-value', esc(value)));
+  if (meter != null && !isNaN(meter)){
+    const f = Math.max(0, Math.min(1, meter));
+    const m = el('div','hl-meter');
+    m.innerHTML = `<span class="fill" style="width:${(f*100).toFixed(1)}%"></span><span class="pt" style="left:${(f*100).toFixed(1)}%"></span>`;
+    s.appendChild(m);
+  }
+  if (sub) s.appendChild(el('div','stat-sub', sub));
+  if (question) s.appendChild(el('div','stat-question', `Asked: “${esc(question)}”`));
+  container.appendChild(s);
+}
+
+function renderInsight(container, text, emptyText){
+  if (!text){ container.appendChild(el('div','insight empty', emptyText || 'Not enough responses in this segment yet to surface an insight.')); return; }
+  container.appendChild(el('div','insight', text));
+}
+
+/* 1–7 scale in three bands (proposal): 1–3 not frustrating, 4 neutral, 5–7 frustrating. */
+const BANDS = [
+  { key:'low', label:'Not frustrating (1–3)', vals:[1,2,3], color:'var(--scale-low)' },
+  { key:'mid', label:'Neutral (4)', vals:[4], color:'var(--mark-muted)' },
+  { key:'high', label:'Frustrating (5–7)', vals:[5,6,7], color:'var(--scale-high)' },
+];
+function likertStats(items, rows, labelKey){
+  return items.map(a => {
+    const vals = rows.map(r => Number(r['pain_'+a.slug])).filter(v => v>=1 && v<=7);
+    const dist = [0,0,0,0,0,0,0,0];
+    vals.forEach(v => dist[v]++);
+    const n = vals.length;
+    const mean = n ? vals.reduce((x,y)=>x+y,0)/n : 0;
+    const high = dist[5]+dist[6]+dist[7];
+    return { slug: a.slug, name: a[labelKey] || a.owner, n, mean, dist, high };
+  }).filter(x => x.n > 0).sort((a,b) => b.mean - a.mean || b.high - a.high);
+}
+function renderLikert(container, stats, whoText){
+  if (!stats.length){ container.appendChild(el('div','empty-state','No ratings in this segment yet.')); return; }
+  const legend = el('div','lk-legend');
+  BANDS.forEach(bd => { const sp = el('span',''); const sw = el('i',''); sw.style.background = bd.color; sp.appendChild(sw); sp.appendChild(document.createTextNode(bd.label)); legend.appendChild(sp); });
+  container.appendChild(legend);
+  stats.forEach(it => {
+    const row = el('div','lkrow');
+    row.appendChild(el('div','lk-label', esc(it.name)));
+    const bar = el('div','lk-bar');
+    BANDS.forEach(bd => {
+      const c = bd.vals.reduce((a,v) => a + it.dist[v], 0);
+      if (!c) return;
+      const seg = el('div','lk-seg');
+      seg.style.width = (100*c/it.n) + '%';
+      seg.style.background = bd.color;
+      seg.title = `${bd.label}: ${c} of ${it.n} (` + bd.vals.map(v => `${v}: ${it.dist[v]}`).join(', ') + ')';
+      bar.appendChild(seg);
+    });
+    row.appendChild(bar);
+    row.appendChild(el('div','lk-mean', `mean <b>${it.mean.toFixed(1)}</b> · ${pct(it.high, it.n)}% 5–7`));
+    container.appendChild(row);
+  });
+  const top = stats[0];
+  renderInsight(container, `<b>“${esc(top.name)}”</b> is the most frustrating area, with a mean of <b>${top.mean.toFixed(1)} / 7</b>; ${pct(top.high, top.n)}% of the ${top.n} ${whoText} rated it 5 or higher.`);
+}
+
+function renderHeatmap(container, matrixRows, colKeys, colLabel, rowLabel, opts){
+  const rowsWithData = matrixRows.filter(r => colKeys.some(c => r.cells[c]));
+  if (!rowsWithData.length){ container.appendChild(el('div','empty-state','No deep dives in this segment yet.')); return; }
+  const usedCols = colKeys.filter(c => rowsWithData.some(r => r.cells[c]));
+  let max = 0; rowsWithData.forEach(r => usedCols.forEach(c => { max = Math.max(max, r.cells[c]||0); }));
+  const wrap = el('div','heatmap-wrap');
+  const table = el('table','heatmap');
+  const thead = el('thead'); const htr = el('tr');
+  htr.appendChild(el('th','rowh', esc(rowLabel || '')));
+  usedCols.forEach(c => htr.appendChild(el('th','colh', esc(colLabel(c)))));
+  if (opts && opts.total) htr.appendChild(el('th','colh total', 'Total'));
+  thead.appendChild(htr); table.appendChild(thead);
+  const tbody = el('tbody');
+  let topMarked = false;
+  rowsWithData.forEach(r => {
+    const tr = el('tr');
+    tr.appendChild(el('th','rowh', esc(r.label)));
+    usedCols.forEach(c => {
+      const v = r.cells[c] || 0;
+      const td = el('td', v===0 ? 'zero' : '');
+      if (v===0) td.textContent = '–';
+      else {
+        const size = Math.round(5 + 11*Math.sqrt(v/max));
+        const isTop = v===max && !topMarked; if (isTop) topMarked = true;
+        td.innerHTML = `<span class="hm-cell"><span class="hm-sq${isTop ? ' point' : ''}" style="width:${size}px;height:${size}px"></span>${v}</span>`;
+        if (isTop) td.title = 'Most common pairing';
+      }
+      tr.appendChild(td);
+    });
+    if (opts && opts.total) tr.appendChild(el('td','total', String(usedCols.reduce((a,c) => a + (r.cells[c]||0), 0))));
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody); wrap.appendChild(table); container.appendChild(wrap);
+}
+
+function renderOpenEnded(container, rows, field, opts){
+  opts = opts || {};
+  const withText = rows.filter(r => hasVal(r[field])).sort((a,b) => b.lastTs - a.lastTs);
+  const shown = opts.shownN != null ? opts.shownN : rows.length;
+  container.appendChild(el('div','oe-count', `<b>${withText.length}</b> wrote an answer${shown ? ` (of ${shown} who saw it)` : ''}.`));
+  if (!withText.length){ container.appendChild(el('div','empty-state','No written answers in this segment yet.')); return; }
+  const q = el('div','quotes');
+  withText.slice(0, opts.max || 4).forEach(r => {
+    const d = el('div','quote', '“' + esc(String(r[field]).slice(0, 400)) + '”');
+    if (opts.meta) d.appendChild(el('div','quote-meta', esc(opts.meta(r))));
+    q.appendChild(d);
+  });
+  container.appendChild(q);
+}
+
+function section(title, note, tone){
+  const s = el('section','card' + (tone ? ' toned tone-' + tone : ''));
+  const m = /^(\d+)\s*—\s*(.+)$/.exec(title);
+  const head = el('div','section-head');
+  if (tone) head.appendChild(el('i','tone-sq'));
+  if (m){ head.appendChild(el('div','badge-num', 'RQ ' + m[1])); head.appendChild(el('h2','', esc(m[2]))); }
+  else head.appendChild(el('h2','', esc(title)));
+  s.appendChild(head);
+  if (note) s.appendChild(el('p','section-note', note));
+  return s;
+}
+function bandSection(title, note, tone){ const s = section(title, note, tone); s.className = 'band' + (tone ? ' toned tone-' + tone : ''); return s; }
+function chartBlock(parentGrid, title, question, emp){
+  const block = el('div','chart-block');
+  const tr = el('div','chart-title-row');
+  tr.appendChild(el('div','chart-title', (emp ? '<span class="sq emp" title="Employee answers"></span>' : '') + esc(title)));
+  const nSpan = el('div','chart-n','');
+  tr.appendChild(nSpan); block.appendChild(tr);
+  if (question) block.appendChild(el('div','chart-q', `Asked: “${esc(question)}”`));
+  const body = el('div','chart-body'); block.appendChild(body);
+  parentGrid.appendChild(block);
+  return { block: body, nSpan };
+}
+function barChart(grid, title, field, opts){
+  opts = opts || {};
+  const rows = opts.rows || filteredResponses();
+  const { block, nSpan } = chartBlock(grid, title, opts.question === undefined ? Q[field] : opts.question, opts.emp);
+  const { counts, n } = countsFor(field, MULTI_FIELDS.has(field), opts.order || ORDER[field] || null, rows);
+  nSpan.textContent = `n = ${n}`;
+  const split = !opts.rows && !opts.emp;   // no row subset given = owners and employees together
+  if (split) addRoleSplit(counts, field, rows);
+  renderBarList(block, counts, n, { emp: opts.emp, split, emptyText: opts.emptyText });
+  if (!opts.noInsight) renderInsight(block, insightSentence(counts, n, { multi: MULTI_FIELDS.has(field), who: opts.who }));
+  return { block, counts, n };
+}
+
+/* ---------- derived analyses ---------- */
+function aiTaskCounts(rows){
+  const answered = rows.filter(r => hasVal(r.ai_tasks));
+  const ids = Object.keys(L.ai_tasks).filter(k => !['other','none'].includes(k));
+  const out = [];
+  ids.forEach(id => {
+    const shownTo = answered.filter(r => r.aiShown.length ? r.aiShown.includes(id) : true);
+    if (!shownTo.length) return;
+    const c = shownTo.filter(r => r.ai_tasks.includes(id)).length;
+    out.push({ key: id, name: L.ai_tasks[id], count: c, emp: shownTo.filter(r => isEmp(r) && r.ai_tasks.includes(id)).length, denom: shownTo.length, pct: pct(c, shownTo.length) });
+  });
+  out.sort((a,b) => b.pct - a.pct || b.count - a.count);
+  const none = answered.filter(r => r.ai_tasks.includes('none')).length;
+  if (none) out.push({ key:'none', name: L.ai_tasks.none, count: none, emp: answered.filter(r => isEmp(r) && r.ai_tasks.includes('none')).length, denom: answered.length, pct: pct(none, answered.length) });
+  return { list: out, n: answered.length, atLeastOne: answered.filter(r => r.ai_tasks.some(t => t!=='none')).length };
+}
+/* Tools: each industry was shown its own list, so a tool's share counts only the people who were shown it. */
+function toolCounts(rows){
+  const answered = rows.filter(r => hasVal(r.tools_used));
+  const ids = Object.keys(L.tools_used).filter(k => !['other','none'].includes(k));
+  const out = [];
+  ids.forEach(id => {
+    const shownTo = answered.filter(r => toolsShown(r).includes(id));
+    if (!shownTo.length) return;
+    const users = shownTo.filter(r => r.tools_used.includes(id));
+    if (!users.length) return;
+    out.push({ key: id, name: L.tools_used[id], count: users.length, emp: users.filter(isEmp).length, denom: shownTo.length, pct: pct(users.length, shownTo.length) });
+  });
+  out.sort((a,b) => b.pct - a.pct || b.count - a.count);
+  ['other','none'].forEach(k => {
+    const who = answered.filter(r => r.tools_used.includes(k));
+    if (who.length) out.push({ key: k, name: L.tools_used[k], count: who.length, emp: who.filter(isEmp).length, denom: answered.length, pct: pct(who.length, answered.length) });
+  });
+  return { list: out, n: answered.length };
+}
+function toolsChart(grid, title, rows){
+  const { block, nSpan } = chartBlock(grid, title, Q.tools_used);
+  const res = toolCounts(rows);
+  nSpan.textContent = `n = ${res.n}`;
+  renderBarList(block, res.list, res.n, { byPct: true, split: true });
+  const top = res.list.find(c => !['other','none'].includes(c.key));
+  renderInsight(block, top ? `<b>“${esc(top.name)}”</b> is the most-used tool: <b>${top.pct}%</b> of the ${top.denom} who were shown it. Each industry saw its own list of ten tools, so every share counts only the people shown that tool.` : null);
+  return { block, res };
+}
+const SCREEN_ORDER = ['s0','sQ1','sQ1a','sQ1b','sQ1c','sQ2','sEQ1','sVip','sEMatrix','sEBottle','sQ3a','sQ3b','sAIntro','sA1','sA2','sA3','sQ7','sQ7a','sQ10','sQ10a','sQLowAi','sEAdopt','sEAdoptWhy','sQ9','sQ9a','sQ9b','sQ12Intro','sQ12','sQ13','sGender'];
+const SCREEN_LABEL = {
+  s0:'Welcome screen', sQ1:'Industry', sQ1a:'Company size', sQ1b:'Role', sQ1c:'Country', sQ2:'Years in business',
+  sEQ1:'Role (employees)', sVip:'$100 interview invite', sEMatrix:'Frustration ratings (employees)', sEBottle:'What slows you down (employees)',
+  sQ3a:'Frustration ratings, part 1', sQ3b:'Frustration ratings, part 2', sAIntro:'Follow-up intro', sA1:'Follow-up area 1', sA2:'Follow-up area 2', sA3:'Follow-up area 3',
+  sQ7:'Tasks to hand to AI', sQ7a:'Why not the other tasks', sQ10:'How often they use AI', sQ10a:'What they use AI for', sQLowAi:'What keeps them from using AI more',
+  sEAdopt:'Working with an AI assistant (employees)', sEAdoptWhy:'What makes them hesitant (employees)', sQ9:'Tools used', sQ9a:'Monthly tool spend', sQ9b:'Willingness to pay',
+  sQ12Intro:'“Home stretch” screen', sQ12:'Statements they relate to', sQ13:'What weighs most', sGender:'Gender (last question)'
+};
+
+function deepDiveRows(rows){
+  const out = [];
+  rows.filter(isOwner).forEach(r => r.deepDives.forEach(d => out.push(Object.assign({ respId: r.id }, d))));
+  return out;
+}
+function hoursHeavy(h){ return ['6-10','11-20','20+'].includes(h); }
+
+/* ================= TAB A ================= */
+function sessionBreakdown(){
+  const all = sessionsAll().filter(testVisible);
+  const exited = all.filter(x => x.screenedOut);
+  const completed = all.filter(x => !x.screenedOut && x.complete);
+  const partial = all.filter(x => !x.screenedOut && !x.complete);
+  return { all, exited, completed, partial, tests: sessionsAll().filter(x => x.isTest).length };
+}
+
+function renderTabA(main){
+  const rows = filteredResponses();
+  const n = rows.length;
+  const owners = rows.filter(isOwner), emps = rows.filter(isEmp);
+
+  /* Sample */
+  {
+    const s = bandSection('Who answered.', null, 'ink');
+    const b = sessionBreakdown();
+    const tot = b.all.length;
+    const exitReasons = countsFor('exit_reason', false, null, b.exited).counts
+      .map(c => `${c.count} ${c.key==='freelance' ? 'freelancer or vendor' : c.key==='solo' ? '“Just me”' : esc(c.name)}`).join(', ');
+    const stats = el('div','stat-row');
+    renderStat(stats, 'Unique sessions', String(tot), state.showTests ? `includes ${b.tests} test session${b.tests===1?'':'s'}` : (b.tests ? `${b.tests} test session${b.tests===1?'':'s'} hidden` : 'one per person'));
+    renderStat(stats, 'Exited at screening', String(b.exited.length), tot ? `${pct(b.exited.length, tot)}% · ${exitReasons || 'screened out by the form'}` : '');
+    renderStat(stats, 'Partially filled', String(b.partial.length), tot ? `${pct(b.partial.length, tot)}% · stopped before the last question` : '');
+    renderStat(stats, 'Completed', String(b.completed.length), tot ? `${pct(b.completed.length, tot)}% · reached the last question` : '');
+    s.appendChild(stats);
+    const noSid = DATA.noSession.length;
+    renderInsight(s, `Each person counts once: rows are joined by session ID, and repeat sessions from the same Prolific participant are merged. The charts below use everyone who got past screening (<b>${b.partial.length + b.completed.length}</b> ${b.partial.length + b.completed.length===1?'person':'people'}), with no company-size cut-off. Partial sessions count for the questions they reached, and every percentage uses only the people who were shown that question.${filtersActive() ? ` The filters narrow the charts to <b>${n}</b>; these four counts cover all sessions.` : ''}${noSid ? ` <b>${noSid}</b> row${noSid===1?' has':'s have'} no session ID and ${noSid===1?'is':'are'} left out.` : ''}`);
+
+    const grid = el('div','chart-grid');
+    {
+      const r = barChart(grid, 'Industry', 'industry', { order: ORDER.industry });
+      addWriteIns(r.block, rows, 'industry_other');
+    }
+    {
+      const sr = sizeChartResponses();
+      const { block, nSpan } = chartBlock(grid, 'Company size', Q.team_size);
+      const { counts, n: cn } = countsFor('team_size', false, ORDER.team_size, sr);
+      nSpan.textContent = `n = ${cn}`;
+      addRoleSplit(counts, 'team_size', sr);
+      renderBarList(block, counts, cn, { split: true });
+      const solo = sr.filter(r => r.team_size==='1').length;
+      renderInsight(block, cn ? `${insightSentence(counts, cn, { who: 'people who answered' })}${solo ? ` “Just me” (${solo}) was screened out by the form after this question.` : ''}` : null);
+    }
+    {
+      const { block, nSpan } = chartBlock(grid, 'Role', Q.role);
+      const withRole = rows.filter(r => hasVal(r.role));
+      nSpan.textContent = `n = ${withRole.length}`;
+      const own = withRole.filter(r => r.role==='owner').length, prt = withRole.filter(r => r.role==='partner').length, emp = withRole.filter(isEmp).length;
+      renderPie(block, [
+        { name:'Owner or managing partner', count: own + prt, color:'var(--mark)', sub: prt ? `${own} owner${own===1?'':'s'} · ${prt} managing partner${prt===1?'':'s'}` : null },
+        { name:'Employee', count: emp, color:'var(--emp)' },
+      ]);
+      renderInsight(block, withRole.length ? `<b>${pct(own+prt, withRole.length)}%</b> are owners or managing partners and <b>${pct(emp, withRole.length)}%</b> are employees, of the ${withRole.length} who answered.` : null);
+    }
+    barChart(grid, 'Country', 'country');
+    barChart(grid, 'Gender', 'gender', { order: ['male','female','nonbinary','na'] });
+    barChart(grid, 'Years operating (owners & partners)', 'years_operating', { rows: owners, who: 'owners and partners who reached this question' });
+    s.appendChild(grid);
+    main.appendChild(s);
+  }
+
+  /* 1 — Pain */
+  {
+    const s = section('1 — Where does it hurt most?', 'Owners and partners rated ten business areas; employees rated six day-to-day frustrations worded for their role. The two scales are shown separately because the wording differs.', 'hurt');
+    s.appendChild(el('div','answered-by','Answered by: frustration ratings, “anything else?”, and what slows employees down'));
+    const grid = el('div','chart-grid stacked');
+    {
+      const { block, nSpan } = chartBlock(grid, 'Owners & partners — 10 areas', Q.pain_owner);
+      const st = likertStats(AREAS, owners, 'owner');
+      nSpan.textContent = `n = ${owners.filter(r => AREAS.some(a => hasVal(r['pain_'+a.slug]))).length}`;
+      renderLikert(block, st, 'owners and partners who rated it');
+    }
+    {
+      const { block, nSpan } = chartBlock(grid, 'Employees — 6 day-to-day frustrations', Q.pain_emp, true);
+      const st = likertStats(AREAS.filter(a => a.emp), emps, 'emp');
+      nSpan.textContent = `n = ${emps.filter(r => AREAS.some(a => hasVal(r['pain_'+a.slug]))).length}`;
+      renderLikert(block, st, 'employees who rated it');
+    }
+    s.appendChild(grid);
+    const grid2 = el('div','chart-grid');
+    barChart(grid2, 'What slows employees down', 'emp_bottlenecks', { rows: emps, emp: true, who: 'employees who reached this question' });
+    {
+      const { block, nSpan } = chartBlock(grid2, 'Anything else? (owners, optional)', Q.pain_other);
+      const reached = owners.filter(r => AREAS.some(a => hasVal(r['pain_'+a.slug])));
+      nSpan.textContent = `n = ${reached.length}`;
+      renderOpenEnded(block, reached, 'pain_other', { shownN: reached.length });
+    }
+    s.appendChild(grid2);
+    main.appendChild(s);
+  }
+
+  /* 2 — Deep dives */
+  {
+    const s = section('2 — Who carries the load, and how many hours does it take?', 'After the ratings, each owner or partner answered two follow-up questions (who handles it, and hours per week) for up to three of their most frustrating areas: those rated 4 or higher, or their top three if none were. Employees don’t get these follow-ups. Every figure below counts these area follow-ups, so one owner adds up to three.', 'hurt');
+    s.appendChild(el('div','answered-by','Answered by: “Who mostly handles this today?” and “Hours per week spent on it”, asked for each followed-up area'));
+    const dd = deepDiveRows(rows);
+    const withHandler = dd.filter(d => d.handler);
+    const withHours = dd.filter(d => d.hours && d.hours!=='notsure');
+    const stats = el('div','stat-row');
+    const ddOwners = new Set(dd.map(d => d.respId)).size;
+    renderStat(stats, 'Areas followed up', String(dd.length), `${ddOwners} owner${ddOwners===1?'':'s'} × up to 3 areas each`);
+    const ownerHandled = withHandler.filter(d => d.handler==='you').length;
+    renderStat(stats, 'Handled by the owner', withHandler.length ? pct(ownerHandled, withHandler.length)+'%' : '–', `${ownerHandled} of ${withHandler.length} areas`, Q.handler, withHandler.length ? ownerHandled/withHandler.length : null);
+    const heavy = withHours.filter(d => hoursHeavy(d.hours)).length;
+    renderStat(stats, '6+ hours a week', withHours.length ? pct(heavy, withHours.length)+'%' : '–', `${heavy} of ${withHours.length} areas with an hours estimate`, Q.hours, withHours.length ? heavy/withHours.length : null);
+    const noone = withHandler.filter(d => d.handler==='noone').length;
+    renderStat(stats, 'Nobody handles it', withHandler.length ? pct(noone, withHandler.length)+'%' : '–', `${noone} of ${withHandler.length} areas`, null, withHandler.length ? noone/withHandler.length : null);
+    s.appendChild(stats);
+
+    const grid = el('div','chart-grid stacked');
+    {
+      const { block, nSpan } = chartBlock(grid, 'Who handles each area', null);
+      nSpan.textContent = `${withHandler.length} areas followed up`;
+      const byArea = new Map();
+      withHandler.forEach(d => { if (!byArea.has(d.area)) byArea.set(d.area, {}); const c = byArea.get(d.area); c[d.handler] = (c[d.handler]||0)+1; });
+      const mrows = [...byArea.entries()].map(([slug, cells]) => ({ label: (AREA_BY_SLUG[slug]||{}).short || slug, cells, total: Object.values(cells).reduce((a,b)=>a+b,0) })).sort((a,b) => b.total - a.total);
+      renderHeatmap(block, mrows, ORDER.handler, c => L.handlerShort[c] || c, 'Area', { total: true });
+      if (withHandler.length){
+        const topCell = mrows.flatMap(r => Object.entries(r.cells).map(([h,v]) => ({ area: r.label, h, v }))).sort((a,b) => b.v - a.v)[0];
+        const topArea = mrows[0];
+        renderInsight(block, `<b>${esc(topArea.label)}</b> came up most often (${topArea.total} of ${withHandler.length} areas followed up). The most common pairing is <b>${esc(topCell.area)}</b> handled by <b>${esc(L.handlerShort[topCell.h] || topCell.h)}</b> (${topCell.v}), and the owner handles ${pct(ownerHandled, withHandler.length)}% of all followed-up areas personally.`);
+      } else renderInsight(block, null);
+    }
+    s.appendChild(grid);
+    const grid2 = el('div','chart-grid');
+    {
+      const { block, nSpan } = chartBlock(grid2, 'Hours per week, per area', Q.hours);
+      const hrs = dd.filter(d => d.hours);
+      const map = new Map(); hrs.forEach(d => map.set(d.hours, (map.get(d.hours)||0)+1));
+      const counts = ORDER.hours.filter(k => map.has(k)).map(k => ({ key:k, name:L.hours[k], count: map.get(k) }));
+      nSpan.textContent = `${hrs.length} areas`;
+      renderBarList(block, counts, hrs.length);
+      renderInsight(block, withHours.length ? `<b>${pct(heavy, withHours.length)}%</b> of followed-up areas take 6 or more hours a week across the business (“Not sure” excluded).` : null);
+    }
+    s.appendChild(grid2);
+    main.appendChild(s);
+  }
+
+  /* 3 — AI hand-off */
+  {
+    const s = section('3 — What would they hand to AI, and what holds them back?', 'Each task’s percentage counts only the people who were shown it: owners saw eight tasks, employees saw a set based on their title.', 'help');
+    s.appendChild(el('div','answered-by','Answered by: tasks they’d let AI handle, why not the rest, and (employees) how they’d feel working with an AI assistant'));
+    const grid = el('div','chart-grid');
+    {
+      const { block, nSpan } = chartBlock(grid, 'Tasks they’d let AI handle', Q.ai_tasks);
+      const res = aiTaskCounts(rows);
+      nSpan.textContent = `n = ${res.n}`;
+      renderBarList(block, res.list, res.n, { byPct: true, split: true });
+      renderInsight(block, res.list.length ? `<b>“${esc(res.list[0].name)}”</b> is the task they’d most readily hand over — <b>${res.list[0].pct}%</b> of the ${res.list[0].denom} who saw it. ${pct(res.atLeastOne, res.n)}% picked at least one task.` : null);
+    }
+    barChart(grid, 'Why not the other tasks', 'ai_reluctance', { question: Q.ai_reluctance, who: 'respondents who left at least one task unpicked', tone: 'warn' });
+    barChart(grid, 'Employees: working with an AI assistant', 'emp_ai_adopt', { rows: emps, emp: true, who: 'employees who reached this question' });
+    barChart(grid, 'Employees: what makes them hesitant', 'emp_adopt_why', { rows: emps, emp: true, who: 'cautious or reluctant employees' });
+    s.appendChild(grid);
+    main.appendChild(s);
+  }
+
+  /* 4 — AI today */
+  {
+    const s = section('4 — How AI-ready are they today?', null, 'help');
+    s.appendChild(el('div','answered-by','Answered by: how often they use AI, what for, and what keeps them from using it more'));
+    const grid = el('div','chart-grid');
+    barChart(grid, 'How often they use AI', 'ai_frequency');
+    barChart(grid, 'What they use AI for', 'ai_uses', { who: 'respondents who use AI at least rarely' });
+    barChart(grid, 'What keeps them from using AI more', 'ai_low_why', { who: 'respondents who use AI rarely or never', tone: 'warn' });
+    s.appendChild(grid);
+    main.appendChild(s);
+  }
+
+  /* 5 — Spend & WTP */
+  {
+    const s = section('5 — What do they spend on tools, and what would they pay?', 'Monthly spend was asked only of owners who use at least one tool. Willingness to pay was asked of all owners and partners.', 'help');
+    s.appendChild(el('div','answered-by','Answered by: tools used, monthly tool spend, and willingness to pay for an AI business assistant'));
+    const grid = el('div','chart-grid');
+    toolsChart(grid, 'Tools they use', rows);
+    barChart(grid, 'Monthly spend on tools', 'tools_monthly_spend', { rows: owners, who: 'owners and partners who reached this question' });
+    {
+      const r = barChart(grid, 'Willingness to pay for an AI assistant', 'wtp_ai', { rows: owners, noInsight: true });
+      const sure = r.counts.filter(c => c.key!=='notsure');
+      const sureN = sure.reduce((a,c) => a+c.count, 0);
+      const paying = sure.filter(c => c.key!=='0').reduce((a,c) => a+c.count, 0);
+      renderInsight(r.block, sureN ? `<b>${pct(paying, sureN)}%</b> of the ${sureN} owners with an answer would pay something each month (“Not sure” excluded). ${insightSentence(r.counts, r.n, { who: 'owners who reached this question' })}` : null);
+    }
+    s.appendChild(grid);
+    main.appendChild(s);
+  }
+
+  /* 6 — The week */
+  {
+    const s = section('6 — What does their week feel like?', 'Owners and employees were shown different statements, so each group has its own chart.', 'hurt');
+    s.appendChild(el('div','answered-by','Answered by: statements they relate to, the one that weighs most, and their own words about it'));
+    const grid = el('div','chart-grid');
+    barChart(grid, 'Owners & partners relate to', 'day2day', { rows: owners, order: null, who: 'owners and partners who reached this question' });
+    barChart(grid, 'Employees relate to', 'day2day', { rows: emps, emp: true, who: 'employees who reached this question' });
+    {
+      const reached = rows.filter(r => hasVal(r.heaviest));
+      const { block, nSpan } = chartBlock(grid, 'Weighs on them most', Q.heaviest);
+      const { counts } = countsFor('heaviest', false, null, reached.filter(r => r.heaviest!=='positive_week'));
+      const nNeg = reached.filter(r => r.heaviest!=='positive_week').length;
+      nSpan.textContent = `n = ${nNeg}`;
+      addRoleSplit(counts, 'heaviest', reached.filter(r => r.heaviest!=='positive_week'));
+      renderBarList(block, counts, nNeg, { split: true });
+      const pos = reached.length - nNeg;
+      renderInsight(block, nNeg ? `${insightSentence(counts, nNeg, { who: 'respondents with at least one negative statement' })} ${pos ? `${pos} described a purely positive week.` : ''} When someone picked only one negative statement, it was filled in for them.` : null);
+    }
+    {
+      const reached = rows.filter(r => hasVal(r.heaviest));
+      const { block, nSpan } = chartBlock(grid, 'In their own words', Q.heaviest_note);
+      nSpan.textContent = `n = ${reached.length}`;
+      renderOpenEnded(block, reached, 'heaviest_note', { shownN: reached.length, meta: r => r.heaviest && r.heaviest!=='positive_week' ? 'On: ' + lab('heaviest', r.heaviest) : 'Positive week' });
+    }
+    s.appendChild(grid);
+    main.appendChild(s);
+  }
+}
+
+/* ================= TAB B ================= */
+const SURVEY_ORDER = [
+  { group:'Screening', note:'Everyone. “Just me” and freelancers, vendors or external consultants are screened out.' },
+  { id:'S1', field:'industry', type:'Single choice', shown:'Everyone who started', all:true },
+  { id:'S2', field:'team_size', type:'Single choice · ordered', shown:'Everyone who started', all:true },
+  { id:'S3', field:'role', type:'Single choice', shown:'Everyone except “Just me”', all:true },
+  { id:'S4', field:'country', type:'Single choice', shown:'Everyone who got past screening' },
+  { group:'Owners & partners', note:'Owner and partner path.' },
+  { id:'O1', field:'years_operating', type:'Single choice · ordered', shown:'Owners & partners', owners:true },
+  { id:'O2', likert:'owner', type:'Scale 1–7 · 10 rows', shown:'Owners & partners' },
+  { id:'O2b', open:'pain_other', type:'Open-ended (optional)', shown:'Owners & partners' },
+  { id:'O3a', dd:'handler', type:'Single choice per area', shown:'Owners & partners, up to 3 areas' },
+  { id:'O3b', dd:'hours', type:'Single choice · ordered, per area', shown:'Owners & partners, up to 3 areas' },
+  { group:'Employees', note:'Employee path.' },
+  { id:'E1', field:'emp_role', type:'Single choice', shown:'Employees', emps:true },
+  { id:'E2', likert:'emp', type:'Scale 1–7 · 6 rows', shown:'Employees' },
+  { id:'E3', field:'emp_bottlenecks', type:'Multi-select · up to 3', shown:'Employees', emps:true },
+  { group:'AI adoption & use', note:'Both paths.' },
+  { id:'Q7', aitasks:true, type:'Multi-select', shown:'Everyone qualified; task list depends on role' },
+  { id:'Q7a', field:'ai_reluctance', type:'Multi-select', shown:'Anyone who left a shown task unpicked' },
+  { id:'Q10', field:'ai_frequency', type:'Single choice · ordered', shown:'Everyone qualified' },
+  { id:'Q10a', field:'ai_uses', type:'Multi-select', shown:'Everyone except “Never”' },
+  { id:'QL', field:'ai_low_why', type:'Multi-select', shown:'“Rarely” or “Never” only' },
+  { id:'E4', field:'emp_ai_adopt', type:'Single choice · ordered', shown:'Employees', emps:true },
+  { id:'E5', field:'emp_adopt_why', type:'Multi-select', shown:'Employees who are cautious or reluctant', emps:true },
+  { group:'Your stack', note:'Both paths; spend and willingness to pay are owners only.' },
+  { id:'Q9', tools:true, type:'Multi-select', shown:'Everyone qualified; tool list depends on industry' },
+  { id:'Q9a', field:'tools_monthly_spend', type:'Single choice · ordered', shown:'Owners who use at least one tool', owners:true },
+  { id:'Q9b', field:'wtp_ai', type:'Single choice · ordered', shown:'Owners & partners', owners:true },
+  { group:'Day to day', note:'Both paths, with different statements.' },
+  { id:'Q12o', field:'day2day', type:'Multi-select · up to 3', shown:'Owners & partners', owners:true, label:'(owner statements)' },
+  { id:'Q12e', field:'day2day', type:'Multi-select · up to 3', shown:'Employees', emps:true, label:'(employee statements)' },
+  { id:'Q13', field:'heaviest', type:'Single choice (auto-filled if only one)', shown:'Everyone who picked a negative statement' },
+  { id:'Q13b', open:'heaviest_note', type:'Open-ended', shown:'Everyone who reached Q13' },
+  { id:'Q14', field:'gender', type:'Single choice', shown:'Everyone qualified (last question)' },
+  { group:'Opt-ins', note:'Counts only. Email addresses are never shown here.' },
+  { id:'OI1', flag:'calendly', type:'Opt-in', shown:'Everyone who finished' },
+  { id:'OI2', flag:'reportOptIn', type:'Opt-in', shown:'Everyone who finished' },
+];
+const OTHER_TEXT = { industry:'industry_other', emp_role:'emp_role_other', emp_bottlenecks:'emp_bottlenecks_other', ai_reluctance:'ai_reluctance_other', ai_uses:'ai_uses_other', ai_low_why:'ai_low_why_other', emp_adopt_why:'emp_adopt_why_other', tools_used:'tools_other', day2day:'day2day_other' };
+
+function renderTabB(main){
+  const s = bandSection('Full survey.', 'Every question in form order, with who was shown it. Same filters and exclusions as the Research Questions tab.');
+  main.appendChild(s);
+  const rows = filteredResponses();
+  const owners = rows.filter(isOwner), emps = rows.filter(isEmp);
+  const list = el('div','');
+  SURVEY_ORDER.forEach(step => {
+    if (step.group){
+      list.appendChild(el('div','snap-group', esc(step.group)));
+      list.appendChild(el('div','snap-group-note', esc(step.note)));
+      return;
+    }
+    const row = el('div','snap-row');
+    row.appendChild(el('div','snap-idx', esc(step.id)));
+    const body = el('div','snap-body');
+    row.appendChild(body);
+    const meta = el('div','snap-meta');
+    const addMeta = (nText) => { meta.appendChild(el('span','snap-n', esc(nText))); meta.appendChild(el('span','chip type', esc(step.type))); meta.appendChild(el('span','chip', 'Shown to: ' + esc(step.shown))); };
+
+    if (step.likert){
+      const grp = step.likert==='owner' ? owners : emps;
+      body.appendChild(el('div','snap-q', esc(step.likert==='owner' ? Q.pain_owner : Q.pain_emp)));
+      const st = likertStats(step.likert==='owner' ? AREAS : AREAS.filter(a => a.emp), grp, step.likert==='owner' ? 'owner' : 'emp');
+      addMeta(`n = ${grp.filter(r => AREAS.some(a => hasVal(r['pain_'+a.slug]))).length}`);
+      body.appendChild(meta);
+      const w = el('div',''); body.appendChild(w);
+      renderLikert(w, st, step.likert==='owner' ? 'owners and partners who rated it' : 'employees who rated it');
+    } else if (step.open){
+      body.appendChild(el('div','snap-q', esc(Q[step.open])));
+      const reached = step.open==='pain_other' ? owners.filter(r => AREAS.some(a => hasVal(r['pain_'+a.slug]))) : rows.filter(r => hasVal(r.heaviest));
+      addMeta(`n = ${reached.length}`);
+      body.appendChild(meta);
+      renderOpenEnded(body, reached, step.open, { shownN: reached.length });
+    } else if (step.dd){
+      body.appendChild(el('div','snap-q', esc(Q[step.dd])));
+      const dd = deepDiveRows(rows).filter(d => d[step.dd]);
+      const map = new Map(); dd.forEach(d => map.set(d[step.dd], (map.get(d[step.dd])||0)+1));
+      const counts = ORDER[step.dd].filter(k => map.has(k)).map(k => ({ key:k, name: L[step.dd][k], count: map.get(k) }));
+      addMeta(`${dd.length} deep dives`);
+      body.appendChild(meta);
+      renderBarList(body, counts, dd.length);
+    } else if (step.aitasks){
+      body.appendChild(el('div','snap-q', esc(Q.ai_tasks)));
+      const res = aiTaskCounts(rows);
+      addMeta(`n = ${res.n}`);
+      body.appendChild(meta);
+      renderBarList(body, res.list, res.n, { byPct: true, split: true });
+      addWriteIns(body, rows, 'ai_tasks_other');
+    } else if (step.tools){
+      body.appendChild(el('div','snap-q', esc(Q.tools_used)));
+      const res = toolCounts(rows);
+      addMeta(`n = ${res.n}`);
+      body.appendChild(meta);
+      renderBarList(body, res.list, res.n, { byPct: true, split: true });
+      addWriteIns(body, rows, 'tools_other');
+    } else if (step.flag){
+      body.appendChild(el('div','snap-q', esc(step.flag==='calendly' ? Q.calendly : Q.report)));
+      const reached = rows.filter(r => r.complete);
+      const c = reached.filter(r => r[step.flag]).length;
+      addMeta(`n = ${reached.length} complete`);
+      body.appendChild(meta);
+      body.appendChild(el('div','oe-count', `<b>${pct(c, reached.length)}%</b> ${step.flag==='calendly' ? 'clicked “Book my slot”' : 'left an email for the report'} (${c} of ${reached.length}).`));
+    } else {
+      const pool = step.all ? sessionsAll().filter(testVisible) : (step.owners ? owners : step.emps ? emps : rows);
+      body.appendChild(el('div','snap-q', esc(Q[step.field]) + (step.label ? ` <span style="color:var(--ink-faint);font-weight:400">${esc(step.label)}</span>` : '')));
+      const { counts, n } = countsFor(step.field, MULTI_FIELDS.has(step.field), ORDER[step.field] || null, pool);
+      addMeta(`n = ${n}` + (step.all ? ' · all sessions, incl. screened out' : ''));
+      body.appendChild(meta);
+      const splitB = !step.owners && !step.emps;
+      if (splitB) addRoleSplit(counts, step.field, pool);
+      renderBarList(body, counts, n, { emp: !!step.emps, split: splitB });
+      if (OTHER_TEXT[step.field]) addWriteIns(body, pool, OTHER_TEXT[step.field]);
+    }
+    list.appendChild(row);
+  });
+  s.appendChild(list);
+}
+function addWriteIns(body, rows, field){
+  const w = rows.filter(r => hasVal(r[field]));
+  if (!w.length) return;
+  body.appendChild(el('div','snap-n', `“Other” write-ins (${w.length}): ` + w.slice(0,4).map(r => '“'+esc(String(r[field]).slice(0,80))+'”').join(' · ')));
+}
+
+/* ================= TAB C ================= */
+function hlCard(grid, o){
+  const c = el('div','hl-card');
+  c.appendChild(el('div','hl-eyebrow', (o.point ? '<span class="sq point"></span>' : '') + esc(o.eyebrow)));
+  c.appendChild(el('div','hl-stat', esc(o.stat)));
+  if (o.meter != null && !isNaN(o.meter)){
+    const f = Math.max(0, Math.min(1, o.meter));
+    const m = el('div','hl-meter');
+    m.innerHTML = `<span class="fill" style="width:${(f*100).toFixed(1)}%"></span><span class="pt${o.point ? ' point' : ''}" style="left:${(f*100).toFixed(1)}%"></span>`;
+    c.appendChild(m);
+    c.appendChild(el('div','hl-scale', `<span>${esc(o.scale ? o.scale[0] : '0%')}</span><span>${esc(o.scale ? o.scale[1] : '100%')}</span>`));
+  }
+  c.appendChild(el('div','hl-text', o.text));
+  grid.appendChild(c);
+}
+function hlGroup(parent, title, note, tone){
+  const g = el('div','hl-group tone-' + tone);
+  const head = el('div','hl-group-head');
+  head.appendChild(el('i',''));
+  head.appendChild(el('h3','', esc(title)));
+  if (note) head.appendChild(el('span','', esc(note)));
+  g.appendChild(head);
+  const grid = el('div','hl-grid');
+  g.appendChild(grid);
+  parent.appendChild(g);
+  return grid;
+}
+
+function renderTabC(main){
+  const s = bandSection('Highlights.', 'The short version, for the same filtered segment as the other tabs.');
+  main.appendChild(s);
+  const rows = filteredResponses();
+  const n = rows.length;
+  const owners = rows.filter(isOwner);
+  const NA = 'Not enough responses in this segment yet.';
+
+  /* Where it hurts */
+  const hurt = hlGroup(s, 'Where it hurts.', 'Frustrations, who carries them, and the time they take', 'hurt');
+  { const st = likertStats(AREAS, owners, 'owner');
+    if (st.length) hlCard(hurt, { eyebrow:'Top frustration', stat: st[0].mean.toFixed(1)+' / 7', point: true, meter: (st[0].mean-1)/6, scale:['1','7'],
+      text: `<b>${esc(st[0].name)}</b> is the most frustrating area for owners; ${pct(st[0].high, st[0].n)}% of ${st[0].n} rated it 5 or higher.` });
+    else hlCard(hurt, { eyebrow:'Top frustration', stat:'–', text: NA }); }
+  { const dd = deepDiveRows(rows).filter(d => d.handler);
+    const o = dd.filter(d => d.handler==='you').length;
+    hlCard(hurt, { eyebrow:'The owner handles it', stat: dd.length ? pct(o, dd.length)+'%' : '–', meter: dd.length ? o/dd.length : null,
+      text: dd.length ? `of followed-up areas are handled by the owner or managing partner personally (${o} of ${dd.length}).` : NA }); }
+  { const dd = deepDiveRows(rows).filter(d => d.hours && d.hours!=='notsure');
+    const h = dd.filter(d => hoursHeavy(d.hours)).length;
+    hlCard(hurt, { eyebrow:'Time drain', stat: dd.length ? pct(h, dd.length)+'%' : '–', meter: dd.length ? h/dd.length : null,
+      text: dd.length ? `of followed-up areas take <b>6+ hours a week</b> across the business (${h} of ${dd.length}, “Not sure” excluded).` : NA }); }
+
+  /* Where AI can help */
+  const help = hlGroup(s, 'Where AI can help.', 'Openness, current use, and willingness to pay', 'help');
+  { const res = aiTaskCounts(rows);
+    hlCard(help, { eyebrow:'Open to AI', stat: res.n ? pct(res.atLeastOne, res.n)+'%' : '–', meter: res.n ? res.atLeastOne/res.n : null,
+      text: res.n ? `would let AI handle at least one task${res.list[0] && res.list[0].key!=='none' ? `; the top pick is <b>${esc(res.list[0].name)}</b> (${res.list[0].pct}% of those shown it)` : ''}.` : NA }); }
+  { const a = rows.filter(r => hasVal(r.ai_frequency));
+    const d = a.filter(r => r.ai_frequency==='daily').length;
+    hlCard(help, { eyebrow:'Daily AI users', stat: a.length ? pct(d, a.length)+'%' : '–', meter: a.length ? d/a.length : null,
+      text: a.length ? `use AI tools every work day (${d} of ${a.length}).` : NA }); }
+  { const a = owners.filter(r => hasVal(r.wtp_ai) && r.wtp_ai!=='notsure');
+    const p = a.filter(r => r.wtp_ai!=='0').length;
+    const hi = a.filter(r => ['101-250','251-500','500+'].includes(r.wtp_ai)).length;
+    hlCard(help, { eyebrow:'Would pay', stat: a.length ? pct(p, a.length)+'%' : '–', meter: a.length ? p/a.length : null,
+      text: a.length ? `of owners would pay something monthly for an AI business assistant; ${hi} of ${a.length} would pay over $100 / mo.` : NA }); }
+
+}
+
+/* ================= TAB E: insights ================= */
+/* Everyone who got past screening, whatever the size / years filters; owners and employees shown apart. */
+const TASK_AREAS = {
+  inbox_admin:['admin_work'], drafting:['admin_work'], billing:['collecting_payments','invoicing_paperwork'],
+  team_oversight:['work_rate','team_management'], team_quality:['team_professional_level','deliverables_quality'],
+  leads:['new_clients'], data_pull:['strategic_decisions'], screening:['hiring_retention'], prioritize:['work_rate']
+};
+const TASK_SHORT = {
+  inbox_admin:'Email & calendar', drafting:'Drafting documents', billing:'Invoicing & payments', team_oversight:'Tracking progress',
+  team_quality:'Quality & guidance', leads:'Lead generation', data_pull:'Data for decisions', screening:'Screening candidates', prioritize:'Prioritizing my tasks'
+};
+/* Reasons for hesitating, grouped into themes across the three "why not" questions. */
+const THEMES = [
+  { key:'privacy', name:'Privacy & client data', from:{ ai_reluctance:['trust_privacy'], ai_low_why:['trust'], emp_adopt_why:['privacy'] },
+    message:'Lead with how data is handled: where it lives, who can see it, and how client confidentiality is kept.',
+    need:'Clear data boundaries, access controls and a visible privacy policy inside the product.' },
+  { key:'quality', name:'Output quality', from:{ ai_reluctance:['quality_risk'], ai_low_why:['tried_quality'], emp_adopt_why:['reliability'] },
+    message:'Show real before-and-after examples from client work like theirs, and say that nothing goes out without their review.',
+    need:'Approve-before-send, editable drafts and an easy way to correct the assistant.' },
+  { key:'human', name:'Human touch & role', from:{ ai_reluctance:['prefer_humans'], emp_adopt_why:['humans','job_security'] },
+    message:'Position it as support that takes admin off the team, not a replacement for people.',
+    need:'Keep a person in the loop: hand-offs to a named teammate and a visible log of what the assistant did.' },
+  { key:'effort', name:'Effort to learn & set up', from:{ ai_reluctance:['effort'], ai_low_why:['no_time'], emp_adopt_why:['learning'] },
+    message:'Promise a setup time in minutes and offer done-for-you onboarding.',
+    need:'Guided setup, ready-made templates for their kind of business, and working inside tools they already use.' },
+  { key:'price', name:'Price', from:{ ai_reluctance:['price'] },
+    message:'Anchor the price on hours saved each week.',
+    need:'A clear entry tier and in-product reporting of time saved.' },
+  { key:'relevance', name:'Not sure where it helps', from:{ ai_low_why:['no_need'] },
+    message:'Show specific use cases for their industry rather than general AI claims.',
+    need:'Suggested first tasks during onboarding, based on their role.' },
+  { key:'access', name:'Not allowed at work', from:{ ai_low_why:['not_available'] },
+    message:'Give employees material they can take to their manager or IT.',
+    need:'Admin controls and an approval flow for the business owner.' },
+];
+const EARLY_N = 20;
+
+function insCard(parent, o){
+  const c = el('div','hl-card ins-card' + (o.wide ? ' wide' : ''));
+  const top = el('div','ins-top');
+  top.appendChild(el('div','hl-eyebrow', (o.point ? '<span class="sq point"></span>' : '') + esc(o.title)));
+  if (o.n != null) top.appendChild(el('span','ins-n' + (o.n < EARLY_N ? ' early' : ''), o.n < EARLY_N ? `Early signal · ${o.n} people` : `${o.n} people`));
+  c.appendChild(top);
+  c.appendChild(el('div','ins-headline', o.headline || 'Not enough responses yet.'));
+  const body = el('div','ins-body'); c.appendChild(body);
+  if (o.use) c.appendChild(el('div','ins-use', '<b>Use it for:</b> ' + esc(o.use)));
+  parent.appendChild(c);
+  return body;
+}
+function roleLegend(){ return el('div','role-legend', '<span><i style="background:var(--mark)"></i>Owners &amp; partners</span><span><i style="background:var(--emp)"></i>Employees</span>'); }
+function ownerPain(r){ const v = AREAS.map(a => Number(r['pain_'+a.slug])).filter(x => x>=1 && x<=7); return v.length ? v.reduce((a,b)=>a+b,0)/v.length : null; }
+function openToAI(r){ return hasVal(r.ai_tasks) ? r.ai_tasks.some(t => t!=='none') : null; }
+function wtpPays(r){ return hasVal(r.wtp_ai) && r.wtp_ai!=='notsure' ? r.wtp_ai!=='0' : null; }
+function shareOf(rows, fn){ const v = rows.map(fn).filter(x => x!==null && x!==undefined); return v.length ? { share: v.filter(Boolean).length / v.length, n: v.length } : null; }
+function insTable(body, head, rows){
+  const wrap = el('div','email-wrap'); const t = el('table','emails ins-table');
+  t.innerHTML = '<thead><tr>' + head.map(h => `<th>${h}</th>`).join('') + '</tr></thead>';
+  const tb = el('tbody'); rows.forEach(r => { const tr = el('tr'); tr.innerHTML = r; tb.appendChild(tr); });
+  t.appendChild(tb); wrap.appendChild(t); body.appendChild(wrap);
+}
+function pctCell(x){ return x ? `${Math.round(100*x.share)}% <span class="ins-sub">of ${x.n}</span>` : '<span class="ins-sub">–</span>'; }
+
+function renderTabE(main){
+  const s = bandSection('Insights.', 'What the answers mean for marketing and for product. These always use everyone who got past screening; the industry, size and years filters don’t apply. Owners and employees are shown apart wherever both answered.', 'ink');
+  main.appendChild(s);
+  const sw = el('div','ins-switch'); sw.setAttribute('role','tablist'); sw.setAttribute('aria-label','Insights view');
+  [['marketing','Marketing insights'],['product','Product insights']].forEach(([k, label]) => {
+    const b = el('button','ins-switch-btn' + (state.insView===k ? ' on' : ''), esc(label));
+    b.type = 'button'; b.setAttribute('role','tab'); b.setAttribute('aria-selected', state.insView===k);
+    b.addEventListener('click', () => { if (state.insView === k) return; state.insView = k; try { localStorage.setItem('pfd_ins_view', k); } catch(e){} render(); });
+    sw.appendChild(b);
+  });
+  s.appendChild(sw);
+  const rows = qualified();
+  const owners = rows.filter(isOwner), emps = rows.filter(isEmp);
+  const bySize = ALL_SIZES.filter(v => v!=='1' && rows.some(r => r.team_size===v));
+
+  /* ---------- Marketing ---------- */
+  const mk = hlGroup(s, 'Marketing insights.', 'Who to target, what to say, and what to overcome', 'ink');
+  mk.classList.add('ins-grid');
+  mk.parentNode.hidden = state.insView !== 'marketing';
+
+  // Best-fit segment, by industry and by company size
+  { const score = (key, v) => {
+      const g = rows.filter(r => r[key]===v), go = g.filter(isOwner);
+      const pains = go.map(ownerPain).filter(x => x!==null);
+      const pain = pains.length ? pains.reduce((a,b)=>a+b,0)/pains.length : null;
+      const pay = shareOf(go, wtpPays), open = shareOf(g, openToAI), booked = g.length ? { share: g.filter(r => r.calendly).length / g.length, n: g.length } : null;
+      const parts = [pain!==null ? (pain-1)/6 : null, pay ? pay.share : null, open ? open.share : null].filter(x => x!==null);
+      return { v, n: g.length, pain, pay, open, booked, score: parts.length ? parts.reduce((a,b)=>a+b,0)/parts.length : null };
+    };
+    const byInd = INDUSTRIES.filter(v => rows.some(r => r.industry===v)).map(v => score('industry', v));
+    const bySz = bySize.map(v => score('team_size', v));
+    const pick = seg => seg.filter(x => x.n >= 3 && x.score!==null).sort((a,b) => b.score - a.score)[0];
+    const bestI = pick(byInd), bestS = pick(bySz);
+    const desc = (x, name) => `<b>${esc(name)}</b> (frustration ${x.pain!==null ? x.pain.toFixed(1)+' / 7' : 'n/a'}, ${x.pay ? Math.round(100*x.pay.share)+'%' : 'n/a'} would pay, ${x.open ? Math.round(100*x.open.share)+'%' : 'n/a'} open to AI)`;
+    const parts = [];
+    if (bestI) parts.push(`By industry, ${desc(bestI, L.industry[bestI.v])} looks like the strongest fit.`);
+    if (bestS) parts.push(`By size, it’s ${desc(bestS, L.team_size[bestS.v])}.`);
+    const body = insCard(mk, { wide: true, title: 'Best-fit segment', point: !!(bestI || bestS), n: rows.length,
+      headline: parts.length ? parts.join(' ') : 'No industry or company size has 3 or more people yet, so there’s no clear best fit.',
+      use: 'Choosing which industries and business sizes campaigns and outreach go after first.' });
+    const head = first => [first,'People','Avg frustration (owners)','Would pay (owners)','Open to AI','Booked meeting'];
+    const row = (x, best, name) => `<td>${x===best ? '<span class="sq point"></span>' : ''}${esc(name)}</td><td>${x.n}</td><td>${x.pain!==null ? x.pain.toFixed(1) : '<span class="ins-sub">–</span>'}</td><td>${pctCell(x.pay)}</td><td>${pctCell(x.open)}</td><td>${pctCell(x.booked)}</td>`;
+    insTable(body, head('Industry'), byInd.map(x => row(x, bestI, L.industry[x.v])));
+    insTable(body, head('Company size'), bySz.map(x => row(x, bestS, L.team_size[x.v])));
+    body.appendChild(el('div','ins-note','The fit score averages frustration, share willing to pay and share open to AI. Groups with fewer than 3 people aren’t ranked.')); }
+
+  // Messages that match their pain
+  { const st = likertStats(AREAS, owners, 'owner').slice(0, 3);
+    const d2dRows = rows.filter(r => hasVal(r.day2day));
+    const d = countsFor('day2day', true, null, d2dRows).counts.filter(c => c.key!=='other' && !['on_top','enjoy','eon_top','eenjoy','eequipped'].includes(c.key)).slice(0, 5);
+    addRoleSplit(d, 'day2day', d2dRows);
+    const body = insCard(mk, { title: 'Messages that match their pain', n: d2dRows.length,
+      headline: st.length ? `Owners feel it most in <b>${esc(st[0].name.toLowerCase())}</b>${st[1] ? `, then ${esc(st[1].name.toLowerCase())}` : ''}.` : 'Not enough ratings yet.',
+      use: 'Headlines, ad copy and landing-page language, in their own words.' });
+    if (st.length) body.appendChild(el('ol','ins-list', st.map(x => `<li>${esc(x.name)} <span class="ins-sub">mean ${x.mean.toFixed(1)} / 7</span></li>`).join('')));
+    if (d.length){ body.appendChild(el('div','ins-label','Weekly frustrations they picked')); renderBarList(body, d, d2dRows.length, { split: true }); }
+    const quotes = rows.filter(r => typeof r.heaviest_note === 'string' && r.heaviest_note.trim().length >= 15).sort((a,b) => b.lastTs - a.lastTs).slice(0, 3);
+    if (quotes.length){ body.appendChild(el('div','ins-label','In their words')); const q = el('div','quotes'); quotes.forEach(r => q.appendChild(el('div','quote', '“' + esc(r.heaviest_note.trim().slice(0, 240)) + '”'))); body.appendChild(q); } }
+
+  // Objections to answer
+  const themeRows = rows.filter(r => hasVal(r.ai_reluctance) || hasVal(r.ai_low_why) || hasVal(r.emp_adopt_why));
+  const themes = THEMES.map(t => {
+    const hit = r => Object.entries(t.from).some(([f, keys]) => Array.isArray(r[f]) && r[f].some(k => keys.includes(k)));
+    const who = themeRows.filter(hit);
+    return Object.assign({}, t, { count: who.length, emp: who.filter(isEmp).length });
+  }).filter(t => t.count).sort((a,b) => b.count - a.count);
+  { const body = insCard(mk, { title: 'Objections to answer', n: themeRows.length,
+      headline: themes.length ? `The biggest objection is <b>${esc(themes[0].name.toLowerCase())}</b>, raised by ${Math.round(100*themes[0].count/themeRows.length)}% of those who gave a reason.` : 'No objections recorded yet.',
+      use: 'Landing-page FAQs, sales talking points and onboarding emails.' });
+    if (themes.length){
+      renderBarList(body, themes.map(t => ({ key: t.key, name: t.name, count: t.count, emp: t.emp })), themeRows.length, { split: true });
+      body.appendChild(el('div','ins-label','Suggested answer'));
+      body.appendChild(el('ul','ins-list', themes.slice(0, 3).map(t => `<li><b>${esc(t.name)}:</b> ${esc(t.message)}</li>`).join('')));
+    } }
+
+  // Partner & channel signals
+  { const tRows = rows.filter(r => hasVal(r.tools_used));
+    const c = toolCounts(tRows).list.filter(x => !['none','other'].includes(x.key)).slice(0, 6);
+    const body = insCard(mk, { title: 'Partner & channel signals', n: tRows.length,
+      headline: c.length ? `<b>${esc(c[0].name)}</b> is the most-used tool (${c[0].pct}% of those shown it)${c[1] ? `, followed by ${esc(c[1].name)}` : ''}.` : 'No tools recorded yet.',
+      use: 'Integration partnerships, marketplace listings and where to advertise.' });
+    if (c.length){ renderBarList(body, c, tRows.length, { byPct: true, split: true }); body.appendChild(el('div','ins-note','Each industry was shown its own tool list, so each share counts only the people shown that tool.')); }
+    const none = tRows.filter(r => r.tools_used.includes('none')).length;
+    if (none) body.appendChild(el('div','ins-note', `${none} ${none===1?'uses':'use'} none of the listed tools.`)); }
+
+  // Lead pool
+  { const all = sessionsAll().filter(testVisible);
+    const leads = r => r.reportOptIn || r.exitOptIn || r.calendly;
+    const roleRow = (label, g) => `<td>${label}</td><td>${g.length}</td><td>${g.filter(r => r.reportOptIn || r.exitOptIn).length}</td><td>${g.filter(r => r.calendly).length}</td>`;
+    const exitedLeads = all.filter(r => r.screenedOut && r.exitOptIn).length;
+    const body = insCard(mk, { title: 'Lead pool', n: rows.length,
+      headline: `<b>${rows.filter(leads).length}</b> qualified people left an email or clicked to book, plus <b>${exitedLeads}</b> screened-out people who asked to hear about a later round.`,
+      use: 'Nurture lists, the report send-out and recruiting interviewees.' });
+    insTable(body, ['Group','People','Left an email','Booked meeting'], [roleRow('Owners &amp; partners', owners), roleRow('Employees', emps)]
+      .concat(bySize.map(v => roleRow(esc(L.team_size[v]), rows.filter(r => r.team_size===v))))); }
+
+  /* ---------- Product ---------- */
+  const pr = hlGroup(s, 'Product insights.', 'Which problems to solve first, and what it takes for people to trust the product', 'ink');
+  pr.classList.add('ins-grid');
+  pr.parentNode.hidden = state.insView !== 'product';
+
+  // Opportunity ranking
+  const dd = deepDiveRows(rows);
+  const PRIOR_N = 5;
+  const ddH = dd.filter(x => x.hours && x.hours!=='notsure'), ddW = dd.filter(x => x.handler);
+  const heavyAll = ddH.length ? ddH.filter(x => hoursHeavy(x.hours)).length / ddH.length : 0;
+  const unownedAll = ddW.length ? ddW.filter(x => x.handler==='you' || x.handler==='noone').length / ddW.length : 0;
+  const shrink = (k, n, prior) => (k + prior * PRIOR_N) / (n + PRIOR_N);
+  const areaScores = AREAS.map(a => {
+    const st = likertStats([a], owners, 'owner')[0];
+    const d = dd.filter(x => x.area===a.slug);
+    const withH = d.filter(x => x.hours && x.hours!=='notsure'), withW = d.filter(x => x.handler);
+    const heavy = withH.length ? withH.filter(x => hoursHeavy(x.hours)).length / withH.length : null;
+    const unowned = withW.length ? withW.filter(x => x.handler==='you' || x.handler==='noone').length / withW.length : null;
+    const heavyAdj = shrink(withH.filter(x => hoursHeavy(x.hours)).length, withH.length, heavyAll);
+    const unownedAdj = shrink(withW.filter(x => x.handler==='you' || x.handler==='noone').length, withW.length, unownedAll);
+    return { a, st, n: d.length, heavy, unowned, score: st ? (st.mean-1)/6*0.6 + heavyAdj*0.2 + unownedAdj*0.2 : null };
+  }).filter(x => x.score!==null).sort((a,b) => b.score - a.score);
+  { const top = areaScores[0];
+    const body = insCard(pr, { wide: true, title: 'Opportunity ranking', point: !!top, n: owners.length,
+      headline: top ? `<b>${esc(top.a.owner)}</b> is the biggest opportunity: frustrating (${top.st.mean.toFixed(1)} / 7)${top.heavy!==null ? `, ${Math.round(100*top.heavy)}% of follow-ups take 6+ hours a week` : ''}${top.unowned!==null ? `, and ${Math.round(100*top.unowned)}% land on the owner or nobody` : ''}.` : 'Not enough ratings yet.',
+      use: 'Deciding which problem the product solves first.' });
+    const max = Math.max(...areaScores.map(x => x.score), 0.01);
+    insTable(body, ['Area','Frustration','Followed up','6+ hours a week','On the owner or nobody','Opportunity'],
+      areaScores.map((x, i) => `<td>${i===0 ? '<span class="sq point"></span>' : ''}${esc(x.a.owner)}</td><td>${x.st.mean.toFixed(1)}</td><td>${x.n}</td><td>${x.heavy!==null ? Math.round(100*x.heavy)+'%' : '<span class="ins-sub">–</span>'}</td><td>${x.unowned!==null ? Math.round(100*x.unowned)+'%' : '<span class="ins-sub">–</span>'}</td><td><span class="ins-bar"><i style="width:${Math.round(100*x.score/max)}%"></i></span></td>`));
+    body.appendChild(el('div','ins-note','Opportunity weighs frustration (60%), the share of follow-ups taking 6+ hours a week (20%) and the share handled by the owner or nobody (20%). Owners only. Areas with few follow-ups are pulled toward the overall average, so one or two answers can’t dominate.')); }
+
+  // Build first vs build trust first
+  { const ow = owners.filter(r => hasVal(r.ai_tasks));
+    const areaMean = Object.fromEntries(areaScores.map(x => [x.a.slug, x.st.mean]));
+    const pts = Object.keys(TASK_AREAS).map(id => {
+      const shown = ow.filter(r => r.aiShown.length ? r.aiShown.includes(id) : true);
+      const m = TASK_AREAS[id].map(sl => areaMean[sl]).filter(x => x!=null);
+      if (!shown.length || !m.length) return null;
+      return { id, x: m.reduce((a,b)=>a+b,0)/m.length, y: shown.filter(r => r.ai_tasks.includes(id)).length / shown.length, n: shown.length };
+    }).filter(Boolean);
+    const buildFirst = pts.filter(p => p.x >= 4 && p.y >= 0.5).sort((a,b) => (b.x/7 + b.y) - (a.x/7 + a.y));
+    const trustFirst = pts.filter(p => p.x >= 4 && p.y < 0.5).sort((a,b) => b.x - a.x);
+    const body = insCard(pr, { wide: true, title: 'Build first vs build trust first', n: ow.length,
+      headline: pts.length ? (buildFirst.length ? `Build first: <b>${buildFirst.slice(0,2).map(p => esc(TASK_SHORT[p.id])).join('</b> and <b>')}</b>.` : 'No task is both painful and widely trusted yet.') + (trustFirst.length ? ` Trust is the feature for <b>${trustFirst.slice(0,2).map(p => esc(TASK_SHORT[p.id])).join('</b> and <b>')}</b>.` : '') : 'Not enough answers yet.',
+      use: 'Sequencing the roadmap: ship what they already trust, and design trust into the rest.' });
+    if (pts.length){
+      const W = Math.max(300, body.clientWidth || 640), H = 300, L0 = 44, R0 = 16, T0 = 16, B0 = 40;
+      const X = v => L0 + (W-L0-R0) * (v-1)/6, Y = v => T0 + (H-T0-B0) * (1-v);
+      let svg = `<svg class="lc quad" viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="Tasks by owner frustration and willingness to hand to AI">`;
+      svg += `<rect x="${X(4)}" y="${Y(1)}" width="${X(7)-X(4)}" height="${Y(0.5)-Y(1)}" class="q-best"/>`;
+      [1,2,3,4,5,6,7].forEach(v => { svg += `<text x="${X(v)}" y="${H-B0+16}" text-anchor="middle">${v}</text>`; });
+      [0,0.5,1].forEach(v => { svg += `<text x="${L0-8}" y="${Y(v)+4}" text-anchor="end">${Math.round(v*100)}%</text>`; });
+      svg += `<line x1="${X(4)}" x2="${X(4)}" y1="${T0}" y2="${H-B0}" class="axis"/><line x1="${L0}" x2="${W-R0}" y1="${Y(0.5)}" y2="${Y(0.5)}" class="axis"/>`;
+      svg += `<line x1="${L0}" x2="${W-R0}" y1="${H-B0}" y2="${H-B0}" class="grid"/>`;
+      svg += `<text x="${W-R0}" y="${T0+12}" text-anchor="end" class="q-lab">Build first</text><text x="${W-R0}" y="${H-B0-8}" text-anchor="end" class="q-lab">Build trust first</text><text x="${L0+6}" y="${T0+12}" class="q-lab">Easy win, lower pain</text><text x="${L0+6}" y="${H-B0-8}" class="q-lab">Lower priority</text>`;
+      svg += `<text x="${(L0+W-R0)/2}" y="${H-6}" text-anchor="middle">Owner frustration with the related area (1–7)</text>`;
+      const placed = pts.map(p => ({ p, cx: X(p.x), cy: Y(p.y), ly: Y(p.y) + 4 })).sort((a, b) => a.cy - b.cy);
+      placed.forEach((q, i) => { for (let j = 0; j < i; j++){ const o = placed[j]; if (Math.abs(o.cx - q.cx) < 140 && Math.abs(o.ly - q.ly) < 14) q.ly = o.ly + 14; } });
+      placed.forEach(({ p, cx, cy, ly }) => { const right = cx < W - 150;
+        svg += `<rect x="${cx-4}" y="${cy-4}" width="8" height="8" class="pt completed"><title>${esc(TASK_SHORT[p.id])}: frustration ${p.x.toFixed(1)}, ${Math.round(100*p.y)}% of ${p.n} would hand it to AI</title></rect>`;
+        if (Math.abs(ly - (cy + 4)) > 1) svg += `<line x1="${cx}" y1="${cy}" x2="${right ? cx+6 : cx-6}" y2="${ly-4}" class="grid"/>`;
+        svg += `<text x="${right ? cx+8 : cx-8}" y="${ly}" text-anchor="${right ? 'start' : 'end'}" class="q-pt">${esc(TASK_SHORT[p.id])}</text>`; });
+      svg += '</svg>';
+      body.insertAdjacentHTML('beforeend', svg);
+      body.appendChild(el('div','ins-note','Up = more owners would hand the task to AI (of those shown it). Right = owners find the related business area more frustrating.'));
+    } }
+
+  // What trust requires
+  { const body = insCard(pr, { title: 'What trust requires', n: themeRows.length,
+      headline: themes.length ? `To win over hesitant users, start with <b>${esc(themes[0].need.split(/[,.]/)[0].toLowerCase())}</b>.` : 'No hesitations recorded yet.',
+      use: 'Feature requirements and the onboarding checklist.' });
+    if (themes.length) body.appendChild(el('ol','ins-list', themes.map(t => `<li><b>${esc(t.name)}</b> <span class="ins-sub">${t.count} ${t.count===1?'person':'people'}${t.emp ? ` · ${t.emp} employee${t.emp===1?'':'s'}` : ''}</span><br>${esc(t.need)}</li>`).join(''))); }
+
+  // Integration priorities
+  { const tRows = rows.filter(r => hasVal(r.tools_used));
+    const c = toolCounts(tRows).list.filter(x => !['none','other'].includes(x.key)).slice(0, 5);
+    const body = insCard(pr, { title: 'Integration priorities', n: tRows.length,
+      headline: c.length ? `Integrate with <b>${esc(c[0].name)}</b> first${c[1] ? `, then ${esc(c[1].name)}` : ''}${c[2] ? ` and ${esc(c[2].name)}` : ''}.` : 'No tools recorded yet.',
+      use: 'The order of integrations on the roadmap.' });
+    if (c.length) body.appendChild(el('ol','ins-list', c.map(x => `<li>${esc(x.name)} <span class="ins-sub">${x.count} of ${x.denom} shown it · ${x.pct}%</span></li>`).join('')));
+    const other = tRows.filter(r => hasVal(r.tools_other)).length;
+    if (other) body.appendChild(el('div','ins-note', `${other} named other tools; see “Tools used” in Full Survey for their write-ins.`)); }
+
+  // Pricing signal
+  { const w = owners.filter(r => hasVal(r.wtp_ai));
+    const sure = w.filter(r => r.wtp_ai!=='notsure');
+    const over100 = sure.filter(r => ['101-250','251-500','500+'].includes(r.wtp_ai)).length;
+    const pays = sure.filter(r => r.wtp_ai!=='0').length;
+    const { counts } = countsFor('wtp_ai', false, ORDER.wtp_ai, w);
+    const paying = counts.filter(c => !['0','notsure'].includes(c.key));
+    const modal = paying.slice().sort((a,b) => b.count - a.count)[0];
+    const body = insCard(pr, { title: 'Pricing signal', n: w.length,
+      headline: sure.length ? `<b>${Math.round(100*pays/sure.length)}%</b> of owners would pay something, and <b>${Math.round(100*over100/sure.length)}%</b> more than $100 a month.${modal ? ` The most common paid band is ${esc(modal.name)}.` : ''}` : 'No price answers yet.',
+      use: 'Setting the entry price and testing tiers.' });
+    renderBarList(body, counts, w.length);
+    const spendRows = ORDER.tools_monthly_spend.filter(v => owners.some(r => r.tools_monthly_spend===v)).map(v => {
+      const g = owners.filter(r => r.tools_monthly_spend===v && hasVal(r.wtp_ai) && r.wtp_ai!=='notsure');
+      return `<td>${esc(L.tools_monthly_spend[v])}</td><td>${g.length}</td><td>${g.length ? Math.round(100*g.filter(r => r.wtp_ai!=='0').length/g.length)+'%' : '–'}</td><td>${g.length ? Math.round(100*g.filter(r => ['101-250','251-500','500+'].includes(r.wtp_ai)).length/g.length)+'%' : '–'}</td>`;
+    });
+    if (spendRows.length){ body.appendChild(el('div','ins-label','By current monthly tool spend')); insTable(body, ['Spend now','Owners','Would pay','Over $100'], spendRows); } }
+
+  // Owner vs employee gap
+  { const ansO = owners.filter(r => hasVal(r.ai_tasks)), ansE = emps.filter(r => hasVal(r.ai_tasks));
+    const rate = (g, id) => { const sh = g.filter(r => r.aiShown.length ? r.aiShown.includes(id) : true); return sh.length ? { p: sh.filter(r => r.ai_tasks.includes(id)).length / sh.length, n: sh.length } : null; };
+    const list = Object.keys(TASK_SHORT).map(id => ({ id, o: rate(ansO, id), e: rate(ansE, id) })).filter(x => x.o || x.e);
+    const gaps = list.filter(x => x.o && x.e).map(x => Object.assign(x, { gap: x.o.p - x.e.p })).sort((a,b) => Math.abs(b.gap) - Math.abs(a.gap));
+    const body = insCard(pr, { title: 'Owner vs employee gap', n: ansO.length + ansE.length,
+      headline: !ansE.length ? 'No employee answers yet, so there’s nothing to compare.' : gaps.length ? `The widest gap is <b>${esc(TASK_SHORT[gaps[0].id].toLowerCase())}</b>: ${Math.round(100*gaps[0].o.p)}% of owners vs ${Math.round(100*gaps[0].e.p)}% of employees would hand it to AI.` : 'Owners and employees saw different tasks, so there’s no direct comparison yet.',
+      use: 'Designing for the buyer (the owner) and the daily user (the employee).' });
+    body.appendChild(roleLegend());
+    const wrap = el('div','pair-list');
+    list.forEach(x => {
+      const row = el('div','pair-row');
+      row.innerHTML = `<div class="bl-label">${esc(TASK_SHORT[x.id])}</div><div class="pair-bars">` +
+        `<div class="pair"><span class="pb own" style="width:${x.o ? Math.max(2, Math.round(100*x.o.p)) : 0}%"></span><em>${x.o ? Math.round(100*x.o.p)+'%' : '–'}</em></div>` +
+        `<div class="pair"><span class="pb em" style="width:${x.e ? Math.max(2, Math.round(100*x.e.p)) : 0}%"></span><em>${x.e ? Math.round(100*x.e.p)+'%' : '–'}</em></div></div>`;
+      wrap.appendChild(row);
+    });
+    body.appendChild(wrap);
+    const cautious = emps.filter(r => ['cautious','reluctant'].includes(r.emp_ai_adopt)).length, answered = emps.filter(r => hasVal(r.emp_ai_adopt)).length;
+    if (answered) body.appendChild(el('div','ins-note', `${cautious} of ${answered} employees are cautious or reluctant about working with an AI assistant.`)); }
+
+  // Beta candidates
+  { const cands = rows.filter(r => ['daily','few_week'].includes(r.ai_frequency) && hasVal(r.ai_tasks) && r.ai_tasks.filter(t => !['none','other'].includes(t)).length >= 2 && (r.reportEmail || r.exitEmail || r.calendly))
+      .sort((a,b) => (b.calendly?1:0) - (a.calendly?1:0) || b.lastTs - a.lastTs);
+    const body = insCard(pr, { wide: true, title: 'Beta candidates', n: rows.length,
+      headline: cands.length ? `<b>${cands.length}</b> ${cands.length===1?'person uses':'people use'} AI at least a few times a week, would hand over 2+ tasks, and left a way to reach them.` : 'Nobody matches the beta profile yet.',
+      use: 'A shortlist for early access and design-partner calls.' });
+    if (cands.length) insTable(body, ['Session ID','Role','Industry · size','AI use','Tasks to hand over','Contact'],
+      cands.slice(0, 25).map(r => `<td class="mono">${esc(r.id)}</td><td>${esc(isEmp(r) ? 'Employee' : lab('role', r.role))}</td><td>${esc(r.industry ? lab('industry', r.industry) : '–')} · ${esc(r.team_size ? L.team_size[r.team_size] : '–')}</td><td>${esc(lab('ai_frequency', r.ai_frequency))}</td><td>${r.ai_tasks.filter(t => !['none','other'].includes(t)).length}</td><td class="addr">${esc(r.reportEmail || r.exitEmail || '')}${r.calendly ? `${r.reportEmail || r.exitEmail ? ' · ' : ''}Booked meeting` : ''}</td>`));
+    if (cands.length > 25) body.appendChild(el('div','ins-note', `Showing the 25 most recent of ${cands.length}.`)); }
+}
+
+/* ================= TAB F: interviews ================= */
+/* Everyone who left a meeting email, with a panel showing their full answers. */
+function interviewees(){
+  return sessionsAll().filter(s => testVisible(s) && s.meetingEmail)
+    .sort((a, b) => (b.submittedTs || 0) - (a.submittedTs || 0));
+}
+function airtableUrl(rid){ return rid ? `https://airtable.com/${BASE_ID}/${TABLE_ID}/${rid}` : null; }
+
+function renderTabF(main){
+  const s = bandSection('Interviews.', 'People who left an email to book the $100 interview. Open anyone’s full survey answers before the call. The industry, size, role and years filters don’t apply here.', 'ink');
+  main.appendChild(s);
+  const list = interviewees();
+  const card = el('div','hl-card wide');
+  const head = el('div','email-head');
+  head.appendChild(el('div','hl-eyebrow', `Interview sign-ups · ${list.length}`));
+  let tbody = null;
+  if (list.length){
+    const btnWrap = el('div','');
+    const btn = el('button','refresh-btn','Copy emails'); btn.type = 'button';
+    const note = el('span','copy-note','');
+    btn.addEventListener('click', () => {
+      const text = [...new Set(list.map(r => r.meetingEmail))].join(', ');
+      const fallback = () => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(tbody); sel.removeAllRanges(); sel.addRange(range); note.textContent = ' Couldn’t copy automatically; the table is selected, so press Ctrl+C or ⌘C.'; };
+      try { navigator.clipboard.writeText(text).then(() => { note.textContent = ' Copied.'; }, fallback); } catch(e){ fallback(); }
+    });
+    btnWrap.appendChild(btn); btnWrap.appendChild(note); head.appendChild(btnWrap);
+  }
+  card.appendChild(head);
+  if (!list.length){
+    card.appendChild(el('div','empty-state','Nobody has left a meeting email yet. People appear here as soon as they do (the page refreshes every two hours, or use “Load latest from Airtable”).'));
+  } else {
+    const wrap = el('div','email-wrap');
+    const table = el('table','emails');
+    table.innerHTML = '<thead><tr><th>Meeting email</th><th>Session ID</th><th>Submitted</th><th>Answers</th></tr></thead>';
+    tbody = el('tbody');
+    list.forEach(r => {
+      const tr = el('tr');
+      tr.innerHTML = `<td class="addr">${esc(r.meetingEmail)}</td><td class="mono">${esc(r.id)}</td><td class="mono">${esc(r.submittedTs ? fmtTime(r.submittedTs) : '–')}</td><td></td>`;
+      const a = el('a','view-link','View answers');
+      a.href = '#' + r.id;
+      a.addEventListener('click', ev => { ev.preventDefault(); openAnswers(r.id); });
+      tr.lastChild.appendChild(a);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody); wrap.appendChild(table); card.appendChild(wrap);
+    card.appendChild(el('div','hl-text', `<b>${list.length}</b> ${list.length===1?'person':'people'} signed up, newest first. “Submitted” is when they finished the survey, or their last save if they didn’t finish.`));
+  }
+  s.appendChild(card);
+}
+
+/* ---------- full answers panel ---------- */
+function answerRows(s){
+  const out = [];
+  const add = (q, a) => { if (a != null && a !== '') out.push({ q, a }); };
+  const one = f => hasVal(s[f]) ? esc(lab(f, s[f])) : null;
+  const many = (f, otherF) => {
+    if (!hasVal(s[f])) return null;
+    const items = s[f].map(v => v==='other' && otherF && hasVal(s[otherF]) ? `Other: “${esc(s[otherF])}”` : esc(lab(f, v)));
+    return '<ul class="ans-list">' + items.map(x => `<li>${x}</li>`).join('') + '</ul>';
+  };
+  const emp = isEmp(s);
+  add(Q.industry, s.industry==='other' && hasVal(s.industry_other) ? `Other: “${esc(s.industry_other)}”` : one('industry'));
+  add(Q.team_size, one('team_size'));
+  add(Q.role, one('role'));
+  add(Q.country, one('country'));
+  add(Q.years_operating, one('years_operating'));
+  if (hasVal(s.emp_role)) add(Q.emp_role, s.emp_role==='other' && hasVal(s.emp_role_other) ? `Other: “${esc(s.emp_role_other)}”` : one('emp_role'));
+  const ratings = AREAS.map(a => ({ name: emp ? (a.emp || a.owner) : a.owner, v: Number(s['pain_'+a.slug]) })).filter(x => x.v>=1 && x.v<=7).sort((a,b) => b.v - a.v);
+  if (ratings.length) add(emp ? Q.pain_emp : Q.pain_owner, '<ul class="ans-list ratings">' + ratings.map(x => `<li><span>${esc(x.name)}</span><b>${x.v} / 7</b></li>`).join('') + '</ul>');
+  if (hasVal(s.pain_other)) add(Q.pain_other, `“${esc(s.pain_other)}”`);
+  if (s.deepDives.length) add('Follow-ups: who handles it and hours per week', '<ul class="ans-list">' + s.deepDives.map(d => `<li><b>${esc((AREA_BY_SLUG[d.area]||{}).owner || d.area)}</b><br>${esc(d.handler ? L.handler[d.handler] || d.handler : '–')} · ${esc(d.hours ? L.hours[d.hours] || d.hours : '–')}</li>`).join('') + '</ul>');
+  add(Q.emp_bottlenecks, many('emp_bottlenecks', 'emp_bottlenecks_other'));
+  add(Q.ai_tasks, many('ai_tasks', 'ai_tasks_other'));
+  add(Q.ai_reluctance, many('ai_reluctance', 'ai_reluctance_other'));
+  add(Q.ai_frequency, one('ai_frequency'));
+  add(Q.ai_uses, many('ai_uses', 'ai_uses_other'));
+  add(Q.ai_low_why, many('ai_low_why', 'ai_low_why_other'));
+  add(Q.emp_ai_adopt, one('emp_ai_adopt'));
+  add(Q.emp_adopt_why, many('emp_adopt_why', 'emp_adopt_why_other'));
+  add(Q.tools_used, many('tools_used', 'tools_other'));
+  add(Q.tools_monthly_spend, one('tools_monthly_spend'));
+  add(Q.wtp_ai, one('wtp_ai'));
+  add(Q.day2day, many('day2day', 'day2day_other'));
+  if (hasVal(s.heaviest)) add(Q.heaviest, s.heaviest==='other' && hasVal(s.day2day_other) ? `“${esc(s.day2day_other)}”` : one('heaviest'));
+  if (hasVal(s.heaviest_note)) add(Q.heaviest_note, `“${esc(s.heaviest_note)}”`);
+  add(Q.gender, one('gender'));
+  return out;
+}
+
+function openAnswers(id){
+  const s = sessionsAll().find(x => x.id === id);
+  if (!s) return;
+  closeAnswers();
+  const back = el('div','drawer-back'); back.id = 'answersDrawer';
+  const panel = el('div','drawer'); panel.setAttribute('role','dialog'); panel.setAttribute('aria-modal','true'); panel.setAttribute('aria-label', 'Survey answers for ' + id);
+  const status = s.screenedOut ? 'Exited at screening' : s.complete ? 'Completed' : 'Partly filled';
+  const top = el('div','drawer-top');
+  top.innerHTML = `<div><div class="label">Survey answers</div><div class="drawer-title">${esc(s.meetingEmail || s.reportEmail || id)}</div>` +
+    `<div class="drawer-meta"><span class="mono">${esc(id)}</span>${s.pid ? ` · Prolific <span class="mono">${esc(s.pid)}</span>` : ''} · ${esc(status)}${s.submittedTs ? ' · ' + esc(fmtTime(s.submittedTs)) : ''}${s.durationSec ? ' · took ' + Math.round(s.durationSec/60) + ' min' : ''}</div></div>`;
+  const close = el('button','refresh-btn','Close'); close.type = 'button'; close.addEventListener('click', closeAnswers);
+  top.appendChild(close);
+  panel.appendChild(top);
+  const links = el('div','drawer-links');
+  const at = airtableUrl(s.mainRid);
+  if (at) links.innerHTML = `<a href="${esc(at)}" target="_blank" rel="noopener">Open in Airtable</a>`;
+  const extra = [];
+  if (s.reportEmail) extra.push('Asked for the report');
+  if (s.calendly) extra.push('Clicked “Book my slot”');
+  if (s.finishClicked) extra.push('Clicked Finish (back to Prolific)');
+  if (extra.length) links.appendChild(el('span','', ' · ' + esc(extra.join(' · '))));
+  panel.appendChild(links);
+  const rowsA = answerRows(s);
+  const dl = el('dl','answers');
+  if (!rowsA.length) dl.appendChild(el('div','empty-state','No answers saved for this session.'));
+  rowsA.forEach(({ q, a }) => { dl.appendChild(el('dt','', esc(q))); dl.appendChild(el('dd','', a)); });
+  panel.appendChild(dl);
+  back.appendChild(panel);
+  back.addEventListener('click', ev => { if (ev.target === back) closeAnswers(); });
+  document.body.appendChild(back);
+  document.body.style.overflow = 'hidden';
+  close.focus();
+  try { history.replaceState(null, '', '#' + id); } catch(e){}
+}
+function closeAnswers(){
+  const d = document.getElementById('answersDrawer');
+  if (d){ d.remove(); document.body.style.overflow = ''; try { history.replaceState(null, '', location.pathname + location.search); } catch(e){} }
+}
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape') closeAnswers(); });
+
+/* ================= TAB D: form activity ================= */
+function renderTabD(main){
+  const s = bandSection('Form activity.', 'How the form itself is doing. These count every person, including people who exited, so the industry, size, role and years filters don’t change them. Each Prolific participant counts once.', 'ink');
+  main.appendChild(s);
+  const NA = 'Not enough responses yet.';
+  /* Form activity: every session, whatever the filters */
+  const act = el('div','hl-grid');
+  s.appendChild(act);
+  const all = sessionsAll().filter(testVisible);
+  const exited = all.filter(x => x.screenedOut), completed = all.filter(x => !x.screenedOut && x.complete), partial = all.filter(x => !x.screenedOut && !x.complete);
+  /* Completion funnel: started → past screening → completed. The Prolific Finish click is measured apart. */
+  { const card = el('div','hl-card wide');
+    card.appendChild(el('div','hl-eyebrow','Completion funnel'));
+    const passed = all.length - exited.length;
+    if (!all.length) card.appendChild(el('div','empty-state', NA));
+    else {
+      renderBarList(card, [
+        { key:'started', name:'Started the survey', count: all.length, denom: all.length },
+        { key:'passed', name:'Got past screening', count: passed, denom: all.length },
+        { key:'completed', name:'Completed (reached the thank-you screen)', count: completed.length, denom: all.length },
+      ], all.length);
+      card.appendChild(el('div','hl-text', `<b>${pct(completed.length, all.length)}%</b> of the ${all.length} people who started completed the survey, and <b>${pct(completed.length, passed)}%</b> of the ${passed} who got past screening. ${exited.length} exited at screening and ${partial.length} stopped part-way.${DATA.mergedDupes ? ` ${DATA.mergedDupes} repeat session${DATA.mergedDupes===1?'':'s'} from the same Prolific participant ${DATA.mergedDupes===1?'was':'were'} merged, so each person counts once.` : ''}`));
+    }
+    act.appendChild(card); }
+  { const fin = completed.filter(x => x.finishClicked).length;
+    hlCard(act, { eyebrow:'Clicked Finish (back to Prolific)', stat: String(fin), meter: completed.length ? fin/completed.length : null,
+      text: completed.length ? `of the ${completed.length} who completed clicked the Finish button that returns them to Prolific (${pct(fin, completed.length)}%). This is tracked on its own: someone counts as completed whether or not they click Finish.` : NA }); }
+  { const pids = all.filter(x => x.pid).length, noPid = all.length - pids;
+    hlCard(act, { eyebrow:'Prolific participants', stat: String(pids),
+      text: all.length ? `unique Prolific IDs. ${noPid ? `<b>${noPid}</b> session${noPid===1?' has':'s have'} no Prolific ID (opened outside Prolific, e.g. internal tests).` : 'Every session came in through Prolific.'}${DATA.mergedDupes ? ` ${DATA.mergedDupes} repeat session${DATA.mergedDupes===1?'':'s'} merged.` : ''}` : NA }); }
+  { const rep = all.filter(x => x.reportOptIn).length, inv = all.filter(x => x.exitOptIn).length, any = all.filter(x => x.reportOptIn || x.exitOptIn).length;
+    hlCard(act, { eyebrow:'Left an email', stat: String(any), meter: all.length ? any/all.length : null,
+      text: all.length ? `unique people, ${pct(any, all.length)}% of all sessions: <b>${rep}</b> asked for the report and <b>${inv}</b> asked to be invited to a later round after exiting.` : NA }); }
+  { const c = all.filter(x => x.calendly).length, fin = completed.length;
+    hlCard(act, { eyebrow:'Clicked to book a meeting', stat: String(c), meter: fin ? c/fin : null,
+      text: fin ? `unique people clicked “Book my slot” for the $100 interview, ${pct(c, fin)}% of the ${fin} who completed the form.` : NA }); }
+
+  /* Submissions over time */
+  { const card = el('div','hl-card wide');
+    card.appendChild(el('div','hl-eyebrow','Submissions over time'));
+    const dayKey = ts => { const d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+    const byDay = new Map();
+    all.forEach(x => { const k = dayKey(x.firstTs); if (!byDay.has(k)) byDay.set(k, { completed:0, partial:0, exited:0 }); const b = byDay.get(k); b[x.screenedOut ? 'exited' : x.complete ? 'completed' : 'partial']++; });
+    if (!byDay.size){ card.appendChild(el('div','empty-state', NA)); }
+    else {
+      const keys = [...byDay.keys()].sort();
+      const days = []; const cur = new Date(keys[0] + 'T00:00:00'); const end = new Date(keys[keys.length-1] + 'T00:00:00');
+      while (cur <= end && days.length < 400){ days.push(dayKey(cur.getTime())); cur.setDate(cur.getDate()+1); }
+      const max = Math.max(...days.map(k => { const b = byDay.get(k); return b ? b.completed + b.partial + b.exited : 0; }), 1);
+      card.appendChild(el('div','tl-legend','<span><i class="line" style="background:var(--mark)"></i>Completed</span><span><i class="line" style="background:var(--mark-muted)"></i>Partly filled</span><span><i class="dash"></i>Exited at screening</span>'));
+      act.appendChild(card);   // attach first so the chart can size itself to the card
+      const every = Math.ceil(days.length / 12);   // label at most ~12 days on the axis
+      const series = ['completed','partial','exited'];
+      const vals = k => byDay.get(k) || { completed:0, partial:0, exited:0 };
+      const maxV = Math.max(1, ...days.flatMap(k => series.map(t => vals(k)[t])));
+      const step = maxV <= 5 ? 1 : Math.ceil(maxV / 5);
+      const top = Math.ceil(maxV / step) * step;
+      const W = Math.max(280, card.clientWidth - 44), H = 220, L = 30, R = 14, T = 12, B = 28;
+      const X = i => days.length === 1 ? (L + (W - L - R) / 2) : L + i * (W - L - R) / (days.length - 1);
+      const Y = v => T + (H - T - B) * (1 - v / top);
+      const NS = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('class','lc'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+      svg.setAttribute('role','img'); svg.setAttribute('aria-label', 'Sessions per day: ' + days.map(k => `${k} ${vals(k).completed} completed, ${vals(k).partial} partly filled, ${vals(k).exited} exited`).join('; '));
+      const mk = (tag, attrs, text) => { const e = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([a2, v]) => e.setAttribute(a2, v)); if (text != null) e.textContent = text; svg.appendChild(e); return e; };
+      for (let v = 0; v <= top; v += step){
+        mk('line', { x1: L, x2: W - R, y1: Y(v), y2: Y(v), class: v === 0 ? 'axis' : 'grid' });
+        mk('text', { x: L - 8, y: Y(v) + 4, 'text-anchor': 'end' }, String(v));
+      }
+      days.forEach((k, i) => { if (i % every === 0) mk('text', { x: X(i), y: H - 8, 'text-anchor': 'middle' }, new Date(k + 'T00:00:00').toLocaleDateString(undefined, { month:'short', day:'numeric' })); });
+      series.slice().reverse().forEach(t => {
+        if (days.length > 1) mk('polyline', { class: 'ln ' + t, points: days.map((k, i) => `${X(i).toFixed(1)},${Y(vals(k)[t]).toFixed(1)}`).join(' ') });
+        days.forEach((k, i) => {
+          const r = mk('rect', { class: 'pt ' + t, x: (X(i) - 3.5).toFixed(1), y: (Y(vals(k)[t]) - 3.5).toFixed(1), width: 7, height: 7 });
+          const tt = document.createElementNS(NS, 'title');
+          tt.textContent = `${new Date(k + 'T00:00:00').toLocaleDateString(undefined, { month:'short', day:'numeric' })}: ${vals(k)[t]} ${t === 'partial' ? 'partly filled' : t === 'exited' ? 'exited' : 'completed'}`;
+          r.appendChild(tt);
+        });
+      });
+      card.appendChild(svg);
+      const busiest = days.reduce((a, k) => { const b = byDay.get(k); const t = b ? b.completed + b.partial + b.exited : 0; return t > a.t ? { k, t } : a; }, { k:null, t:0 });
+      card.appendChild(el('div','hl-text', `<b>${all.length}</b> session${all.length===1?'':'s'} over ${days.length} day${days.length===1?'':'s'}, counted on the day each person started. The busiest day was <b>${esc(new Date(busiest.k + 'T00:00:00').toLocaleDateString(undefined, { month:'short', day:'numeric' }))}</b> with ${busiest.t}.`));
+    }
+    if (!card.parentNode) act.appendChild(card); }
+
+  /* Emails left, one row per address */
+  { const card = el('div','hl-card wide');
+    const head = el('div','email-head');
+    head.appendChild(el('div','hl-eyebrow','Emails left'));
+    const list = [];
+    all.forEach(x => {
+      if (x.reportEmail) list.push({ email: x.reportEmail, id: x.id, why: 'The report', booked: x.calendly, ts: x.emailTs || x.lastTs });
+      if (x.exitEmail) list.push({ email: x.exitEmail, id: x.id, why: 'Invite to a later round', booked: x.calendly, ts: x.emailTs || x.lastTs });
+    });
+    list.sort((a, b) => b.ts - a.ts);
+    if (list.length){
+      const btnWrap = el('div','');
+      const btn = el('button','refresh-btn','Copy emails'); btn.type = 'button';
+      const note = el('span','copy-note','');
+      btn.addEventListener('click', () => {
+        const text = [...new Set(list.map(r => r.email))].join(', ');
+        const done = () => { note.textContent = ' Copied.'; };
+        const fallback = () => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(tbody); sel.removeAllRanges(); sel.addRange(range); note.textContent = ' Couldn’t copy automatically; the table is selected, so press Ctrl+C or ⌘C.'; };
+        try { navigator.clipboard.writeText(text).then(done, fallback); } catch(e){ fallback(); }
+      });
+      btnWrap.appendChild(btn); btnWrap.appendChild(note);
+      head.appendChild(btnWrap);
+    }
+    card.appendChild(head);
+    let tbody = null;
+    if (!list.length){ card.appendChild(el('div','empty-state','Nobody has left an email yet.')); }
+    else {
+      const wrap = el('div','email-wrap');
+      const table = el('table','emails');
+      table.innerHTML = '<thead><tr><th>Email</th><th>Session ID</th><th>Left for</th><th>Booked meeting</th><th>Date</th></tr></thead>';
+      tbody = el('tbody');
+      list.forEach(r => {
+        const tr = el('tr');
+        tr.innerHTML = `<td class="addr">${esc(r.email)}</td><td class="mono">${esc(r.id)}</td><td>${esc(r.why)}</td><td>${r.booked ? 'Clicked' : '–'}</td><td class="mono">${esc(fmtTime(r.ts))}</td>`;
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody); wrap.appendChild(table); card.appendChild(wrap);
+      const uniq = new Set(list.map(r => r.email)).size;
+      card.appendChild(el('div','hl-text', `<b>${list.length}</b> email${list.length===1?'':'s'} from ${new Set(list.map(r => r.id)).size} session${new Set(list.map(r => r.id)).size===1?'':'s'} (${uniq} unique address${uniq===1?'':'es'}), newest first.`));
+    }
+    act.appendChild(card); }
+
+  /* Completed responses, for approving submissions on Prolific */
+  { const card = el('div','hl-card wide');
+    const head = el('div','email-head');
+    head.appendChild(el('div','hl-eyebrow','Completed responses'));
+    const list = completed.slice().sort((a, b) => (b.submittedTs || 0) - (a.submittedTs || 0));
+    let tbody = null;
+    const withPid = list.filter(x => x.pid);
+    if (withPid.length){
+      const btnWrap = el('div','');
+      const btn = el('button','refresh-btn','Copy Prolific IDs'); btn.type = 'button';
+      const note = el('span','copy-note','');
+      btn.addEventListener('click', () => {
+        const text = [...new Set(withPid.map(x => x.pid))].join('\n');
+        const fallback = () => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(tbody); sel.removeAllRanges(); sel.addRange(range); note.textContent = ' Couldn’t copy automatically; the table is selected, so press Ctrl+C or ⌘C.'; };
+        try { navigator.clipboard.writeText(text).then(() => { note.textContent = ' Copied.'; }, fallback); } catch(e){ fallback(); }
+      });
+      btnWrap.appendChild(btn); btnWrap.appendChild(note); head.appendChild(btnWrap);
+    }
+    card.appendChild(head);
+    if (!list.length) card.appendChild(el('div','empty-state','Nobody has completed the survey yet.'));
+    else {
+      const wrap = el('div','email-wrap');
+      const table = el('table','emails');
+      table.innerHTML = '<thead><tr><th>Prolific ID</th><th>Session ID</th><th>Completed</th><th>Took</th><th>Clicked Finish</th></tr></thead>';
+      tbody = el('tbody');
+      list.forEach(x => {
+        const tr = el('tr');
+        tr.innerHTML = `<td class="mono">${esc(x.pid || '–')}</td><td class="mono">${esc(x.id)}</td><td class="mono">${esc(x.submittedTs ? fmtTime(x.submittedTs) : '–')}</td><td>${x.durationSec ? Math.max(1, Math.round(x.durationSec/60)) + ' min' : '–'}</td><td>${x.finishClicked ? 'Yes' : '–'}</td>`;
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody); wrap.appendChild(table); card.appendChild(wrap);
+      const durs = list.map(x => x.durationSec).filter(v => v > 0).sort((a, b) => a - b);
+      const med = durs.length ? durs[Math.floor((durs.length - 1) / 2)] : null;
+      card.appendChild(el('div','hl-text', `<b>${list.length}</b> completed, newest first${med ? `; the median time to complete is <b>${Math.max(1, Math.round(med/60))} min</b>` : ''}. “Took” is the time from opening the survey to its last save.`));
+    }
+    act.appendChild(card); }
+
+  /* Where partial sessions stopped */
+  { const card = el('div','hl-card wide');
+    card.appendChild(el('div','hl-eyebrow','Where partial sessions stopped'));
+    const map = new Map();
+    partial.forEach(x => { const k = x.lastScreen || 'unknown'; map.set(k, (map.get(k)||0) + 1); });
+    const counts = [...map.entries()].map(([k, c]) => ({ key: k, name: SCREEN_LABEL[k] || (k==='unknown' ? 'Not recorded' : k), count: c }))
+      .sort((a, b) => { const ia = SCREEN_ORDER.indexOf(a.key), ib = SCREEN_ORDER.indexOf(b.key); return (ia<0?99:ia) - (ib<0?99:ib); });
+    renderBarList(card, counts, partial.length, { emptyText: 'Nobody has stopped part-way yet.' });
+    if (counts.length){
+      const top = counts.slice().sort((a, b) => b.count - a.count)[0];
+      const tied = counts.filter(c => c.count === top.count).length;
+      card.appendChild(el('div','hl-text', `The question each partly-filled session was on when it was last saved, in form order. ` +
+        (tied === 1 ? `The most common stopping point is <b>${esc(top.name)}</b> (${top.count} of ${partial.length}).` : `No single stopping point stands out yet: ${tied} questions are tied at ${top.count} each.`)));
+    }
+    act.appendChild(card); }
+
+}
+
+/* ================= shell ================= */
+function populateFilterOptions(){
+  const base = baseResponses();
+  const fi = document.getElementById('fInd'), fs = document.getElementById('fSize'), fr = document.getElementById('fRole'), fy = document.getElementById('fYears');
+  // Each filter's counts respect the other filters.
+  const im = s => industryMatch(s, state.industry);
+  const forInd = base.filter(s => sizeMatch(s, state.size) && roleMatch(s, state.role) && yearsMatch(s, state.years));
+  const forSize = base.filter(s => im(s) && roleMatch(s, state.role) && yearsMatch(s, state.years));
+  const forRole = base.filter(s => im(s) && sizeMatch(s, state.size) && yearsMatch(s, state.years));
+  const forYears = base.filter(s => im(s) && sizeMatch(s, state.size) && roleMatch(s, state.role));
+  const indOpts = [`<option value="all">All industries (${forInd.length})</option>`]
+    .concat(INDUSTRIES.filter(v => base.some(s => s.industry===v)).map(v => `<option value="${esc(v)}">${esc(L.industry[v])} (${forInd.filter(s => s.industry===v).length})</option>`));
+  if (fi.innerHTML !== indOpts.join('')) fi.innerHTML = indOpts.join('');
+  fi.value = state.industry;
+  const sizeOpts = [`<option value="all">All sizes (${forSize.length})</option>`]
+    .concat(ALL_SIZES.filter(v => base.some(s => s.team_size===v)).map(v => `<option value="${esc(v)}">${esc(L.team_size[v])} (${forSize.filter(s => s.team_size===v).length})</option>`));
+  const roleOpts = [`<option value="all">All roles (${forRole.length})</option>`,
+    `<option value="owner">Owner or partner (${forRole.filter(isOwner).length})</option>`,
+    `<option value="employee">Employee (${forRole.filter(isEmp).length})</option>`];
+  const yearOpts = [`<option value="all">Any (${forYears.length})</option>`]
+    .concat(ORDER.years_operating.filter(v => base.some(s => s.years_operating===v)).map(v => `<option value="${esc(v)}">${esc(L.years_operating[v])} (${forYears.filter(s => s.years_operating===v).length})</option>`));
+  if (fs.innerHTML !== sizeOpts.join('')) fs.innerHTML = sizeOpts.join('');
+  if (fr.innerHTML !== roleOpts.join('')) fr.innerHTML = roleOpts.join('');
+  if (fy.innerHTML !== yearOpts.join('')) fy.innerHTML = yearOpts.join('');
+  fs.value = state.size; fr.value = state.role; fy.value = state.years;
+  const t = document.getElementById('fTests');
+  t.checked = state.showTests;
+  document.getElementById('testToggleWrap').classList.toggle('on', state.showTests);
+}
+
+function setHeader(){
+  const lbl = document.getElementById('asofLabel');
+  const btn = document.getElementById('liveBtn');
+  const back = document.getElementById('snapBtn');
+  btn.hidden = !MCP;
+  btn.disabled = LIVE.status === 'loading';
+  btn.textContent = LIVE.status === 'loading' ? 'Loading…' : (SOURCE === 'live' ? 'Reload latest' : 'Load latest from Airtable');
+  back.hidden = SOURCE !== 'live' || !SNAP_DATA;
+  if (SOURCE === 'live' && DATA){
+    lbl.innerHTML = `<span class="sq ink"></span>Live from Airtable · loaded ${esc(fmtTime(DATA.fetchedAt))}`;
+  } else if (DATA){
+    lbl.innerHTML = `<span class="sq"></span>Data as of ${esc(fmtTime(DATA.fetchedAt))}`;
+  } else {
+    lbl.innerHTML = `<span class="sq"></span>No snapshot loaded`;
+  }
+  document.getElementById('nextLine').textContent = SOURCE === 'live'
+    ? 'Only your view has changed. Everyone else keeps the daily snapshot.'
+    : `The next snapshot is prepared ${REFRESH_LABEL}.`;
+  if (DATA){
+    const all = DATA.sessions;
+    const tests = all.filter(s => s.isTest).length;
+    const screened = all.filter(s => s.screenedOut).length;
+    document.getElementById('pageSubtitle').textContent =
+      `How small professional-services businesses run day to day: where it hurts, who carries the work, and how ready they are for an AI business assistant. ` +
+      `${all.length} ${all.length===1?'person':'people'} (one per Prolific ID, or per session where there’s no ID). ${screened} ${screened===1?'was':'were'} screened out by the form, and ${LAUNCH_AT === null ? `the survey hasn’t launched, so all ${tests} ${tests===1?'is a test':'are tests'} and ${state.showTests ? 'shown' : 'hidden'}` : `${tests} test session${tests===1?'':'s'} (before launch on ${LAUNCH_LABEL}) ${state.showTests ? 'are currently included' : 'are excluded'}`}. Charts include every company size and industry.`;
+  }
+}
+
+function connMessage(e){
+  e = e || {};
+  switch (e.code){
+    case 'server_not_connected': return ['Airtable isn’t connected', 'Add Airtable in claude.ai Settings → Connectors, then try again.'];
+    case 'needs_reauth': return ['Reconnect Airtable', 'Your Airtable connection has expired. Reconnect Airtable in claude.ai Settings → Connectors, then try again.'];
+    case 'selection_required': return ['Choose which Airtable connection to use', 'You have more than one Airtable connector. Pick one in the prompt claude.ai shows, then try again.'];
+    case 'not_in_manifest': return ['Airtable is turned off for this page', 'Allow Airtable for this page from its permissions, then try again.'];
+    case 'blocked_by_policy': return ['Blocked by your organization', 'Your organization’s policy blocks this Airtable tool. Ask an admin to allow “list records” for the Airtable connector.'];
+    case 'approval_required': return ['Needs approval', 'Your organization requires approval for each Airtable call, which this page can’t request.'];
+    case 'tool_error': return ['Airtable returned an error', esc(e.message || 'The table could not be read.') + ' You need access to the Airtable base holding the “Prolific responses” table to load the latest responses.'];
+    case 'server_unavailable': return ['Airtable isn’t responding', 'Airtable didn’t answer in time. Try again in a moment.'];
+    default: return ['Couldn’t load the latest responses', esc(e.message || 'Something interrupted the Airtable read.') + ' Try again, or keep using the snapshot.'];
+  }
+}
+
+function render(){
+  const main = document.getElementById('main');
+  main.innerHTML = '';
+  setHeader();
+  document.querySelectorAll('.tab-btn').forEach(b => { b.classList.toggle('active', b.dataset.tab===state.tab); b.setAttribute('aria-selected', b.dataset.tab===state.tab); });
+
+  if (LIVE.status === 'error'){
+    const [h, p] = connMessage(LIVE.error);
+    const nb = el('div','notice', `<div><b>${esc(h)}.</b> ${p}${DATA ? ' The charts below still show the ' + (SOURCE==='live' ? 'last live load.' : 'snapshot.') : ''}</div>`);
+    const x = el('button','reset-btn','Dismiss'); x.type = 'button';
+    x.addEventListener('click', () => { LIVE = { status: 'idle', error: null }; render(); });
+    nb.appendChild(x);
+    main.appendChild(nb);
+  }
+
+  if (!DATA){
+    document.getElementById('matchCount').innerHTML = '';
+    const c = el('div','conn-state');
+    c.appendChild(el('h2','','No snapshot in this version'));
+    c.appendChild(el('p','', MCP ? 'Load the latest responses from Airtable with the button at the top.' : 'This version of the page was published without data. Ask for the snapshot to be refreshed.'));
+    main.appendChild(c);
+    return;
+  }
+
+  populateFilterOptions();
+  const inView = filteredResponses().length, all = baseResponses().length;
+  document.getElementById('matchCount').innerHTML = !filtersActive()
+    ? `<b>${inView}</b> in view`
+    : `<b>${inView}</b> of ${all} in view`;
+
+  if (SOURCE === 'live'){
+    main.appendChild(el('div','notice info', `<div><b>You’re looking at live data.</b> Only your view changed; everyone else still sees the snapshot from ${esc(fmtTime(SNAP_DATA ? SNAP_DATA.fetchedAt : DATA.fetchedAt))}.</div>`));
+  }
+  if (state.years !== 'all'){
+    main.appendChild(el('div','notice', `<div><b>Years in business: ${esc(L.years_operating[state.years] || state.years)}.</b> Only owners and managing partners were asked this, so employees are left out while this filter is on.</div>`));
+  }
+  if (state.autoTests && state.showTests){
+    main.appendChild(el('div','notice', `<div><b>Test data.</b> The survey hasn’t launched yet, so every session here is a test run, and all of them are included.</div>`));
+  } else if (state.showTests){
+    main.appendChild(el('div','notice', `<div><b>Test rows are included.</b> Sessions that started before launch${LAUNCH_LABEL ? ' on ' + esc(LAUNCH_LABEL) : ''} are internal test runs.</div>`));
+  }
+
+  if (state.tab==='a') renderTabA(main);
+  else if (state.tab==='b') renderTabB(main);
+  else if (state.tab==='d') renderTabD(main);
+  else if (state.tab==='e') renderTabE(main);
+  else if (state.tab==='f') renderTabF(main);
+  else renderTabC(main);
+  main.querySelectorAll('.chart-grid:not(.stacked)').forEach(packGrid);
+}
+
+/* Put each chart, in order, into the currently shortest column. */
+const CHART_MIN = 310, CHART_GAP = 18;
+function packGrid(grid){
+  const items = Array.from(grid.children);
+  const cols = Math.max(1, Math.min(items.length, Math.floor((grid.clientWidth + CHART_GAP) / (CHART_MIN + CHART_GAP))));
+  if (cols < 2 || items.length < 2) return;
+  const colEls = Array.from({ length: cols }, () => el('div','chart-col'));
+  grid.classList.add('packed');
+  colEls.forEach(c => grid.appendChild(c));
+  items.forEach(item => {
+    const target = colEls.reduce((a, b) => (b.offsetHeight < a.offsetHeight ? b : a));
+    target.appendChild(item);
+  });
+}
+let resizeTimer = null, lastWidth = window.innerWidth;
+window.addEventListener('resize', () => {
+  if (window.innerWidth === lastWidth) return;
+  lastWidth = window.innerWidth;
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { if (DATA) render(); }, 150);
+});
+
+/* ================= data sources ================= */
+function buildData(records, fetchedAt){
+  const rows = records.map(rowFromRecord);
+  const merged = mergeSessions(rows);
+  return { rows, sessions: merged.sessions, noSession: merged.noSession, mergedDupes: merged.mergedDupes, fetchedAt };
+}
+function applyData(d){
+  DATA = d;
+  const realCount = DATA.sessions.filter(s => !s.isTest && s.inTarget).length;
+  if (!state.userToggledTests){ state.showTests = SHOW_TESTS_BY_DEFAULT || (LAUNCH_AT === null && realCount === 0); state.autoTests = state.showTests; }
+}
+
+let MCP = null;
+let loadSeq = 0;
+
+function payloadOf(result){
+  let p = result && result.payload;
+  if (typeof p === 'string'){ try { p = JSON.parse(p); } catch(e){ p = null; } }
+  return p || {};
+}
+function nextCursorOf(p){ return p.nextCursor || p.cursor || (p.metadata && (p.metadata.nextCursor || p.metadata.cursor)) || null; }
+
+async function loadLatest(){
+  if (!MCP || LIVE.status === 'loading') return;
+  const seq = ++loadSeq;
+  LIVE = { status: 'loading', error: null };
+  setHeader();
+  const input = { baseId: BASE_ID, tableId: TABLE_ID, pageSize: PAGE_SIZE };
+  const call = async (inp) => {
+    try { return await MCP.callTool(SERVER, TOOL, inp, { cache: false }); }
+    catch(err){
+      if (err && err.retryable){
+        await new Promise(r => setTimeout(r, Math.min(err.retryAfterMs || (1500 + Math.random()*1500), 60000)));
+        return await MCP.callTool(SERVER, TOOL, inp, { cache: false });
+      }
+      throw err;
+    }
+  };
+  try {
+    const first = await call(input);
+    const p = payloadOf(first);
+    let records = Array.isArray(p.records) ? p.records.slice() : [];
+    let cursor = nextCursorOf(p), pages = 0;
+    while (cursor && pages < 25){
+      pages++;
+      const mp = payloadOf(await call(Object.assign({}, input, { cursor })));
+      records = records.concat(Array.isArray(mp.records) ? mp.records : []);
+      cursor = nextCursorOf(mp);
+    }
+    if (seq !== loadSeq) return;
+    LIVE_DATA = buildData(records, Date.now());
+    SOURCE = 'live';
+    applyData(LIVE_DATA);
+    LIVE = { status: 'idle', error: null };
+  } catch(err){
+    if (seq !== loadSeq) return;
+    if (['needs_reauth','server_not_connected','blocked_by_policy','approval_required','not_in_manifest','selection_required'].includes(err && err.code) && SOURCE === 'live' && SNAP_DATA){
+      // Access is gone: drop the live view and fall back to the snapshot.
+      LIVE_DATA = null; SOURCE = 'snapshot'; applyData(SNAP_DATA);
+    }
+    LIVE = { status: 'error', error: err };
+  }
+  render();
+}
+
+function backToSnapshot(){
+  if (!SNAP_DATA) return;
+  loadSeq++;
+  SOURCE = 'snapshot'; LIVE = { status: 'idle', error: null };
+  applyData(SNAP_DATA);
+  render();
+}
+
+async function boot(){
+  if (SNAPSHOT && Array.isArray(SNAPSHOT.records)){
+    const t = Date.parse(SNAPSHOT.asOf);
+    SNAP_DATA = buildData(SNAPSHOT.records, isNaN(t) ? Date.now() : t);
+    applyData(SNAP_DATA);
+  }
+  render();
+  if (HASH_SESSION && DATA){ const hs = DATA.sessions.find(x => x.id === HASH_SESSION); if (hs){ if (hs.isTest && !state.showTests){ state.showTests = true; render(); } openAnswers(HASH_SESSION); } }
+  let mcp = null;
+  try { mcp = (window.claude && typeof window.claude.use === 'function') ? await window.claude.use('mcp') : null; } catch(e){ mcp = null; }
+  if (mcp){ MCP = mcp; setHeader(); }
+}
+
+/* ================= wiring ================= */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const stickyEl = document.querySelector('.controlbar-sticky');
+    const wasStuck = stickyEl && stickyEl.getBoundingClientRect().top <= 1;
+    state.tab = btn.dataset.tab;
+    try { localStorage.setItem('pfd_tab_v2', state.tab); } catch(e){}
+    render();
+    if (wasStuck){ document.getElementById('main').scrollIntoView({ block: 'start' }); window.scrollBy(0, -stickyEl.offsetHeight); }
+  });
+});
+document.getElementById('fInd').addEventListener('change', e => { state.industry = e.target.value; render(); });
+document.getElementById('fSize').addEventListener('change', e => { state.size = e.target.value; render(); });
+document.getElementById('fRole').addEventListener('change', e => { state.role = e.target.value; render(); });
+document.getElementById('fTests').addEventListener('change', e => { state.showTests = e.target.checked; state.userToggledTests = true; state.autoTests = false; render(); });
+document.getElementById('fYears').addEventListener('change', e => { state.years = e.target.value; render(); });
+document.getElementById('resetBtn').addEventListener('click', () => { state.industry = 'all'; state.size = 'all'; state.role = 'all'; state.years = 'all'; render(); });
+document.getElementById('liveBtn').addEventListener('click', loadLatest);
+document.getElementById('snapBtn').addEventListener('click', backToSnapshot);
+
+boot();
+</script>
