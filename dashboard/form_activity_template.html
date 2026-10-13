@@ -18,7 +18,7 @@
           <span class="asof" id="asofLabel"><span class="sq"></span>Loading snapshot…</span>
         </div>
       </div>
-      <p class="subtitle" id="pageSubtitle">How the survey form is doing: sessions, opt-ins, bookings and where people stop. No answers and no contact details.</p>
+      <p class="subtitle" id="pageSubtitle">How the survey form is doing: sessions, opt-ins, bookings and where people stop.</p>
     </div>
   </header>
 
@@ -58,7 +58,7 @@ function setHeader(){
   const tests = SESSIONS.filter(s => s.isTest).length;
   document.getElementById('matchCount').innerHTML = `<b>${SESSIONS.filter(testVisible).length}</b> sessions in view`;
   if (AS_OF) document.getElementById('pageSubtitle').textContent =
-    `How the survey form is doing: sessions, opt-ins, bookings and where people stop. No answers and no contact details. ` +
+    `How the survey form is doing: sessions, opt-ins, bookings and where people stop. ` +
     `${SESSIONS.length} unique session${SESSIONS.length===1?'':'s'}; ${LAUNCH_AT === null ? `the survey hasn’t launched, so all ${tests} ${tests===1?'is a test':'are tests'} and ${state.showTests ? 'shown' : 'hidden'}` : `${tests} test session${tests===1?'':'s'} (before launch on ${LAUNCH_LABEL}, or marked as internal) ${state.showTests ? 'are currently included' : 'are excluded'}`}.`;
 }
 
