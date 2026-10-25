@@ -439,13 +439,13 @@
     </div>
     <div class="filterbar">
       <span class="fl" id="fSizeLbl">Company size</span>
-      <details class="ms" id="fSize"><summary class="filter-select" id="fSizeSum" aria-labelledby="fSizeLbl"></summary><div class="ms-panel" id="fSizePanel" role="group" aria-labelledby="fSizeLbl"></div></details>
-      <label class="fl" for="fCountry">Country</label>
-      <select id="fCountry" class="filter-select"></select>
-      <label class="fl" for="fRole">Role</label>
-      <select id="fRole" class="filter-select"></select>
-      <label class="fl" for="fYears">Years in business</label>
-      <select id="fYears" class="filter-select" title="Asked of owners and managing partners only"></select>
+      <details class="ms" id="fSize" data-ms="size"><summary class="filter-select" id="fSizeSum" aria-labelledby="fSizeLbl"></summary><div class="ms-panel" id="fSizePanel" role="group" aria-labelledby="fSizeLbl"></div></details>
+      <span class="fl" id="fCountryLbl">Country</span>
+      <details class="ms" id="fCountry" data-ms="country"><summary class="filter-select" id="fCountrySum" aria-labelledby="fCountryLbl"></summary><div class="ms-panel" id="fCountryPanel" role="group" aria-labelledby="fCountryLbl"></div></details>
+      <span class="fl" id="fRoleLbl">Role</span>
+      <details class="ms" id="fRole" data-ms="role"><summary class="filter-select" id="fRoleSum" aria-labelledby="fRoleLbl"></summary><div class="ms-panel" id="fRolePanel" role="group" aria-labelledby="fRoleLbl"></div></details>
+      <span class="fl" id="fYearsLbl">Years in business</span>
+      <details class="ms" id="fYears" data-ms="years"><summary class="filter-select" id="fYearsSum" aria-labelledby="fYearsLbl" title="Asked of owners and managing partners only"></summary><div class="ms-panel" id="fYearsPanel" role="group" aria-labelledby="fYearsLbl"></div></details>
       <label class="test-toggle" id="testToggleWrap" for="fTests"><input type="checkbox" id="fTests"> Show test rows</label>
       <button class="reset-btn" id="resetBtn" type="button">Reset filters</button>
       <span class="match-count" id="matchCount"></span>
@@ -686,7 +686,7 @@ function mergeSessions(rows){
 }
 
 /* ================= state ================= */
-const state = { sizes: [], country: 'all', role: 'all', years: 'all', insView: 'marketing', tab: 'c', showTests: false, autoTests: false };
+const state = { sizes: [], countries: [], roles: [], years: [], insView: 'marketing', tab: 'c', showTests: false, autoTests: false };
 let DATA = null;           // { rows, sessions, noSession, fetchedAt }
 let LIVE = { status: 'idle', error: null };
 let SOURCE = 'snapshot';
@@ -704,15 +704,15 @@ function testVisible(s){ return state.showTests || !s.isTest; }
 function qualified(){ return sessionsAll().filter(s => !s.screenedOut && testVisible(s)); }
 function baseResponses(){ return qualified().filter(s => s.inTarget); }
 function sizeMatch(s, sizes){ return !sizes.length || sizes.includes(s.team_size); }
-function countryMatch(s, country){ return country==='all' || s.country===country; }
-function yearsMatch(s, years){ return years==='all' || s.years_operating===years; }
-function filtersActive(){ return state.sizes.length>0 || state.country!=='all' || state.role!=='all' || state.years!=='all'; }
-function roleMatch(s, role){ return role==='all' || (role==='owner' ? isOwner(s) : isEmp(s)); }
+function countryMatch(s, countries){ return !countries.length || countries.includes(s.country); }
+function yearsMatch(s, years){ return !years.length || years.includes(s.years_operating); }
+function filtersActive(){ return state.sizes.length>0 || state.countries.length>0 || state.roles.length>0 || state.years.length>0; }
+function roleMatch(s, roles){ return !roles.length || roles.some(r => r==='owner' ? isOwner(s) : isEmp(s)); }
 function filteredResponses(){
-  return baseResponses().filter(s => sizeMatch(s, state.sizes) && countryMatch(s, state.country) && roleMatch(s, state.role) && yearsMatch(s, state.years));
+  return baseResponses().filter(s => sizeMatch(s, state.sizes) && countryMatch(s, state.countries) && roleMatch(s, state.roles) && yearsMatch(s, state.years));
 }
 function sizeChartResponses(){
-  return sessionsAll().filter(s => testVisible(s) && hasVal(s.team_size) && roleMatch(s, state.role) && countryMatch(s, state.country));
+  return sessionsAll().filter(s => testVisible(s) && hasVal(s.team_size) && roleMatch(s, state.roles) && countryMatch(s, state.countries));
 }
 
 function countsFor(field, multi, order, rows){
@@ -1930,40 +1930,48 @@ function renderTabD(main){
 }
 
 /* ================= shell ================= */
+/* Multi-select filters: state key, the "nothing picked" label, the plural word, and option order (set when options are built). */
+const MS = {
+  size:    { key: 'sizes',     all: 'All sizes',     many: 'sizes',     order: [] },
+  country: { key: 'countries', all: 'All countries', many: 'countries', order: [] },
+  role:    { key: 'roles',     all: 'All roles',     many: 'roles',     order: [] },
+  years:   { key: 'years',     all: 'Any',           many: 'ranges',    order: [] },
+};
+// opts: [{ v, label, n }]; pool: the sessions the counts are drawn from; match: (session, picked) => bool.
+function fillMs(name, opts, pool, match){
+  const m = MS[name], id = 'f' + name[0].toUpperCase() + name.slice(1);
+  const panel = document.getElementById(id + 'Panel'), sum = document.getElementById(id + 'Sum');
+  m.order = opts.map(o => o.v);
+  state[m.key] = state[m.key].filter(v => m.order.includes(v));
+  const html = opts.map(o => `<label class="ms-opt"><input type="checkbox" value="${esc(o.v)}"> ${esc(o.label)}<span class="c">${o.n}</span></label>`).join('')
+    + `<button type="button" class="ms-clear" data-clear="1">${esc(m.all)}</button>`;
+  if (panel.innerHTML !== html) panel.innerHTML = html;
+  const picked = state[m.key];
+  panel.querySelectorAll('input').forEach(i => { i.checked = picked.includes(i.value); });
+  const n = pool.filter(s => match(s, picked)).length;
+  sum.textContent = !picked.length ? `${m.all} (${pool.length})`
+    : picked.length === 1 ? `${opts.find(o => o.v === picked[0]).label} (${n})`
+    : `${picked.length} ${m.many} (${n})`;
+}
 function populateFilterOptions(){
   const base = baseResponses();
-  const fp = document.getElementById('fSizePanel'), fsum = document.getElementById('fSizeSum'), fc = document.getElementById('fCountry'),
-        fr = document.getElementById('fRole'), fy = document.getElementById('fYears');
   // Each filter's counts respect the other filters.
-  const forSize = base.filter(s => countryMatch(s, state.country) && roleMatch(s, state.role) && yearsMatch(s, state.years));
-  const forCountry = base.filter(s => sizeMatch(s, state.sizes) && roleMatch(s, state.role) && yearsMatch(s, state.years));
-  const forRole = base.filter(s => sizeMatch(s, state.sizes) && countryMatch(s, state.country) && yearsMatch(s, state.years));
-  const forYears = base.filter(s => sizeMatch(s, state.sizes) && countryMatch(s, state.country) && roleMatch(s, state.role));
-  const sizeVals = ALL_SIZES.filter(v => base.some(s => s.team_size===v));
-  state.sizes = state.sizes.filter(v => sizeVals.includes(v));
-  const sizeHtml = sizeVals.map(v => `<label class="ms-opt"><input type="checkbox" value="${esc(v)}"> ${esc(L.team_size[v])}<span class="c">${forSize.filter(s => s.team_size===v).length}</span></label>`).join('')
-    + `<button type="button" class="ms-clear" data-clear="1">All sizes</button>`;
-  if (fp.innerHTML !== sizeHtml) fp.innerHTML = sizeHtml;
-  fp.querySelectorAll('input').forEach(i => { i.checked = state.sizes.includes(i.value); });
-  fsum.textContent = !state.sizes.length ? `All sizes (${forSize.length})`
-    : state.sizes.length === 1 ? `${L.team_size[state.sizes[0]]} (${forSize.filter(s => s.team_size===state.sizes[0]).length})`
-    : `${state.sizes.length} sizes (${forSize.filter(s => state.sizes.includes(s.team_size)).length})`;
+  const forSize = base.filter(s => countryMatch(s, state.countries) && roleMatch(s, state.roles) && yearsMatch(s, state.years));
+  const forCountry = base.filter(s => sizeMatch(s, state.sizes) && roleMatch(s, state.roles) && yearsMatch(s, state.years));
+  const forRole = base.filter(s => sizeMatch(s, state.sizes) && countryMatch(s, state.countries) && yearsMatch(s, state.years));
+  const forYears = base.filter(s => sizeMatch(s, state.sizes) && countryMatch(s, state.countries) && roleMatch(s, state.roles));
+  fillMs('size', ALL_SIZES.filter(v => base.some(s => s.team_size===v))
+    .map(v => ({ v, label: L.team_size[v], n: forSize.filter(s => s.team_size===v).length })), forSize, sizeMatch);
   const countryCounts = new Map();
-  forCountry.forEach(s => { if (hasVal(s.country)) countryCounts.set(s.country, (countryCounts.get(s.country) || 0) + 1); });
-  base.forEach(s => { if (hasVal(s.country) && !countryCounts.has(s.country)) countryCounts.set(s.country, 0); });
-  const countryVals = [...countryCounts.keys()].sort((a, b) => countryCounts.get(b) - countryCounts.get(a) || lab('country', a).localeCompare(lab('country', b)));
-  if (state.country !== 'all' && !countryCounts.has(state.country)) state.country = 'all';
-  const countryOpts = [`<option value="all">All countries (${forCountry.length})</option>`]
-    .concat(countryVals.map(v => `<option value="${esc(v)}">${esc(lab('country', v))} (${countryCounts.get(v)})</option>`));
-  const roleOpts = [`<option value="all">All roles (${forRole.length})</option>`,
-    `<option value="owner">Owner or partner (${forRole.filter(isOwner).length})</option>`,
-    `<option value="employee">Employee (${forRole.filter(isEmp).length})</option>`];
-  const yearOpts = [`<option value="all">Any (${forYears.length})</option>`]
-    .concat(ORDER.years_operating.filter(v => base.some(s => s.years_operating===v)).map(v => `<option value="${esc(v)}">${esc(L.years_operating[v])} (${forYears.filter(s => s.years_operating===v).length})</option>`));
-  if (fc.innerHTML !== countryOpts.join('')) fc.innerHTML = countryOpts.join('');
-  if (fr.innerHTML !== roleOpts.join('')) fr.innerHTML = roleOpts.join('');
-  if (fy.innerHTML !== yearOpts.join('')) fy.innerHTML = yearOpts.join('');
-  fc.value = state.country; fr.value = state.role; fy.value = state.years;
+  base.forEach(s => { if (hasVal(s.country)) countryCounts.set(s.country, 0); });
+  forCountry.forEach(s => { if (hasVal(s.country)) countryCounts.set(s.country, countryCounts.get(s.country) + 1); });
+  fillMs('country', [...countryCounts.keys()]
+    .sort((a, b) => countryCounts.get(b) - countryCounts.get(a) || lab('country', a).localeCompare(lab('country', b)))
+    .map(v => ({ v, label: lab('country', v), n: countryCounts.get(v) })), forCountry, countryMatch);
+  fillMs('role', [{ v: 'owner', label: 'Owner or partner', n: forRole.filter(isOwner).length },
+    { v: 'employee', label: 'Employee', n: forRole.filter(isEmp).length }], forRole, roleMatch);
+  fillMs('years', ORDER.years_operating.filter(v => base.some(s => s.years_operating===v))
+    .map(v => ({ v, label: L.years_operating[v], n: forYears.filter(s => s.years_operating===v).length })), forYears, yearsMatch);
   const t = document.getElementById('fTests');
   t.checked = state.showTests;
   document.getElementById('testToggleWrap').classList.toggle('on', state.showTests);
@@ -2045,8 +2053,8 @@ function render(){
   if (SOURCE === 'live'){
     main.appendChild(el('div','notice info', `<div><b>You’re looking at live data.</b> Only your view changed; everyone else still sees the snapshot from ${esc(fmtTime(SNAP_DATA ? SNAP_DATA.fetchedAt : DATA.fetchedAt))}.</div>`));
   }
-  if (state.years !== 'all'){
-    main.appendChild(el('div','notice', `<div><b>Years in business: ${esc(L.years_operating[state.years] || state.years)}.</b> Only owners and managing partners were asked this, so employees are left out while this filter is on.</div>`));
+  if (state.years.length){
+    main.appendChild(el('div','notice', `<div><b>Years in business: ${esc(state.years.map(v => L.years_operating[v] || v).join(', '))}.</b> Only owners and managing partners were asked this, so employees are left out while this filter is on.</div>`));
   }
   if (state.autoTests && state.showTests){
     main.appendChild(el('div','notice', `<div><b>Test data.</b> The survey hasn’t launched yet, so every session here is a test run, and all of them are included.</div>`));
@@ -2182,21 +2190,26 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     if (wasStuck){ document.getElementById('main').scrollIntoView({ block: 'start' }); window.scrollBy(0, -stickyEl.offsetHeight); }
   });
 });
-document.getElementById('fSizePanel').addEventListener('change', e => {
-  const v = e.target.value;
-  state.sizes = e.target.checked ? ALL_SIZES.filter(x => x === v || state.sizes.includes(x)) : state.sizes.filter(x => x !== v);
-  render();
+document.querySelectorAll('details.ms').forEach(d => {
+  const m = MS[d.dataset.ms], panel = d.querySelector('.ms-panel');
+  panel.addEventListener('change', e => {
+    const v = e.target.value;
+    state[m.key] = e.target.checked ? m.order.filter(x => x === v || state[m.key].includes(x)) : state[m.key].filter(x => x !== v);
+    render();
+  });
+  panel.addEventListener('click', e => {
+    if (e.target.closest('[data-clear]')) { state[m.key] = []; d.open = false; render(); }
+  });
+  // Only one dropdown open at a time.
+  d.addEventListener('toggle', () => { if (d.open) document.querySelectorAll('details.ms[open]').forEach(o => { if (o !== d) o.open = false; }); });
 });
-document.getElementById('fSizePanel').addEventListener('click', e => {
-  if (e.target.closest('[data-clear]')) { state.sizes = []; document.getElementById('fSize').open = false; render(); }
+document.addEventListener('click', e => { document.querySelectorAll('details.ms[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; }); });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  document.querySelectorAll('details.ms[open]').forEach(d => { d.open = false; d.querySelector('summary').focus(); });
 });
-document.addEventListener('click', e => { const d = document.getElementById('fSize'); if (d.open && !d.contains(e.target)) d.open = false; });
-document.addEventListener('keydown', e => { const d = document.getElementById('fSize'); if (e.key === 'Escape' && d.open) { d.open = false; document.getElementById('fSizeSum').focus(); } });
-document.getElementById('fCountry').addEventListener('change', e => { state.country = e.target.value; render(); });
-document.getElementById('fRole').addEventListener('change', e => { state.role = e.target.value; render(); });
 document.getElementById('fTests').addEventListener('change', e => { state.showTests = e.target.checked; state.userToggledTests = true; state.autoTests = false; render(); });
-document.getElementById('fYears').addEventListener('change', e => { state.years = e.target.value; render(); });
-document.getElementById('resetBtn').addEventListener('click', () => { state.sizes = []; state.country = 'all'; state.role = 'all'; state.years = 'all'; render(); });
+document.getElementById('resetBtn').addEventListener('click', () => { state.sizes = []; state.countries = []; state.roles = []; state.years = []; render(); });
 document.getElementById('liveBtn').addEventListener('click', loadLatest);
 document.getElementById('snapBtn').addEventListener('click', backToSnapshot);
 
