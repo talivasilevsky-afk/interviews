@@ -130,8 +130,8 @@
   .tab-btn.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--line-strong); }
 
   .filterbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 0; }
-  .filterbar label.fl { font-size: 0.68rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-faint); margin-right: -4px; }
-  select.filter-select {
+  .filterbar .fl { font-size: 0.68rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-faint); margin-right: -4px; }
+  select.filter-select, summary.filter-select {
     font-family: inherit; font-size: 0.85rem; color: var(--ink);
     background: var(--surface); border: 1px solid var(--line); border-radius: 2px;
     padding: 6px 28px 6px 10px; cursor: pointer; max-width: 100%;
@@ -139,7 +139,19 @@
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M1 1l4 4 4-4' stroke='%23ABA4A8' stroke-width='1.4' fill='none' stroke-linecap='square'/></svg>");
     background-repeat: no-repeat; background-position: right 9px center;
   }
-  select.filter-select:focus-visible, button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--line-strong); outline-offset: 2px; }
+  details.ms { position: relative; }
+  details.ms > summary { list-style: none; display: inline-block; white-space: nowrap; user-select: none; }
+  details.ms > summary::-webkit-details-marker { display: none; }
+  .ms-panel { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; min-width: 220px; max-width: calc(100vw - 32px);
+    background: var(--surface); border: 1px solid var(--line-strong); border-radius: 2px; padding: 6px 0; box-shadow: 0 8px 22px rgba(42, 30, 51, 0.16); }
+  .ms-opt { display: flex; align-items: center; gap: 9px; padding: 6px 12px; font-size: 0.85rem; color: var(--ink); cursor: pointer; white-space: nowrap; }
+  .ms-opt:hover { background: var(--surface-2); }
+  .ms-opt input { accent-color: var(--deep-purple); margin: 0; }
+  .ms-opt .c { margin-left: auto; padding-left: 14px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .ms-clear { display: block; width: 100%; text-align: left; font-family: inherit; font-size: 0.8rem; color: var(--ink-soft); background: transparent;
+    border: none; border-top: 1px solid var(--line); margin-top: 4px; padding: 8px 12px 4px; cursor: pointer; }
+  .ms-clear:hover { color: var(--ink); }
+  select.filter-select:focus-visible, summary.filter-select:focus-visible, button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--line-strong); outline-offset: 2px; }
   .test-toggle { display: inline-flex; align-items: center; gap: 7px; font-size: 0.82rem; color: var(--ink-soft); cursor: pointer; padding: 5px 2px; }
   .test-toggle.on { color: var(--ink); }
   .test-toggle input { accent-color: var(--deep-purple); margin: 0; }
@@ -426,8 +438,10 @@
       <button class="tab-btn" data-tab="f" type="button">Interviews</button>
     </div>
     <div class="filterbar">
-      <label class="fl" for="fSize">Company size</label>
-      <select id="fSize" class="filter-select"></select>
+      <span class="fl" id="fSizeLbl">Company size</span>
+      <details class="ms" id="fSize"><summary class="filter-select" id="fSizeSum" aria-labelledby="fSizeLbl"></summary><div class="ms-panel" id="fSizePanel" role="group" aria-labelledby="fSizeLbl"></div></details>
+      <label class="fl" for="fCountry">Country</label>
+      <select id="fCountry" class="filter-select"></select>
       <label class="fl" for="fRole">Role</label>
       <select id="fRole" class="filter-select"></select>
       <label class="fl" for="fYears">Years in business</label>
@@ -672,7 +686,7 @@ function mergeSessions(rows){
 }
 
 /* ================= state ================= */
-const state = { size: 'all', role: 'all', years: 'all', insView: 'marketing', tab: 'c', showTests: false, autoTests: false };
+const state = { sizes: [], country: 'all', role: 'all', years: 'all', insView: 'marketing', tab: 'c', showTests: false, autoTests: false };
 let DATA = null;           // { rows, sessions, noSession, fetchedAt }
 let LIVE = { status: 'idle', error: null };
 let SOURCE = 'snapshot';
@@ -689,15 +703,16 @@ function sessionsAll(){ return DATA ? DATA.sessions : []; }
 function testVisible(s){ return state.showTests || !s.isTest; }
 function qualified(){ return sessionsAll().filter(s => !s.screenedOut && testVisible(s)); }
 function baseResponses(){ return qualified().filter(s => s.inTarget); }
-function sizeMatch(s, size){ return size==='all' || s.team_size===size; }
+function sizeMatch(s, sizes){ return !sizes.length || sizes.includes(s.team_size); }
+function countryMatch(s, country){ return country==='all' || s.country===country; }
 function yearsMatch(s, years){ return years==='all' || s.years_operating===years; }
-function filtersActive(){ return state.size!=='all' || state.role!=='all' || state.years!=='all'; }
+function filtersActive(){ return state.sizes.length>0 || state.country!=='all' || state.role!=='all' || state.years!=='all'; }
 function roleMatch(s, role){ return role==='all' || (role==='owner' ? isOwner(s) : isEmp(s)); }
 function filteredResponses(){
-  return baseResponses().filter(s => sizeMatch(s, state.size) && roleMatch(s, state.role) && yearsMatch(s, state.years));
+  return baseResponses().filter(s => sizeMatch(s, state.sizes) && countryMatch(s, state.country) && roleMatch(s, state.role) && yearsMatch(s, state.years));
 }
 function sizeChartResponses(){
-  return sessionsAll().filter(s => testVisible(s) && hasVal(s.team_size) && roleMatch(s, state.role));
+  return sessionsAll().filter(s => testVisible(s) && hasVal(s.team_size) && roleMatch(s, state.role) && countryMatch(s, state.country));
 }
 
 function countsFor(field, multi, order, rows){
@@ -1917,22 +1932,38 @@ function renderTabD(main){
 /* ================= shell ================= */
 function populateFilterOptions(){
   const base = baseResponses();
-  const fs = document.getElementById('fSize'), fr = document.getElementById('fRole'), fy = document.getElementById('fYears');
-  // Each filter's counts respect the other two filters.
-  const forSize = base.filter(s => roleMatch(s, state.role) && yearsMatch(s, state.years));
-  const forRole = base.filter(s => sizeMatch(s, state.size) && yearsMatch(s, state.years));
-  const forYears = base.filter(s => sizeMatch(s, state.size) && roleMatch(s, state.role));
-  const sizeOpts = [`<option value="all">All sizes (${forSize.length})</option>`]
-    .concat(ALL_SIZES.filter(v => base.some(s => s.team_size===v)).map(v => `<option value="${esc(v)}">${esc(L.team_size[v])} (${forSize.filter(s => s.team_size===v).length})</option>`));
+  const fp = document.getElementById('fSizePanel'), fsum = document.getElementById('fSizeSum'), fc = document.getElementById('fCountry'),
+        fr = document.getElementById('fRole'), fy = document.getElementById('fYears');
+  // Each filter's counts respect the other filters.
+  const forSize = base.filter(s => countryMatch(s, state.country) && roleMatch(s, state.role) && yearsMatch(s, state.years));
+  const forCountry = base.filter(s => sizeMatch(s, state.sizes) && roleMatch(s, state.role) && yearsMatch(s, state.years));
+  const forRole = base.filter(s => sizeMatch(s, state.sizes) && countryMatch(s, state.country) && yearsMatch(s, state.years));
+  const forYears = base.filter(s => sizeMatch(s, state.sizes) && countryMatch(s, state.country) && roleMatch(s, state.role));
+  const sizeVals = ALL_SIZES.filter(v => base.some(s => s.team_size===v));
+  state.sizes = state.sizes.filter(v => sizeVals.includes(v));
+  const sizeHtml = sizeVals.map(v => `<label class="ms-opt"><input type="checkbox" value="${esc(v)}"> ${esc(L.team_size[v])}<span class="c">${forSize.filter(s => s.team_size===v).length}</span></label>`).join('')
+    + `<button type="button" class="ms-clear" data-clear="1">All sizes</button>`;
+  if (fp.innerHTML !== sizeHtml) fp.innerHTML = sizeHtml;
+  fp.querySelectorAll('input').forEach(i => { i.checked = state.sizes.includes(i.value); });
+  fsum.textContent = !state.sizes.length ? `All sizes (${forSize.length})`
+    : state.sizes.length === 1 ? `${L.team_size[state.sizes[0]]} (${forSize.filter(s => s.team_size===state.sizes[0]).length})`
+    : `${state.sizes.length} sizes (${forSize.filter(s => state.sizes.includes(s.team_size)).length})`;
+  const countryCounts = new Map();
+  forCountry.forEach(s => { if (hasVal(s.country)) countryCounts.set(s.country, (countryCounts.get(s.country) || 0) + 1); });
+  base.forEach(s => { if (hasVal(s.country) && !countryCounts.has(s.country)) countryCounts.set(s.country, 0); });
+  const countryVals = [...countryCounts.keys()].sort((a, b) => countryCounts.get(b) - countryCounts.get(a) || lab('country', a).localeCompare(lab('country', b)));
+  if (state.country !== 'all' && !countryCounts.has(state.country)) state.country = 'all';
+  const countryOpts = [`<option value="all">All countries (${forCountry.length})</option>`]
+    .concat(countryVals.map(v => `<option value="${esc(v)}">${esc(lab('country', v))} (${countryCounts.get(v)})</option>`));
   const roleOpts = [`<option value="all">All roles (${forRole.length})</option>`,
     `<option value="owner">Owner or partner (${forRole.filter(isOwner).length})</option>`,
     `<option value="employee">Employee (${forRole.filter(isEmp).length})</option>`];
   const yearOpts = [`<option value="all">Any (${forYears.length})</option>`]
     .concat(ORDER.years_operating.filter(v => base.some(s => s.years_operating===v)).map(v => `<option value="${esc(v)}">${esc(L.years_operating[v])} (${forYears.filter(s => s.years_operating===v).length})</option>`));
-  if (fs.innerHTML !== sizeOpts.join('')) fs.innerHTML = sizeOpts.join('');
+  if (fc.innerHTML !== countryOpts.join('')) fc.innerHTML = countryOpts.join('');
   if (fr.innerHTML !== roleOpts.join('')) fr.innerHTML = roleOpts.join('');
   if (fy.innerHTML !== yearOpts.join('')) fy.innerHTML = yearOpts.join('');
-  fs.value = state.size; fr.value = state.role; fy.value = state.years;
+  fc.value = state.country; fr.value = state.role; fy.value = state.years;
   const t = document.getElementById('fTests');
   t.checked = state.showTests;
   document.getElementById('testToggleWrap').classList.toggle('on', state.showTests);
@@ -2151,11 +2182,21 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     if (wasStuck){ document.getElementById('main').scrollIntoView({ block: 'start' }); window.scrollBy(0, -stickyEl.offsetHeight); }
   });
 });
-document.getElementById('fSize').addEventListener('change', e => { state.size = e.target.value; render(); });
+document.getElementById('fSizePanel').addEventListener('change', e => {
+  const v = e.target.value;
+  state.sizes = e.target.checked ? ALL_SIZES.filter(x => x === v || state.sizes.includes(x)) : state.sizes.filter(x => x !== v);
+  render();
+});
+document.getElementById('fSizePanel').addEventListener('click', e => {
+  if (e.target.closest('[data-clear]')) { state.sizes = []; document.getElementById('fSize').open = false; render(); }
+});
+document.addEventListener('click', e => { const d = document.getElementById('fSize'); if (d.open && !d.contains(e.target)) d.open = false; });
+document.addEventListener('keydown', e => { const d = document.getElementById('fSize'); if (e.key === 'Escape' && d.open) { d.open = false; document.getElementById('fSizeSum').focus(); } });
+document.getElementById('fCountry').addEventListener('change', e => { state.country = e.target.value; render(); });
 document.getElementById('fRole').addEventListener('change', e => { state.role = e.target.value; render(); });
 document.getElementById('fTests').addEventListener('change', e => { state.showTests = e.target.checked; state.userToggledTests = true; state.autoTests = false; render(); });
 document.getElementById('fYears').addEventListener('change', e => { state.years = e.target.value; render(); });
-document.getElementById('resetBtn').addEventListener('click', () => { state.size = 'all'; state.role = 'all'; state.years = 'all'; render(); });
+document.getElementById('resetBtn').addEventListener('click', () => { state.sizes = []; state.country = 'all'; state.role = 'all'; state.years = 'all'; render(); });
 document.getElementById('liveBtn').addEventListener('click', loadLatest);
 document.getElementById('snapBtn').addEventListener('click', backToSnapshot);
 
