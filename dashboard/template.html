@@ -1206,9 +1206,9 @@ function renderTabA(main){
 
 /* ================= TAB B ================= */
 const SURVEY_ORDER = [
-  { group:'Screening', note:'People who got past screening. Non-agencies and “Just me” are screened out by the form and counted only in Form activity.' },
-  { id:'S1', field:'workplace', type:'Single choice', shown:'Everyone who started' },
-  { id:'S2', field:'team_size', type:'Single choice · ordered', shown:'Agencies' },
+  { group:'Screening', note:'Everyone who started the form, including the people it screened out. Non-agencies and “Just me” are screened out.' },
+  { id:'S1', field:'workplace', type:'Single choice', shown:'Everyone who started', all:true },
+  { id:'S2', field:'team_size', type:'Single choice · ordered', shown:'Agencies', all:true },
   { id:'S3', field:'role', type:'Single choice', shown:'Qualified agencies' },
   { id:'S4', field:'country', type:'Single choice', shown:'Qualified agencies' },
   { group:'Owners & partners', note:'Owner and partner path.' },
@@ -1301,10 +1301,10 @@ function renderTabB(main){
       body.appendChild(meta);
       body.appendChild(el('div','oe-count', `<b>${pct(c, reached.length)}%</b> ${step.flag==='calendly' ? 'clicked “Book my slot”' : 'left an email for the report'} (${c} of ${reached.length}).`));
     } else {
-      const pool = step.owners ? owners : step.emps ? emps : rows;
+      const pool = step.all ? sessionsAll().filter(testVisible) : (step.owners ? owners : step.emps ? emps : rows);
       body.appendChild(el('div','snap-q', esc(Q[step.field]) + (step.label ? ` <span style="color:var(--ink-faint);font-weight:400">${esc(step.label)}</span>` : '')));
       const { counts, n } = countsFor(step.field, MULTI_FIELDS.has(step.field), ORDER[step.field] || null, pool);
-      addMeta(`n = ${n}`);
+      addMeta(`n = ${n}` + (step.all ? ' · all sessions, incl. screened out' : ''));
       body.appendChild(meta);
       const splitB = !step.owners && !step.emps;
       if (splitB) addRoleSplit(counts, step.field, pool);
