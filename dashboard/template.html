@@ -1391,7 +1391,7 @@ function renderTabC(main){
 }
 
 /* ================= TAB E: insights ================= */
-/* Everyone who got past screening, whatever the size / years filters; owners and employees shown apart. */
+/* The same filtered segment as the other tabs; owners and employees shown apart. */
 const TASK_AREAS = {
   inbox_admin:['admin_work'], drafting:['admin_work'], billing:['collecting_payments','invoicing_paperwork'],
   team_oversight:['work_rate','team_management'], team_quality:['team_professional_level','deliverables_quality'],
@@ -1453,7 +1453,7 @@ function insTable(body, head, rows){
 function pctCell(x){ return x ? `${Math.round(100*x.share)}% <span class="ins-sub">of ${x.n}</span>` : '<span class="ins-sub">–</span>'; }
 
 function renderTabE(main){
-  const s = bandSection('Insights.', 'What the answers mean for marketing and for product. These always use everyone who got past screening; the size and years filters don’t apply. Owners and employees are shown apart wherever both answered.', 'ink');
+  const s = bandSection('Insights.', 'What the answers mean for marketing and for product. These use the same filtered segment as the other tabs (company size, country, role and years). Owners and employees are shown apart wherever both answered.', 'ink');
   main.appendChild(s);
   const sw = el('div','ins-switch'); sw.setAttribute('role','tablist'); sw.setAttribute('aria-label','Insights view');
   [['marketing','Marketing insights'],['product','Product insights']].forEach(([k, label]) => {
@@ -1463,7 +1463,7 @@ function renderTabE(main){
     sw.appendChild(b);
   });
   s.appendChild(sw);
-  const rows = qualified();
+  const rows = filteredResponses();
   const owners = rows.filter(isOwner), emps = rows.filter(isEmp);
   const bySize = ALL_SIZES.filter(v => v!=='1' && rows.some(r => r.team_size===v));
 
@@ -1536,7 +1536,7 @@ function renderTabE(main){
     const roleRow = (label, g) => `<td>${label}</td><td>${g.length}</td><td>${g.filter(r => r.reportOptIn || r.exitOptIn).length}</td><td>${g.filter(r => r.calendly).length}</td>`;
     const exitedLeads = all.filter(r => r.screenedOut && r.exitOptIn).length;
     const body = insCard(mk, { title: 'Lead pool', n: rows.length,
-      headline: `<b>${rows.filter(leads).length}</b> qualified people left an email or clicked to book, plus <b>${exitedLeads}</b> screened-out people who asked to hear about a later round.`,
+      headline: `<b>${rows.filter(leads).length}</b> qualified people left an email or clicked to book, plus <b>${exitedLeads}</b> screened-out people who asked to hear about a later round${filtersActive() ? ' (that second number counts every session, since screened-out people never reached the filter questions)' : ''}.`,
       use: 'Nurture lists, the report send-out and recruiting interviewees.' });
     insTable(body, ['Group','People','Left an email','Booked meeting'], [roleRow('Owners &amp; partners', owners), roleRow('Employees', emps)]
       .concat(bySize.map(v => roleRow(esc(L.team_size[v]), rows.filter(r => r.team_size===v))))); }
@@ -1804,8 +1804,9 @@ document.addEventListener('keydown', ev => { if (ev.key === 'Escape') closeAnswe
 
 /* ================= TAB D: form activity ================= */
 function renderTabD(main){
-  const s = bandSection('Form activity.', 'How the form itself is doing. These count every session, including people who exited, so the size, role and years filters don’t change them.', 'ink');
+  const s = bandSection('Form activity.', 'How the form itself is doing. These count every session, including people who exited at screening.', 'ink');
   main.appendChild(s);
+  s.appendChild(el('div','notice', `<div><b>Filters don’t apply here.</b> Company size, country, role and years are left out on purpose: people who exited at screening never answered those questions, so filtering would hide them and undercount the form’s traffic.${filtersActive() ? ' Your filters are still on and apply to every other tab.' : ''}</div>`));
   const NA = 'Not enough responses yet.';
   /* Form activity: every session, whatever the filters */
   const act = el('div','hl-grid');
