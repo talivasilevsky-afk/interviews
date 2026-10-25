@@ -712,7 +712,7 @@ function filteredResponses(){
   return baseResponses().filter(s => sizeMatch(s, state.sizes) && countryMatch(s, state.countries) && roleMatch(s, state.roles) && yearsMatch(s, state.years));
 }
 function sizeChartResponses(){
-  return sessionsAll().filter(s => testVisible(s) && hasVal(s.team_size) && roleMatch(s, state.roles) && countryMatch(s, state.countries));
+  return baseResponses().filter(s => hasVal(s.team_size) && roleMatch(s, state.roles) && countryMatch(s, state.countries));
 }
 
 function countsFor(field, multi, order, rows){
@@ -1029,8 +1029,7 @@ function renderTabA(main){
       nSpan.textContent = `n = ${cn}`;
       addRoleSplit(counts, 'team_size', sr);
       renderBarList(block, counts, cn, { split: true });
-      const solo = sr.filter(r => r.team_size==='1').length;
-      renderInsight(block, cn ? `${insightSentence(counts, cn, { who: 'people who answered' })}${solo ? ` “Just me” (${solo}) was screened out by the form after this question.` : ''}` : null);
+      renderInsight(block, cn ? insightSentence(counts, cn, { who: 'people who answered' }) : null);
     }
     {
       const { block, nSpan } = chartBlock(grid, 'Role', Q.role);
@@ -1207,9 +1206,9 @@ function renderTabA(main){
 
 /* ================= TAB B ================= */
 const SURVEY_ORDER = [
-  { group:'Screening', note:'Everyone. Non-agencies and “Just me” are screened out.' },
-  { id:'S1', field:'workplace', type:'Single choice', shown:'Everyone who started', all:true },
-  { id:'S2', field:'team_size', type:'Single choice · ordered', shown:'Agencies', all:true },
+  { group:'Screening', note:'People who got past screening. Non-agencies and “Just me” are screened out by the form and counted only in Form activity.' },
+  { id:'S1', field:'workplace', type:'Single choice', shown:'Everyone who started' },
+  { id:'S2', field:'team_size', type:'Single choice · ordered', shown:'Agencies' },
   { id:'S3', field:'role', type:'Single choice', shown:'Qualified agencies' },
   { id:'S4', field:'country', type:'Single choice', shown:'Qualified agencies' },
   { group:'Owners & partners', note:'Owner and partner path.' },
@@ -1302,10 +1301,10 @@ function renderTabB(main){
       body.appendChild(meta);
       body.appendChild(el('div','oe-count', `<b>${pct(c, reached.length)}%</b> ${step.flag==='calendly' ? 'clicked “Book my slot”' : 'left an email for the report'} (${c} of ${reached.length}).`));
     } else {
-      const pool = step.all ? sessionsAll().filter(testVisible) : (step.owners ? owners : step.emps ? emps : rows);
+      const pool = step.owners ? owners : step.emps ? emps : rows;
       body.appendChild(el('div','snap-q', esc(Q[step.field]) + (step.label ? ` <span style="color:var(--ink-faint);font-weight:400">${esc(step.label)}</span>` : '')));
       const { counts, n } = countsFor(step.field, MULTI_FIELDS.has(step.field), ORDER[step.field] || null, pool);
-      addMeta(`n = ${n}` + (step.all ? ' · all sessions, incl. screened out' : ''));
+      addMeta(`n = ${n}`);
       body.appendChild(meta);
       const splitB = !step.owners && !step.emps;
       if (splitB) addRoleSplit(counts, step.field, pool);
@@ -1531,12 +1530,10 @@ function renderTabE(main){
     if (none) body.appendChild(el('div','ins-note', `${none} ${none===1?'uses':'use'} none of the listed tools.`)); }
 
   // Lead pool
-  { const all = sessionsAll().filter(testVisible);
-    const leads = r => r.reportOptIn || r.exitOptIn || r.calendly;
+  { const leads = r => r.reportOptIn || r.exitOptIn || r.calendly;
     const roleRow = (label, g) => `<td>${label}</td><td>${g.length}</td><td>${g.filter(r => r.reportOptIn || r.exitOptIn).length}</td><td>${g.filter(r => r.calendly).length}</td>`;
-    const exitedLeads = all.filter(r => r.screenedOut && r.exitOptIn).length;
     const body = insCard(mk, { title: 'Lead pool', n: rows.length,
-      headline: `<b>${rows.filter(leads).length}</b> qualified people left an email or clicked to book, plus <b>${exitedLeads}</b> screened-out people who asked to hear about a later round${filtersActive() ? ' (that second number counts every session, since screened-out people never reached the filter questions)' : ''}.`,
+      headline: `<b>${rows.filter(leads).length}</b> people left an email or clicked to book a meeting.`,
       use: 'Nurture lists, the report send-out and recruiting interviewees.' });
     insTable(body, ['Group','People','Left an email','Booked meeting'], [roleRow('Owners &amp; partners', owners), roleRow('Employees', emps)]
       .concat(bySize.map(v => roleRow(esc(L.team_size[v]), rows.filter(r => r.team_size===v))))); }
@@ -1999,10 +1996,10 @@ function setHeader(){
   if (DATA){
     const all = DATA.sessions;
     const tests = all.filter(s => s.isTest).length;
-    const screened = all.filter(s => s.screenedOut).length;
+    const q = qualified().length;
     document.getElementById('pageSubtitle').textContent =
       `How small marketing and advertising agencies run their business: where it hurts, who carries the work, and how ready they are for an AI business assistant. ` +
-      `${all.length} unique session${all.length===1?'':'s'}. ${screened} ${screened===1?'was':'were'} screened out by the form, and ${LAUNCH_AT === null ? `the survey hasn’t launched, so all ${tests} session${tests===1?' is a test':'s are tests'} and ${state.showTests ? 'shown' : 'hidden'}` : `${tests} test session${tests===1?'':'s'} (before launch on ${LAUNCH_LABEL}) ${state.showTests ? 'are currently included' : 'are excluded'}`}. Charts include every company size.`;
+      `${q} agency ${q===1?'person':'people'} answered. ${LAUNCH_AT === null ? `The survey hasn’t launched, so all ${tests} session${tests===1?' is a test':'s are tests'} and ${state.showTests ? 'shown' : 'hidden'}` : `${tests} test session${tests===1?'':'s'} (before launch on ${LAUNCH_LABEL}) ${state.showTests ? 'are currently included' : 'are excluded'}`}. Charts include every company size.`;
   }
 }
 
