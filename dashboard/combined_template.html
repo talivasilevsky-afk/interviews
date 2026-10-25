@@ -442,7 +442,7 @@
       <button class="tab-btn" data-tab="c" type="button">Highlights</button>
       <button class="tab-btn" data-tab="e" type="button">Insights</button>
       <button class="tab-btn" data-tab="a" type="button">Research Questions</button>
-      <button class="tab-btn" data-tab="f" type="button">Interviews</button>
+      <button class="tab-btn" data-tab="f" type="button">User interviews</button>
     </div>
     <div class="filterbar">
 <span class="ms-group" data-for="surveys">
@@ -1698,6 +1698,8 @@ function renderTabE(main){
 const INTERVIEWS = (SNAPSHOT && SNAPSHOT.interviews) || [];
 const IV_PARTNER = { yes:'Yes', maybe:'Hedged / maybe', no:'No', not_asked:'Not asked', other:'Other' };
 const IV_ICP = { yes:'Yes', partial:'Partly', no:'No' };
+/* The interview archive (summaries and transcripts) is published next to this page. */
+const IV_ARCHIVE = 'interviews-archive.html';
 function ivMatchExcept(iv, skip){
   return (skip==='industry' || industryMatch(iv, state.industries)) && (skip==='size' || sizeMatch(iv, state.sizes))
     && (skip==='country' || countryMatch(iv, state.countries));
@@ -1713,15 +1715,14 @@ function ivCounts(list, field, labels, order){
   return arr;
 }
 function renderInterviews(main){
-  const s = bandSection('Interviews.', 'Customer discovery interviews that already took place, from the interviews log. The vertical, company size and country filters apply here; source, role and years don’t.', 'ink');
+  const s = bandSection('User interviews.', 'Customer discovery interviews that already took place, from the interviews log. The vertical, company size and country filters apply here; source, role and years don’t.', 'ink');
   main.appendChild(s);
+  s.appendChild(el('p','section-note', `Full summaries and transcripts: <a class="view-link" href="${IV_ARCHIVE}" target="_blank" rel="noopener">open the interview archive</a>.`));
   const list = filteredInterviews();
   if (!INTERVIEWS.length){ s.appendChild(el('div','empty-state','No interviews in this snapshot.')); return; }
   const n = list.length;
   const yes = list.filter(iv => iv.partner==='yes').length, maybe = list.filter(iv => iv.partner==='maybe').length;
   const icp = list.filter(iv => iv.icp==='yes').length;
-  const top = (field, labels) => { const c = ivCounts(list, field, labels).filter(x => x.key!=='unknown'); return c.length ? c[0] : null; };
-  const tc = top('country'), tv = top('industry', L.industry);
   const dates = list.map(iv => iv.date).filter(Boolean).sort();
   const fmtDay = d => new Date(d + 'T12:00:00Z').toLocaleDateString(undefined, { month:'short', day:'numeric' });
 
@@ -1732,8 +1733,6 @@ function renderInterviews(main){
     text: n ? `said yes (${pct(yes, n)}%), and <b>${maybe}</b> more were warm but didn’t commit.` : '' });
   hlCard(g, { eyebrow: 'Match the ICP', stat: n ? `${icp}` : '–', meter: n ? icp / n : null, scale: ['0', String(n)],
     text: n ? `of ${n} fit the ideal customer: Israel or the US, 20 employees or fewer, and an in-scope business type.` : '' });
-  hlCard(g, { eyebrow: 'Most common', stat: tc ? tc.name : '–',
-    text: tc ? `${tc.count} of ${n} interviews${tv ? `; the most common vertical is <b>${esc(tv.name)}</b> (${tv.count})` : ''}.` : '' });
 
   const grid = el('div','chart-grid');
   s.appendChild(grid);
