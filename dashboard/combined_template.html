@@ -1698,8 +1698,8 @@ function renderTabE(main){
 const INTERVIEWS = (SNAPSHOT && SNAPSHOT.interviews) || [];
 const IV_PARTNER = { yes:'Yes', maybe:'Hedged / maybe', no:'No', not_asked:'Not asked', other:'Other' };
 const IV_ICP = { yes:'Yes', partial:'Partly', no:'No' };
-/* The interview archive (summaries and transcripts) is published next to this page. */
-const IV_ARCHIVE = 'interviews-archive.html';
+/* The team's live interview archive (an artifact kept up to date separately). */
+const IV_ARCHIVE = 'https://claude.ai/artifact/JXiaVQwWR2eRMbUAopPSxk';
 function ivMatchExcept(iv, skip){
   return (skip==='industry' || industryMatch(iv, state.industries)) && (skip==='size' || sizeMatch(iv, state.sizes))
     && (skip==='country' || countryMatch(iv, state.countries));
@@ -1717,7 +1717,7 @@ function ivCounts(list, field, labels, order){
 function renderInterviews(main){
   const s = bandSection('User interviews.', 'Customer discovery interviews that already took place, from the interviews log. The vertical, company size and country filters apply here; source, role and years don’t.', 'ink');
   main.appendChild(s);
-  s.appendChild(el('p','section-note', `Full summaries and transcripts: <a class="view-link" href="${IV_ARCHIVE}" target="_blank" rel="noopener">open the interview archive</a>.`));
+  s.appendChild(el('p','section-note', `Full interview summaries: <a class="view-link" href="${IV_ARCHIVE}" target="_blank" rel="noopener">open the interview archive</a>.`));
   const list = filteredInterviews();
   if (!INTERVIEWS.length){ s.appendChild(el('div','empty-state','No interviews in this snapshot.')); return; }
   const n = list.length;
