@@ -178,7 +178,8 @@ def main():
 
     snapshot = {
         "asOf": as_of,
-        "sources": [{"id": s["id"], "label": s["label"], "launch": s.get("launch")} for s in cfg["surveys"]],
+        "sources": [{"id": s["id"], "label": s["label"], "launch": s.get("launch"),
+                     "baseId": s["baseId"], "tableId": s["tableId"]} for s in cfg["surveys"]],
         "records": records,
         "interviews": interviews,
         "interviewsRaw": interviews_raw,   # stored for later use, never rendered

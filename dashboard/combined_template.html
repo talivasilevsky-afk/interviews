@@ -443,6 +443,7 @@
       <button class="tab-btn" data-tab="e" type="button">Insights</button>
       <button class="tab-btn" data-tab="a" type="button">Research Questions</button>
       <button class="tab-btn" data-tab="f" type="button">User interviews</button>
+      <button class="tab-btn" data-tab="g" type="button">Interview leads</button>
     </div>
     <div class="filterbar">
 <span class="ms-group" data-for="surveys">
@@ -485,7 +486,7 @@ const SNAPSHOT = /*__SNAPSHOT__*/null;
 const REFRESH_LABEL = /*__REFRESH_LABEL__*/'by this afternoon';
 
 /* Each survey has its own launch time (from scripts/sources.json); sessions before it are test runs. */
-const SOURCES = new Map(((SNAPSHOT && SNAPSHOT.sources) || []).map(s => [s.id, { label: s.label, launch: s.launch ? Date.parse(s.launch) : null }]));
+const SOURCES = new Map(((SNAPSHOT && SNAPSHOT.sources) || []).map(s => [s.id, { label: s.label, launch: s.launch ? Date.parse(s.launch) : null, baseId: s.baseId, tableId: s.tableId }]));
 function sourceLabel(id){ return (SOURCES.get(id) || {}).label || id; }
 const LAUNCH_AT = 0;
 const LAUNCH_LABEL = 'each survey’s launch';
@@ -778,8 +779,8 @@ let SOURCE = 'snapshot';
 let SNAP_DATA = null, LIVE_DATA = null;
 
 try { const v = localStorage.getItem('cmb_ins_view'); if (v === 'marketing' || v === 'product') state.insView = v; } catch(e){}
-try { const t = localStorage.getItem('cmb_tab'); if (t && ['a','c','e','f'].includes(t)) state.tab = t; } catch(e){}
-if (['a','c','e','f'].includes((location.hash||'').slice(1))) state.tab = location.hash.slice(1);
+try { const t = localStorage.getItem('cmb_tab'); if (t && ['a','c','e','f','g'].includes(t)) state.tab = t; } catch(e){}
+if (['a','c','e','f','g'].includes((location.hash||'').slice(1))) state.tab = location.hash.slice(1);
 
 function sessionsAll(){ return DATA ? DATA.sessions : []; }
 function testVisible(s){ return state.showTests || !s.isTest; }
@@ -1749,6 +1750,140 @@ function renderInterviews(main){
   chart('ICP match', 'icp', IV_ICP, ['yes','partial','no']);
 }
 
+/* ================= TAB G: interview leads ================= */
+/* Survey respondents who left a meeting email or clicked "Book my slot", with a panel showing their full answers.
+   Only the source filter applies here. */
+function interviewLeads(){
+  return sessionsAll().filter(s => testVisible(s) && (s.meetingEmail || s.calendly) && sourceMatch(s, state.sources))
+    .sort((a, b) => (b.submittedTs || 0) - (a.submittedTs || 0));
+}
+function airtableUrl(s){
+  const src = SOURCES.get(s.source);
+  return src && src.baseId && s.mainRid ? `https://airtable.com/${src.baseId}/${src.tableId}/${s.mainRid}` : null;
+}
+
+function renderLeads(main){
+  const s = bandSection('Interview leads.', 'Survey respondents who left an email to book the $100 interview or clicked “Book my slot”. Open anyone’s full survey answers before the call. Only the source filter applies here.', 'ink');
+  main.appendChild(s);
+  const list = interviewLeads();
+  const withEmail = list.filter(r => r.meetingEmail);
+  const card = el('div','hl-card wide');
+  const head = el('div','email-head');
+  head.appendChild(el('div','hl-eyebrow', `Interview leads · ${list.length}`));
+  let tbody = null;
+  if (withEmail.length){
+    const btnWrap = el('div','');
+    const btn = el('button','refresh-btn','Copy emails'); btn.type = 'button';
+    const note = el('span','copy-note','');
+    btn.addEventListener('click', () => {
+      const text = [...new Set(withEmail.map(r => r.meetingEmail))].join(', ');
+      const fallback = () => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(tbody); sel.removeAllRanges(); sel.addRange(range); note.textContent = ' Couldn’t copy automatically; the table is selected, so press Ctrl+C or ⌘C.'; };
+      try { navigator.clipboard.writeText(text).then(() => { note.textContent = ' Copied.'; }, fallback); } catch(e){ fallback(); }
+    });
+    btnWrap.appendChild(btn); btnWrap.appendChild(note); head.appendChild(btnWrap);
+  }
+  card.appendChild(head);
+  if (!list.length){
+    card.appendChild(el('div','empty-state','Nobody has left a meeting email or clicked to book yet.'));
+  } else {
+    const wrap = el('div','email-wrap');
+    const table = el('table','emails');
+    table.innerHTML = '<thead><tr><th>Meeting email</th><th>Source</th><th>Clicked to book</th><th>Session ID</th><th>Submitted</th><th>Answers</th></tr></thead>';
+    tbody = el('tbody');
+    list.forEach(r => {
+      const tr = el('tr');
+      tr.innerHTML = `<td class="addr">${r.meetingEmail ? esc(r.meetingEmail) : '<span class="ins-sub">no email left</span>'}</td><td>${esc(sourceLabel(r.source))}</td><td>${r.calendly ? 'Yes' : '–'}</td><td class="mono">${esc(r.id.replace(/^[a-z]+:/, ''))}</td><td class="mono">${esc(r.submittedTs ? fmtTime(r.submittedTs) : '–')}</td><td></td>`;
+      const a = el('a','view-link','View answers');
+      a.href = '#';
+      a.addEventListener('click', ev => { ev.preventDefault(); openAnswers(r.id); });
+      tr.lastChild.appendChild(a);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody); wrap.appendChild(table); card.appendChild(wrap);
+    const booked = list.filter(r => r.calendly).length;
+    card.appendChild(el('div','hl-text', `<b>${withEmail.length}</b> left a meeting email and <b>${booked}</b> clicked “Book my slot”, newest first. “Submitted” is when they finished the survey, or their last save if they didn’t finish.`));
+  }
+  s.appendChild(card);
+}
+
+/* ---------- full answers panel ---------- */
+function answerRows(s){
+  const out = [];
+  const add = (q, a) => { if (a != null && a !== '') out.push({ q, a }); };
+  const one = f => hasVal(s[f]) ? esc(lab(f, s[f])) : null;
+  const many = (f, otherF) => {
+    if (!hasVal(s[f])) return null;
+    const items = s[f].map(v => v==='other' && otherF && hasVal(s[otherF]) ? `Other: “${esc(s[otherF])}”` : esc(lab(f, v)));
+    return '<ul class="ans-list">' + items.map(x => `<li>${x}</li>`).join('') + '</ul>';
+  };
+  const emp = isEmp(s);
+  add(Q.industry, s.industry==='other' && hasVal(s.industry_other) ? `Other: “${esc(s.industry_other)}”` : one('industry'));
+  add(Q.team_size, one('team_size'));
+  add(Q.role, one('role'));
+  add(Q.country, one('country'));
+  add(Q.years_operating, one('years_operating'));
+  if (hasVal(s.emp_role)) add(Q.emp_role, s.emp_role==='other' && hasVal(s.emp_role_other) ? `Other: “${esc(s.emp_role_other)}”` : one('emp_role'));
+  const ratings = AREAS.map(a => ({ name: emp ? (a.emp || a.owner) : a.owner, v: Number(s['pain_'+a.slug]) })).filter(x => x.v>=1 && x.v<=7).sort((a,b) => b.v - a.v);
+  if (ratings.length) add(emp ? Q.pain_emp : Q.pain_owner, '<ul class="ans-list ratings">' + ratings.map(x => `<li><span>${esc(x.name)}</span><b>${x.v} / 7</b></li>`).join('') + '</ul>');
+  if (hasVal(s.pain_other)) add(Q.pain_other, `“${esc(s.pain_other)}”`);
+  if (s.deepDives.length) add('Follow-ups: who handles it and hours per week', '<ul class="ans-list">' + s.deepDives.map(d => `<li><b>${esc((AREA_BY_SLUG[d.area]||{}).owner || d.area)}</b><br>${esc(d.handler ? L.handler[d.handler] || d.handler : '–')} · ${esc(d.hours ? L.hours[d.hours] || d.hours : '–')}</li>`).join('') + '</ul>');
+  add(Q.emp_bottlenecks, many('emp_bottlenecks', 'emp_bottlenecks_other'));
+  add(Q.ai_tasks, many('ai_tasks', 'ai_tasks_other'));
+  add(Q.ai_reluctance, many('ai_reluctance', 'ai_reluctance_other'));
+  add(Q.ai_frequency, one('ai_frequency'));
+  add(Q.ai_uses, many('ai_uses', 'ai_uses_other'));
+  add(Q.ai_low_why, many('ai_low_why', 'ai_low_why_other'));
+  add(Q.emp_ai_adopt, one('emp_ai_adopt'));
+  add(Q.emp_adopt_why, many('emp_adopt_why', 'emp_adopt_why_other'));
+  add(Q.tools_used, many('tools_used', 'tools_other'));
+  add(Q.tools_monthly_spend, one('tools_monthly_spend'));
+  add(Q.wtp_ai, one('wtp_ai'));
+  add(Q.day2day, many('day2day', 'day2day_other'));
+  if (hasVal(s.heaviest)) add(Q.heaviest, s.heaviest==='other' && hasVal(s.day2day_other) ? `“${esc(s.day2day_other)}”` : one('heaviest'));
+  if (hasVal(s.heaviest_note)) add(Q.heaviest_note, `“${esc(s.heaviest_note)}”`);
+  add(Q.gender, one('gender'));
+  return out;
+}
+
+function openAnswers(id){
+  const s = sessionsAll().find(x => x.id === id);
+  if (!s) return;
+  closeAnswers();
+  const back = el('div','drawer-back'); back.id = 'answersDrawer';
+  const panel = el('div','drawer'); panel.setAttribute('role','dialog'); panel.setAttribute('aria-modal','true'); panel.setAttribute('aria-label', 'Survey answers for ' + id);
+  const status = s.screenedOut ? 'Exited at screening' : s.complete ? 'Completed' : 'Partly filled';
+  const top = el('div','drawer-top');
+  top.innerHTML = `<div><div class="label">Survey answers</div><div class="drawer-title">${esc(s.meetingEmail || s.reportEmail || (s.pid ? 'Prolific ' + s.pid : id))}</div>` +
+    `<div class="drawer-meta"><span class="mono">${esc(id)}</span>${s.pid ? ` · Prolific <span class="mono">${esc(s.pid)}</span>` : ''} · ${esc(status)}${s.submittedTs ? ' · ' + esc(fmtTime(s.submittedTs)) : ''}${s.durationSec ? ' · took ' + Math.round(s.durationSec/60) + ' min' : ''}</div></div>`;
+  const close = el('button','refresh-btn','Close'); close.type = 'button'; close.addEventListener('click', closeAnswers);
+  top.appendChild(close);
+  panel.appendChild(top);
+  const links = el('div','drawer-links');
+  const at = airtableUrl(s);
+  if (at) links.innerHTML = `<a href="${esc(at)}" target="_blank" rel="noopener">Open in Airtable</a>`;
+  const extra = [];
+  if (s.reportEmail) extra.push('Asked for the report');
+  if (s.calendly) extra.push('Clicked “Book my slot”');
+  if (s.finishClicked) extra.push('Clicked Finish (back to Prolific)');
+  if (extra.length) links.appendChild(el('span','', ' · ' + esc(extra.join(' · '))));
+  panel.appendChild(links);
+  const rowsA = answerRows(s);
+  const dl = el('dl','answers');
+  if (!rowsA.length) dl.appendChild(el('div','empty-state','No answers saved for this session.'));
+  rowsA.forEach(({ q, a }) => { dl.appendChild(el('dt','', esc(q))); dl.appendChild(el('dd','', a)); });
+  panel.appendChild(dl);
+  back.appendChild(panel);
+  back.addEventListener('click', ev => { if (ev.target === back) closeAnswers(); });
+  document.body.appendChild(back);
+  document.body.style.overflow = 'hidden';
+  close.focus();
+  }
+function closeAnswers(){
+  const d = document.getElementById('answersDrawer');
+  if (d){ d.remove(); document.body.style.overflow = ''; }
+}
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape') closeAnswers(); });
+
 /* ================= shell ================= */
 /* Multi-select filters: state key, the "nothing picked" label, the plural word, and option order (set when options are built). */
 const MS = {
@@ -1879,9 +2014,10 @@ function render(){
   }
 
   populateFilterOptions();
-  const onIv = state.tab === 'f';
-  const inView = onIv ? filteredInterviews().length : filteredResponses().length, all = onIv ? INTERVIEWS.length : baseResponses().length;
-  const unit = onIv ? (all===1 ? ' interview' : ' interviews') : '';
+  const onIv = state.tab === 'f', onLeads = state.tab === 'g';
+  const inView = onIv ? filteredInterviews().length : onLeads ? interviewLeads().length : filteredResponses().length;
+  const all = onIv ? INTERVIEWS.length : onLeads ? sessionsAll().filter(s => testVisible(s) && (s.meetingEmail || s.calendly)).length : baseResponses().length;
+  const unit = onIv ? (all===1 ? ' interview' : ' interviews') : onLeads ? (all===1 ? ' lead' : ' leads') : '';
   document.getElementById('matchCount').innerHTML = inView === all
     ? `<b>${inView}</b>${unit} in view`
     : `<b>${inView}</b> of ${all}${unit} in view`;
@@ -1889,7 +2025,7 @@ function render(){
   if (SOURCE === 'live'){
     main.appendChild(el('div','notice info', `<div><b>You’re looking at live data.</b> Only your view changed; everyone else still sees the snapshot from ${esc(fmtTime(SNAP_DATA ? SNAP_DATA.fetchedAt : DATA.fetchedAt))}.</div>`));
   }
-  if (state.years.length && state.tab !== 'f'){
+  if (state.years.length && state.tab !== 'f' && state.tab !== 'g'){
     main.appendChild(el('div','notice', `<div><b>Years in business: ${esc(state.years.map(v => L.years_operating[v] || v).join(', '))}.</b> Only owners and managing partners were asked this, so employees are left out while this filter is on.</div>`));
   }
   if (state.autoTests && state.showTests){
@@ -1901,6 +2037,7 @@ function render(){
   if (state.tab==='a') renderTabA(main);
   else if (state.tab==='e') renderTabE(main);
   else if (state.tab==='f') renderInterviews(main);
+  else if (state.tab==='g') renderLeads(main);
   else renderTabC(main);
   main.querySelectorAll('.chart-grid:not(.stacked)').forEach(packGrid);
 }
