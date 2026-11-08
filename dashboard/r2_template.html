@@ -1,0 +1,990 @@
+<title>Practice Pulse ’26 · Round 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@1,6..72,400&display=swap">
+<!-- Styles are copied from dashboard/template.html at build time, so this page matches the Stacked Marketing dashboard. -->
+/*__STYLE__*/
+<style>
+  [hidden] { display: none !important; }
+  .cmp-wrap { overflow-x: auto; margin-top: 6px; }
+  table.emails td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.emails tr.dim td { color: var(--ink-faint); }
+  .status-dot { display: inline-block; width: 7px; height: 7px; margin-right: 7px; vertical-align: 1px; background: var(--mark); }
+  .status-dot.partial { background: var(--mark-muted); }
+  .status-dot.exited { background: transparent; box-shadow: inset 0 0 0 1px var(--mark-muted); }
+  .src-tag { font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); white-space: nowrap; }
+  .na-note { font-size: 0.74rem; color: var(--ink-faint); margin-top: -4px; margin-bottom: 8px; }
+  .sub-head { font-size: 0.72rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); margin: 16px 0 10px; }
+  .sub-head:first-child { margin-top: 0; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="top-inner">
+      <div class="top-row1">
+        <div>
+          <div class="label">Practice Pulse ’26 · Round 2 · Project management</div>
+          <div class="title-anchor"><span class="corner" aria-hidden="true"></span><h1>How small firms run projects.</h1></div>
+          <p class="second-voice" id="nextLine"></p>
+        </div>
+        <div class="asof-wrap">
+          <span class="asof" id="asofLabel"><span class="sq"></span>Loading snapshot…</span>
+        </div>
+      </div>
+      <p class="subtitle" id="pageSubtitle"></p>
+    </div>
+  </header>
+
+  <div class="controlbar-sticky">
+    <div class="tabs" id="tabs" role="tablist">
+      <button class="tab-btn" data-tab="c" type="button">Highlights</button>
+      <button class="tab-btn" data-tab="b" type="button">Full Survey</button>
+      <button class="tab-btn" data-tab="d" type="button">Form activity</button>
+      <button class="tab-btn" data-tab="f" type="button">Responses</button>
+    </div>
+    <div class="filterbar">
+      <span class="fl" id="fSourceLbl">Survey</span>
+      <details class="ms" data-ms="source"><summary class="filter-select" aria-labelledby="fSourceLbl"></summary><div class="ms-panel" role="group" aria-labelledby="fSourceLbl"></div></details>
+      <span class="fl" id="fSizeLbl">Company size</span>
+      <details class="ms" data-ms="size"><summary class="filter-select" aria-labelledby="fSizeLbl"></summary><div class="ms-panel" role="group" aria-labelledby="fSizeLbl"></div></details>
+      <span class="fl" id="fCountryLbl">Country</span>
+      <details class="ms" data-ms="country"><summary class="filter-select" aria-labelledby="fCountryLbl"></summary><div class="ms-panel" role="group" aria-labelledby="fCountryLbl"></div></details>
+      <span class="fl" id="fRoleLbl">Role</span>
+      <details class="ms" data-ms="role"><summary class="filter-select" aria-labelledby="fRoleLbl"></summary><div class="ms-panel" role="group" aria-labelledby="fRoleLbl"></div></details>
+      <label class="test-toggle" id="testToggleWrap" for="fTests" hidden><input type="checkbox" id="fTests"> Show test rows</label>
+      <button class="reset-btn" id="resetBtn" type="button">Reset filters</button>
+      <span class="match-count" id="matchCount"></span>
+    </div>
+  </div>
+
+  <main id="main"></main>
+
+  <footer class="page-foot">Built for internal ThinkUp research use · not for external distribution</footer>
+</div>
+
+<script>
+/* ================= filled in by scripts/build_r2_dashboard.py ================= */
+const SOURCES = /*__SOURCES__*/[];        // [{ slug, label, long, form_id, launch_at, test_session_ids }]
+const SNAPSHOT = /*__SNAPSHOT__*/null;     // { asOf, submissions: [... each with _source] }
+const REFRESH_LABEL = /*__REFRESH_LABEL__*/'when the build script is run again';
+const EMAIL_TEST_IDS = /*__EMAIL_TEST_IDS__*/[];
+
+const SRC = Object.fromEntries(SOURCES.map(s => [s.slug, s]));
+const SRC_ORDER = SOURCES.map(s => s.slug);
+const LAUNCH = Object.fromEntries(SOURCES.map(s => [s.slug, s.launch_at ? Date.parse(s.launch_at) : null]));
+const TEST_SESSION_IDS = new Set([...SOURCES.flatMap(s => s.test_session_ids || []), ...EMAIL_TEST_IDS]);
+
+/* ================= the form (copied from the survey page, round 2) ================= */
+/* Wording that differs by survey version. NEUTRAL is used when more than one survey is in view. */
+const EX = {
+  arch:    { contract:'a signed contract', stages:'stages, permit milestones, dates', outside:'consultants (structural, MEP, surveyors…)', outsideShort:'consultants',
+             scope:'design changes and extra requests from clients', longterm:'dormant projects and long-term deadlines like permits & committee decisions', longtermShort:'permits, committee decisions' },
+  agency:  { contract:'a new brief or retainer', stages:'deliverables, review rounds, dates', outside:'freelancers & vendors', outsideShort:'freelancers & vendors',
+             scope:'scope creep and extra requests from clients', longterm:'recurring retainer work and campaign deadlines', longtermShort:'retainer renewals, campaign dates' },
+  consult: { contract:'a signed SOW or engagement letter', stages:'phases, deliverables, dates', outside:'subcontractors & partner experts', outsideShort:'subcontractors',
+             scope:'scope changes and extra requests from clients', longterm:'renewals, follow-on work and long-term deadlines', longtermShort:'renewals, follow-on work' },
+};
+const NEUTRAL = { contract:'new work (contract / brief / SOW)', stages:'stages, deliverables, dates', outside:'outside partners', outsideShort:'outside partners',
+  scope:'scope changes and extra requests from clients', longterm:'long-term deadlines', longtermShort:'long-term deadlines' };
+const WORKPLACE = {
+  arch:    { architecture:'An architecture practice', engineering:'An engineering practice', interior:'An interior design studio',
+             inhouse:'In-house — at a developer, contractor or other non-design company', solo:'Solo — independent architect, engineer or freelancer' },
+  agency:  { marketing:'A marketing or advertising agency', pr:'A PR or communications agency',
+             inhouse:'In-house — marketing or PR at a non-agency company', solo:'Solo — freelancer, consultant, or vendor' },
+  consult: { mgmt_consulting:'A management or strategy consulting firm', specialist_consulting:'A specialist consulting firm (IT, HR, finance, operations…)',
+             inhouse:'In-house — strategy or operations at a non-consulting company', solo:'Solo — independent consultant or freelancer' },
+};
+const CRAFT = { arch:'Architect / engineer / designer', agency:'Marketing / PR professional', consult:'Consultant / analyst / specialist' };
+const TOOL_NAMES = { monograph:'Monograph', bqe:'BQE Core', deltek:'Deltek (Ajera / Vantagepoint)', autodesk:'Autodesk (CAD / Revit)', asana:'Asana', monday:'Monday.com',
+  clickup:'ClickUp', smartsheet:'Smartsheet', teamwork:'Teamwork.com', productive:'Productive', functionpoint:'Function Point', scoro:'Scoro', accelo:'Accelo',
+  notion:'Notion', hubspot:'HubSpot', muckrack:'Muck Rack', harvest:'Harvest', quickbooks:'QuickBooks', sheets:'Excel / Google Sheets', chatgpt:'ChatGPT',
+  claude:'Claude', copilot:'Microsoft Copilot', other:'Other', none:'None of these' };
+
+/* Business areas (rated 1–7). Owners rated all seven; employees four, with their own wording. */
+const AREAS = [
+  { slug:'late_payments',        owner:'Chasing clients for late payments', short:'Late payments' },
+  { slug:'invoices_out',         owner:'Getting invoices out on time', short:'Getting invoices out' },
+  { slug:'work_rate',            owner:'Keeping a high work rate', short:'Work rate', emp:'Workload & pace — too much to do, not enough time' },
+  { slug:'deliverables_quality', owner:'Maintaining a high deliverables quality standard', short:'Deliverables quality', emp:'Keeping quality high under time pressure' },
+  { slug:'team_management',      owner:'Managing & motivating the team', short:'Managing the team', emp:'Coordination — deadlines, alignment & follow-ups between people' },
+  { slug:'strategic_decisions',  owner:'Making informed strategic decisions', short:'Strategic decisions' },
+  { slug:'projects_on_track',    owner:'Keeping projects on schedule & on budget', short:'Projects on track', emp:'Keeping my projects on schedule' },
+];
+/* Project-management jobs (rated 1–7 or "Not part of our work"). */
+const PMI = [
+  { key:'pm_plan',      label:'Turning {contract} into a clear plan — {stages} and owners', short:'Turning work into a plan' },
+  { key:'pm_owners',    label:'Making sure everyone knows who owns what — and handing work over cleanly', short:'Ownership & handoffs' },
+  { key:'pm_status',    label:'Knowing where every project stands without asking around', short:'Knowing where things stand', emp:'Knowing where the work I depend on stands without asking around' },
+  { key:'pm_chase',     label:'Chasing inputs, approvals and overdue work — from the team, clients and {outside}', short:'Chasing inputs & approvals' },
+  { key:'pm_slip',      label:'Catching a slip early — and knowing what it pushes back', short:'Catching slips early' },
+  { key:'pm_capacity',  label:'Seeing who’s overloaded and who has room', short:'Team capacity', emp:'Getting a realistic workload across projects' },
+  { key:'pm_budget',    label:'Tracking hours and budget against each project', short:'Hours & budget per project' },
+  { key:'pm_scope',     label:'Handling {scope}', short:'Scope changes' },
+  { key:'pm_client',    label:'Keeping clients updated on progress', short:'Client updates' },
+  { key:'pm_portfolio', label:'Keeping track of every project at once — including {longterm}', short:'All projects & long-term deadlines' },
+];
+const PMI_BY = Object.fromEntries(PMI.map(p => [p.key, p]));
+const AREA_BY = Object.fromEntries(AREAS.map(a => ['pain_' + a.slug, a]));
+const TASKS = [
+  { id:'t_plan', label:'Turning {contract} into a plan — {stages} and owners', short:'Plan from new work' },
+  { id:'t_assign', label:'Assigning tasks and following up until they’re done', short:'Assign & follow up' },
+  { id:'t_chase', label:'Chasing clients, {outsideShort} and the team for inputs & approvals', short:'Chase inputs & approvals' },
+  { id:'t_risk', label:'Flagging what’s at risk and re-planning when something slips', short:'Flag risk & re-plan' },
+  { id:'t_client_update', label:'Drafting status updates for clients', short:'Client status updates' },
+  { id:'t_brief', label:'A weekly brief — what’s late, what’s stuck, what needs a decision', short:'Weekly brief' },
+  { id:'t_capacity', label:'Spotting who’s overloaded and suggesting who can take what', short:'Capacity & reassigning' },
+  { id:'t_hours', label:'Tracking hours & budget against each project', short:'Hours & budget' },
+  { id:'t_billing', label:'Sending invoices at milestones & payment reminders', short:'Invoices & reminders' },
+  { id:'t_deadlines', label:'Watching long-term deadlines across all projects ({longtermShort})', short:'Long-term deadlines' },
+  { id:'t_meetings', label:'Turning meeting notes into tasks & follow-ups', short:'Meeting notes → tasks' },
+  { id:'data_pull', label:'Pulling together data & insights for decisions', short:'Data & insights' },
+];
+const AUTO = [
+  { id:'suggest', l:'Suggest — I’ll do it', color:'var(--mark-muted)' },
+  { id:'approve', l:'Prepare it — I approve first', color:'var(--second-voice)' },
+  { id:'tell_after', l:'Do it — tell me after', color:'var(--scale-low)' },
+  { id:'autonomous', l:'Fully on its own', color:'var(--point)' },
+];
+const D2D = {
+  fires:'I’m busy putting out fires', on_top:'I generally feel I’m on top of every project', enjoy:'I really enjoy the managerial side of my work',
+  chasing:'I’m wasting time chasing people — the team, clients, {outsideShort}', cracks:'Things fall through the cracks more often than I’d like',
+  managing_not_making:'I spend more time managing than doing the work I love', stall:'If I step away for a week, projects stall',
+  late_news:'I usually hear about a delay only after it’s happened',
+  ereact:'I’m mostly reacting — my plans rarely survive the day', eon_top:'I generally feel on top of my work', echasing:'I’m always chasing people for answers or approvals',
+  ecracks:'Things fall through the cracks between people', eadmin:'Status updates and reporting eat into my real work', estatus:'I often don’t know where work I depend on stands',
+  eenjoy:'I genuinely enjoy my day-to-day', eequipped:'I have everything I need to do my best work', other:'Something else' };
+
+const L = {
+  team_size: { '1':'Just me','2':'2 people','3-5':'3 – 5 people','6-10':'6 – 10 people','11-16':'11 – 16 people','17-25':'17 – 25 people','26-50':'26 – 50 people','51-100':'51 – 100 people' },
+  role: { owner:'Owner or co-owner', partner:'Managing partner', employee:'Full- or part-time employee' },
+  years_operating: { '<1':'Less than a year','1-2':'1 – 2 years','3-5':'3 – 5 years','6-10':'6 – 10 years','10+':'More than 10 years' },
+  emp_role: { mgmt:'Team manager / C-level executive', craft:'Professional in the field', ops:'Project / operations manager', admin:'PA / office manager', finance:'Bookkeeper / accountant / finance manager', hr:'HR manager / recruiter', other:'Other' },
+  parallel_projects: { '1-2':'1 – 2','3-5':'3 – 5','6-10':'6 – 10','11-20':'11 – 20','21-50':'21 – 50','50+':'More than 50', notsure:'Not sure' },
+  project_runner: { owner:'The owner / partners', pm:'A dedicated project or operations manager', self:'The employee answering — it’s part of their job', leads:'Each team lead or senior runs their own projects', whoever:'Whoever’s on the project — no one specifically' },
+  pm_meaning: { plan:'Planning — timelines, stages and deadlines', tracking:'Keeping track — knowing where every project stands', coordination:'Coordination — who does what, handoffs and follow-ups',
+    capacity:'People & capacity — who works on what, and how much', money:'Money — hours, budgets and profitability per project', clients:'Clients — approvals, updates and scope',
+    not_separate:'We don’t really separate it — it’s just part of doing the work' },
+  strategic_decision_types: { pricing:'Pricing — what to charge, and which projects are actually profitable', which_work:'Which clients & projects to take on (or let go)',
+    staffing:'Staffing — when to hire, and who to put on what', costs:'Where to cut costs', growth:'Growth — new services, markets or partnerships',
+    client:'Client decisions — scope, renegotiating, when to push back', investments:'Tools & investments', other:'Something else' },
+  bottlenecks: { waiting:'Waiting on others — answers, inputs or approvals', briefs:'Unclear briefs or shifting priorities that lead to rework', status:'Not knowing where work I depend on stands',
+    meetings:'Too many meetings & interruptions', tools:'Juggling too many tools & systems', reporting:'Status updates, reporting & admin', other:'Something else' },
+  ai_tasks: Object.assign(Object.fromEntries(TASKS.map(t => [t.id, t.label])), { other:'Other', none:'None of these' }),
+  tools_used: TOOL_NAMES,
+  spend: { '0':'Nothing','<50':'Under $50','50-150':'$50–150','151-300':'$151–300','301-500':'$301–500','500+':'More than $500', notsure:'Not sure', not_my_area:'Not my area' },
+  wtp_ai: { '0':'Nothing — I wouldn’t pay for it','<50':'Under $50 / mo','50-100':'$50 – $100 / mo','101-250':'$101 – $250 / mo','251-500':'$251 – $500 / mo','500+':'More than $500 / mo', notsure:'Not sure', not_my_call:'Not my call — I don’t decide on tools' },
+  wtp_pitch_key: Object.assign(Object.fromEntries(PMI.map(p => [p.key, p.short])), { k:'Projects on track', c:'Getting invoices out', b:'Late payments', generic:'General pitch (nothing rated 4+)' }),
+  day2day: D2D,
+  heaviest: Object.assign({}, D2D, { positive_week:'None — a positive week' }),
+  handler: { owner_partner:'The owner / a partner', employee_self:'The employee answering', pm:'A project / operations manager', expert:'A specific expert employee / colleague',
+    anyone:'Whoever’s available — no one specific', vendor:'An external vendor', software:'Software or a tool', noone:'No one — it isn’t handled' },
+  hours: { '0':'0 / almost none','<2':'Under 2h','2-5':'2–5h','6-10':'6–10h','11-20':'11–20h','20+':'20h+', notsure:'Not sure' },
+  current_tool: { nothing:'Nothing — it lives in people’s heads', email_chat:'Email, chat & calls', sheets:'Spreadsheets or docs', pm_tool:'A project-management tool',
+    ai:'An AI assistant (ChatGPT, Claude…)', field_sw:'Specialized software for our field' },
+  gender: { male:'Male', female:'Female', nonbinary:'Non-binary', na:'Prefer not to answer' },
+  exit_reason: { not_target:'Workplace outside the survey’s focus (in-house or solo)', solo:'Team of one' },
+};
+const ORDER = {
+  team_size: Object.keys(L.team_size), years_operating: Object.keys(L.years_operating), parallel_projects: Object.keys(L.parallel_projects),
+  spend: Object.keys(L.spend), wtp_ai: Object.keys(L.wtp_ai), hours: Object.keys(L.hours), handler: Object.keys(L.handler), current_tool: Object.keys(L.current_tool),
+};
+const Q = {
+  workplace:'What best describes your place of work?',
+  team_size:'Including yourself, how many people work at the company?',
+  role:'Which of these best describes your role?',
+  country:'What country are you based in?',
+  years_operating:'How long has your business been operating? (owners & partners)',
+  emp_role:'Which best describes your professional title? (employees)',
+  parallel_projects:'How many client projects are active at the same time, across the business?',
+  project_runner:'Who keeps projects moving day to day?',
+  pm_meaning:'What does “project management” mean at your company? (Select all that apply.)',
+  pm_meaning_text:'Want to put it in your own words?',
+  pain_owner:'Rate how frustrating each area is for you right now (1 = not at all · 7 = extremely)',
+  pain_emp:'Rate how frustrating each of these is in your day-to-day (1 = not at all · 7 = extremely)',
+  pain_other:'Anything that’s a real problem for you and isn’t listed?',
+  strategic_decision_types:'Which strategic decisions are hardest to make with confidence? (Pick up to 3; asked when strategic decisions were rated 4+.)',
+  pm:'Now, running projects. How frustrating is each of these right now? (1 = not at all · 7 = extremely · or “Not part of our work”)',
+  area_handler:'Who mostly handles this today?',
+  area_hours:'Hours per week spent on it, across the business — best guess',
+  area_current_tool:'What do you mostly use for it today?',
+  area_fit:'How well does that work? (1 = not at all · 7 = it fully solves it)',
+  bottlenecks:'What slows you down most in a typical week? (Pick up to 3.)',
+  ai_tasks:'If it were done well — which of these would you feel comfortable letting AI handle?',
+  ai_auto:'For each one you picked — how much would you let AI do on its own?',
+  tools_used:'Which tools does your business actively use?',
+  spend_pm_monthly:'Roughly how much does your business pay per month for project-management software?',
+  spend_ai_monthly:'Roughly how much does your business pay per month for AI tools — ChatGPT, Claude, Copilot and the like?',
+  wtp_ai:'How much would you pay for an AI project manager that [their top-rated job], and keeps the rest of your projects moving? (Per month, whole business.)',
+  wtp_pitch_key:'Which pitch they saw (their highest-rated job, 4+)',
+  day2day:'Which of these do you relate to? (Pick up to 3.)',
+  heaviest:'Of these — which weighs on you most?',
+  heaviest_note:'Tell us a bit more about it — what does that look like in practice?',
+  communities:'Are you part of any professional communities?',
+  gender:'What’s your gender?',
+};
+const MULTI_FIELDS = new Set(['pm_meaning','strategic_decision_types','bottlenecks','ai_tasks','tools_used','tools_shown','day2day']);
+const SCREENS = ['sQ1','sQ1a','sQ1b','sQ1c','sQ2','sEQ1','sProfile','sPMMean','sVip','sPainA','sStrat','sPM1','sPM2','sAIntro','sA1','sA2','sA3',
+  'sBottle','sAI','sAIAuto','sTools','sSpend','sWTP','sQ12Intro','sQ12','sQ13','sCommunity','sGender','sTy'];
+const SCREEN_LABEL = { sQ1:'Place of work', sQ1a:'Company size', sQ1b:'Role', sQ1c:'Country', sQ2:'Years in business', sEQ1:'Professional title',
+  sProfile:'How projects run', sPMMean:'What project management means', sVip:'$100 interview invite', sPainA:'Business-area frustrations', sStrat:'Strategic decisions',
+  sPM1:'Running projects (1 of 2)', sPM2:'Running projects (2 of 2)', sAIntro:'Deep-dive intro', sA1:'Deep dive 1', sA2:'Deep dive 2', sA3:'Deep dive 3',
+  sBottle:'What slows you down', sAI:'AI handover', sAIAuto:'AI autonomy', sTools:'Tools', sSpend:'Monthly spend', sWTP:'Willingness to pay',
+  sQ12Intro:'Home-stretch intro', sQ12:'Day to day', sQ13:'What weighs most', sCommunity:'Communities', sGender:'Gender', sTy:'Thank-you page' };
+
+/* ================= helpers ================= */
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function hasVal(v){ if (v===undefined||v===null||v===false) return false; if (Array.isArray(v)) return v.length>0; return String(v).trim()!==''; }
+function pct(a, b){ return b ? Math.round(100*a/b) : 0; }
+function el(tag, cls, html){ const e = document.createElement(tag); if (cls) e.className = cls; if (html!==undefined) e.innerHTML = html; return e; }
+function fmtTime(ms){ try { return new Date(ms).toLocaleString(undefined, { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }); } catch(e){ return new Date(ms).toISOString(); } }
+function fmtDur(sec){ if (!sec) return '–'; const m = Math.round(sec/60); return m < 1 ? `${sec}s` : `${m} min`; }
+function isOwner(r){ return r.role==='owner' || r.role==='partner'; }
+function isEmp(r){ return r.role==='employee'; }
+function onlySource(){ return state.sources.length === 1 ? state.sources[0] : null; }
+function fx(text, src){ const ex = EX[src || onlySource()] || NEUTRAL; return String(text).replace(/\{(\w+)\}/g, (m, k) => ex[k] !== undefined ? ex[k] : m); }
+function lab(field, v, src){
+  v = String(v);
+  if (field === 'workplace'){
+    const s = src || onlySource();
+    if (s && WORKPLACE[s] && WORKPLACE[s][v]) return WORKPLACE[s][v];
+    if (v === 'inhouse') return 'In-house — at a company outside the field';
+    if (v === 'solo') return 'Solo — independent / freelancer';
+    for (const k of SRC_ORDER){ if (WORKPLACE[k] && WORKPLACE[k][v]) return WORKPLACE[k][v]; }
+  }
+  if (field === 'emp_role' && v === 'craft'){ const s = src || onlySource(); return s ? CRAFT[s] : 'Professional in the field (consultant / marketer / architect…)'; }
+  if (field === 'spend_pm_monthly' || field === 'spend_ai_monthly') field = 'spend';
+  const m = L[field];
+  return fx((m && m[v]) || v.replace(/_/g,' '), src);
+}
+function srcLabel(s){ return (SRC[s] && SRC[s].label) || s; }
+function areaName(key, src, emp){
+  if (PMI_BY[key]) return fx((emp && PMI_BY[key].emp) || PMI_BY[key].label, src);
+  if (AREA_BY[key]) return (emp && AREA_BY[key].emp) || AREA_BY[key].owner;
+  return key;
+}
+function areaShort(key){ return (PMI_BY[key] && PMI_BY[key].short) || (AREA_BY[key] && AREA_BY[key].short) || key; }
+/* Owners answer "Me" and employees "The owner": both mean the owner handles it. */
+function handlerKey(v, emp){ if (v==='you') return 'owner_partner'; if (v==='owner') return 'owner_partner'; if (v==='self') return emp ? 'employee_self' : 'owner_partner'; return v; }
+
+/* ================= sessions ================= */
+const NOT_ANSWERS = new Set(['_date','_partial','_source','_ts','_replyto','_subject','screen','completed','completed_at','calendly_clicked','clicked_at',
+  'exit_email','report_email','meeting_email','vip_qualified','duration_sec','session_id','survey_version','survey_round','tools_shown']);
+function rowFrom(sub){
+  const r = Object.assign({}, sub);
+  const t = Date.parse(r._date || '');
+  r._ts = isNaN(t) ? 0 : t;
+  MULTI_FIELDS.forEach(f => { if (typeof r[f]==='string') r[f] = r[f].split(',').map(s => s.trim()).filter(Boolean); });
+  return r;
+}
+function mergeSessions(rows){
+  const groups = new Map(); let noSession = 0;
+  rows.forEach(r => {
+    if (!hasVal(r.session_id)){ noSession++; return; }
+    const k = r._source + '|' + String(r.session_id).trim();
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r);
+  });
+  const sessions = [];
+  groups.forEach(rs => {
+    rs.sort((a, b) => a._ts - b._ts);
+    const src = rs[0]._source, sid = String(rs[0].session_id).trim();
+    const s = { id: sid, source: src, rowCount: rs.length, firstTs: rs[0]._ts, lastTs: rs[rs.length-1]._ts };
+    // Latest non-empty answer wins per question; a later blank never erases an earlier answer.
+    rs.forEach(r => Object.keys(r).forEach(f => { if (!NOT_ANSWERS.has(f) && hasVal(r[f])) s[f] = r[f]; }));
+    const full = rs.filter(r => hasVal(r.screen));
+    s.lastScreen = full.length ? String(full[full.length-1].screen) : null;
+    s.tools_shown = (full.length && full[full.length-1].tools_shown) || [];
+    s.vip = full.length ? full[full.length-1].vip_qualified === true : false;
+    s.calendly = rs.some(r => r.calendly_clicked === true);
+    const lastOf = f => { const w = rs.filter(r => typeof r[f] === 'string' && r[f].includes('@')); return w.length ? { email: w[w.length-1][f].trim(), ts: w[w.length-1]._ts } : null; };
+    s.reportEmail = lastOf('report_email'); s.exitEmail = lastOf('exit_email'); s.meetingEmail = lastOf('meeting_email');
+    s.durationSec = Math.max(0, ...rs.map(r => Number(r.duration_sec) || 0));
+    s.screenedOut = hasVal(s.exit_reason);
+    s.complete = !s.screenedOut && rs.some(r => r.completed === true);
+    s.isTest = (LAUNCH[src] != null && s.firstTs < LAUNCH[src]) || TEST_SESSION_IDS.has(sid);
+    s.deepDives = [];
+    [1,2,3].forEach(n => {
+      const key = s['area'+n+'_key'];
+      if (hasVal(key)) s.deepDives.push({ n, key, handler: s['area'+n+'_handler'] ? handlerKey(s['area'+n+'_handler'], isEmp(s)) : null,
+        hours: s['area'+n+'_hours'] || null, tool: s['area'+n+'_current_tool'] || null, fit: Number(s['area'+n+'_fit']) || null });
+    });
+    sessions.push(s);
+  });
+  return { sessions, noSession };
+}
+
+/* ================= state & filters ================= */
+const state = { tab: 'c', showTests: false, sources: [], sizes: [], countries: [], roles: [] };
+let DATA = null;
+try { const t = localStorage.getItem('r2_tab'); if (['b','c','d','f'].includes(t)) state.tab = t; } catch(e){}
+{ const h = (location.hash||'').slice(1);
+  if (['b','c','d','f'].includes(h)) state.tab = h;
+  if (SRC[h]) state.sources = [h];   // #consult opens with only the Consulting survey
+}
+
+function sessionsAll(){ return DATA ? DATA.sessions : []; }
+function testVisible(s){ return state.showTests || !s.isTest; }
+function sourceMatch(s){ return !state.sources.length || state.sources.includes(s.source); }
+function qualified(){ return sessionsAll().filter(s => !s.screenedOut && testVisible(s)); }
+function filtersActive(){ return state.sources.length || state.sizes.length || state.countries.length || state.roles.length; }
+function matchOthers(s){
+  return (!state.sizes.length || state.sizes.includes(s.team_size)) &&
+         (!state.countries.length || state.countries.includes(s.country)) &&
+         (!state.roles.length || state.roles.some(r => r==='owner' ? isOwner(s) : isEmp(s)));
+}
+function filtered(){ return qualified().filter(s => sourceMatch(s) && matchOthers(s)); }
+
+const MS = {
+  source:  { key:'sources',   all:'All surveys',   many:'surveys' },
+  size:    { key:'sizes',     all:'All sizes',     many:'sizes' },
+  country: { key:'countries', all:'All countries', many:'countries' },
+  role:    { key:'roles',     all:'All roles',     many:'roles' },
+};
+function msOptions(name){
+  const pool = qualified();
+  if (name === 'source') return SRC_ORDER.map(k => ({ v:k, label: srcLabel(k), n: pool.filter(s => s.source===k).length }));
+  if (name === 'size') return ORDER.team_size.map(v => ({ v, label: L.team_size[v], n: pool.filter(s => s.team_size===v).length })).filter(o => o.n || state.sizes.includes(o.v));
+  if (name === 'role') return [{ v:'owner', label:'Owners & partners', n: pool.filter(isOwner).length }, { v:'employee', label:'Employees', n: pool.filter(isEmp).length }];
+  const m = new Map(); pool.forEach(s => { if (hasVal(s.country)) m.set(s.country, (m.get(s.country)||0) + 1); });
+  state.countries.forEach(c => { if (!m.has(c)) m.set(c, 0); });
+  return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([v, n]) => ({ v, label: v, n }));
+}
+function fillFilters(){
+  document.querySelectorAll('details.ms').forEach(d => {
+    const name = d.dataset.ms, m = MS[name], picked = state[m.key], opts = msOptions(name);
+    m.order = opts.map(o => o.v);
+    d.querySelector('summary').textContent = !picked.length ? m.all : picked.length === 1 ? (opts.find(o => o.v===picked[0]) || { label: picked[0] }).label : `${picked.length} ${m.many}`;
+    d.querySelector('.ms-panel').innerHTML = (opts.length ? opts.map(o => `<label class="ms-opt"><input type="checkbox" value="${esc(o.v)}"${picked.includes(o.v) ? ' checked' : ''}> ${esc(o.label)}<span class="c">${o.n}</span></label>`).join('') : '<div class="ms-opt">No answers yet</div>')
+      + (picked.length ? '<button class="ms-clear" type="button" data-clear>Clear</button>' : '');
+  });
+}
+
+/* ================= chart pieces (same look as the Stacked Marketing dashboard) ================= */
+function countsFor(field, rows, opts){
+  opts = opts || {};
+  const map = new Map(); let n = 0;
+  rows.forEach(r => {
+    const v = opts.get ? opts.get(r) : r[field];
+    if (!hasVal(v)) return;
+    n++;
+    (Array.isArray(v) ? v : [String(v)]).forEach(x => map.set(x, (map.get(x)||0) + 1));
+  });
+  const order = opts.order || ORDER[field];
+  let arr = [...map.entries()].map(([key, count]) => ({ key, name: opts.label ? opts.label(key) : lab(field, key), count }));
+  if (order) arr.sort((a, b) => { const ia = order.indexOf(a.key), ib = order.indexOf(b.key); return (ia<0?99:ia) - (ib<0?99:ib); });
+  else arr.sort((a, b) => (['other','none','notsure'].includes(a.key) - ['other','none','notsure'].includes(b.key)) || b.count - a.count || a.name.localeCompare(b.name));
+  return { counts: arr, n };
+}
+function insightSentence(counts, n, who, multi){
+  if (!n || !counts.length) return null;
+  const pool = counts.filter(c => !['notsure','other','none','not_my_call','not_my_area'].includes(c.key));
+  const sorted = (pool.length ? pool : counts).slice().sort((a, b) => b.count - a.count);
+  const top = sorted[0], ties = sorted.filter(c => c.count === top.count), p = pct(top.count, top.denom || n);
+  if (ties.length > 3) return `No single answer leads yet: ${ties.length} answers are tied at ${p}%.`;
+  if (ties.length > 1) return `${ties.length} answers are tied at ${p}% each: ${ties.map(t => '<b>“' + esc(t.name) + '”</b>').join(', ')}.`;
+  return `<b>“${esc(top.name)}”</b> leads — ${multi ? 'picked' : 'chosen'} by <b>${p}%</b> of the ${top.denom || n} ${who || 'who answered'}.`;
+}
+function renderBarList(container, counts, n, opts){
+  opts = opts || {};
+  const wrap = el('div','barlist');
+  if (!counts.length || !n){ wrap.appendChild(el('div','empty-state', opts.emptyText || 'No responses in this segment yet.')); container.appendChild(wrap); return; }
+  const val = c => c.denom != null ? c.count / (c.denom || 1) : c.count;
+  const max = Math.max(...counts.map(val), 1e-9);
+  counts.forEach(c => {
+    const denom = c.denom != null ? c.denom : n;
+    const row = el('div','barrow' + (['notsure','none','not_my_call','not_my_area'].includes(c.key) ? ' muted' : ''));
+    row.appendChild(el('div','bl-label', esc(c.name)));
+    const track = el('div','bl-track'); const fill = el('div','bl-fill');
+    fill.style.width = Math.max(2, Math.round(100 * val(c) / max)) + '%';
+    track.appendChild(fill); row.appendChild(track);
+    row.appendChild(el('div','bl-val', c.valText || (c.denom != null ? `${c.count}/${denom} · ${pct(c.count, denom)}%` : `${c.count} · ${pct(c.count, n)}%`)));
+    wrap.appendChild(row);
+  });
+  container.appendChild(wrap);
+}
+function renderInsight(container, text){ container.appendChild(el('div', 'insight' + (text ? '' : ' empty'), text || 'Not enough responses in this segment yet to surface an insight.')); }
+function section(title, note, tone){
+  const s = el('section','band' + (tone ? ' toned tone-' + tone : ''));
+  const head = el('div','section-head');
+  if (tone) head.appendChild(el('i','tone-sq'));
+  head.appendChild(el('h2','', esc(title)));
+  s.appendChild(head);
+  if (note) s.appendChild(el('p','section-note', note));
+  return s;
+}
+function chartBlock(grid, title, question){
+  const block = el('div','chart-block');
+  const tr = el('div','chart-title-row');
+  tr.appendChild(el('div','chart-title', esc(title)));
+  const nSpan = el('div','chart-n',''); tr.appendChild(nSpan); block.appendChild(tr);
+  if (question) block.appendChild(el('div','chart-q', `Asked: “${esc(question)}”`));
+  const body = el('div','chart-body'); block.appendChild(body);
+  grid.appendChild(block);
+  return { body, nSpan, block };
+}
+function barChart(grid, title, field, rows, opts){
+  opts = opts || {};
+  const { body, nSpan } = chartBlock(grid, title, opts.question === undefined ? Q[field] : opts.question);
+  const { counts, n } = countsFor(field, rows, opts);
+  nSpan.textContent = `n = ${n}`;
+  renderBarList(body, counts, n);
+  if (opts.after) opts.after(body);
+  if (!opts.noInsight) renderInsight(body, insightSentence(counts, n, opts.who, MULTI_FIELDS.has(field)));
+  return { body, counts, n };
+}
+function hlCard(grid, o){
+  const c = el('div','hl-card' + (o.wide ? ' wide' : ''));
+  c.appendChild(el('div','hl-eyebrow', esc(o.eyebrow)));
+  if (o.stat !== undefined) c.appendChild(el('div','hl-stat', esc(o.stat)));
+  if (o.meter != null && !isNaN(o.meter)){
+    const f = Math.max(0, Math.min(1, o.meter)) * 100;
+    const m = el('div','hl-meter'); m.innerHTML = `<span class="fill" style="width:${f.toFixed(1)}%"></span><span class="pt" style="left:${f.toFixed(1)}%"></span>`;
+    c.appendChild(m);
+  }
+  if (o.text) c.appendChild(el('div','hl-text', o.text));
+  grid.appendChild(c);
+  return c;
+}
+function hlGroup(parent, title, note, tone){
+  const g = el('div','hl-group tone-' + (tone || 'ink'));
+  g.appendChild(el('div','hl-group-head', `<i></i><h3>${esc(title)}</h3>${note ? `<span>${esc(note)}</span>` : ''}`));
+  const grid = el('div','hl-grid'); g.appendChild(grid); parent.appendChild(g);
+  return grid;
+}
+function renderQuotes(container, rows, field, opts){
+  opts = opts || {};
+  const withText = rows.filter(r => hasVal(r[field])).sort((a, b) => b.lastTs - a.lastTs);
+  container.appendChild(el('div','oe-count', `<b>${withText.length}</b> wrote an answer${opts.shownN != null ? ` (of ${opts.shownN} who saw it)` : ''}.`));
+  if (!withText.length){ container.appendChild(el('div','empty-state','No written answers in this segment yet.')); return; }
+  const q = el('div','quotes');
+  withText.slice(0, opts.max || 6).forEach(r => {
+    const d = el('div','quote', '“' + esc(String(r[field]).slice(0, 500)) + '”');
+    d.appendChild(el('div','quote-meta', esc(`${srcLabel(r.source)} · ${isEmp(r) ? 'employee' : 'owner / partner'}${r.team_size ? ' · ' + lab('team_size', r.team_size) : ''}`)));
+    q.appendChild(d);
+  });
+  container.appendChild(q);
+}
+
+/* 1–7 ratings in three bands; "Not part of our work" is counted separately. */
+const BANDS = [
+  { label:'Not frustrating (1–3)', vals:[1,2,3], color:'var(--scale-low)' },
+  { label:'Neutral (4)', vals:[4], color:'var(--mark-muted)' },
+  { label:'Frustrating (5–7)', vals:[5,6,7], color:'var(--scale-high)' },
+];
+function likertStats(items, rows){
+  return items.map(it => {
+    const vals = rows.map(r => Number(r[it.field])).filter(v => v >= 1 && v <= 7);
+    const na = rows.filter(r => r[it.field] === 'na').length;
+    const dist = [0,0,0,0,0,0,0,0]; vals.forEach(v => dist[v]++);
+    const n = vals.length, mean = n ? vals.reduce((a, b) => a + b, 0) / n : 0;
+    return { field: it.field, name: it.name, short: it.short, n, na, mean, dist, high: dist[5] + dist[6] + dist[7] };
+  }).filter(x => x.n + x.na > 0).sort((a, b) => b.mean - a.mean || b.high - a.high);
+}
+function renderLikert(container, stats, who){
+  if (!stats.length){ container.appendChild(el('div','empty-state','No ratings in this segment yet.')); return; }
+  const legend = el('div','lk-legend');
+  BANDS.forEach(bd => legend.appendChild(el('span','', `<i style="background:${bd.color}"></i>${esc(bd.label)}`)));
+  container.appendChild(legend);
+  stats.forEach(it => {
+    const row = el('div','lkrow');
+    row.appendChild(el('div','lk-label', esc(it.name)));
+    const bar = el('div','lk-bar');
+    BANDS.forEach(bd => {
+      const c = bd.vals.reduce((a, v) => a + it.dist[v], 0);
+      if (!c) return;
+      const seg = el('div','lk-seg'); seg.style.width = (100 * c / it.n) + '%'; seg.style.background = bd.color;
+      seg.title = `${bd.label}: ${c} of ${it.n}`;
+      bar.appendChild(seg);
+    });
+    row.appendChild(bar);
+    row.appendChild(el('div','lk-mean', it.n ? `mean <b>${it.mean.toFixed(1)}</b> · ${pct(it.high, it.n)}% 5–7${it.na ? ` · ${it.na} n/a` : ''}` : `${it.na} n/a`));
+    container.appendChild(row);
+  });
+  const top = stats.find(s => s.n);
+  if (top) renderInsight(container, `<b>“${esc(top.short || top.name)}”</b> is the most frustrating, with a mean of <b>${top.mean.toFixed(1)} / 7</b>; ${pct(top.high, top.n)}% of the ${top.n} ${who} who rated it gave 5 or higher.`);
+}
+function pmItems(emp){ return PMI.map(p => ({ field: p.key, name: fx((emp && p.emp) || p.label), short: p.short })); }
+function areaItems(emp){ return AREAS.filter(a => !emp || a.emp).map(a => ({ field: 'pain_' + a.slug, name: emp ? a.emp : a.owner, short: a.short })); }
+
+function renderHeatmap(container, rowsData, cols, colLabel){
+  const used = cols.filter(c => rowsData.some(r => r.cells[c]));
+  if (!rowsData.length || !used.length){ container.appendChild(el('div','empty-state','No deep dives in this segment yet.')); return; }
+  let max = 0; rowsData.forEach(r => used.forEach(c => { max = Math.max(max, r.cells[c] || 0); }));
+  const wrap = el('div','heatmap-wrap'); const t = el('table','heatmap');
+  t.innerHTML = `<thead><tr><th class="rowh"></th>${used.map(c => `<th class="colh">${esc(colLabel(c))}</th>`).join('')}<th class="colh total">Total</th></tr></thead>`;
+  const tb = el('tbody'); let marked = false;
+  rowsData.forEach(r => {
+    const tr = el('tr'); tr.appendChild(el('th','rowh', esc(r.label)));
+    used.forEach(c => {
+      const v = r.cells[c] || 0; const td = el('td', v ? '' : 'zero');
+      if (!v) td.textContent = '–';
+      else { const size = Math.round(5 + 11 * Math.sqrt(v / max)); const top = v === max && !marked; if (top) marked = true;
+        td.innerHTML = `<span class="hm-cell"><span class="hm-sq${top ? ' point' : ''}" style="width:${size}px;height:${size}px"></span>${v}</span>`; }
+      tr.appendChild(td);
+    });
+    tr.appendChild(el('td','total', String(used.reduce((a, c) => a + (r.cells[c] || 0), 0))));
+    tb.appendChild(tr);
+  });
+  t.appendChild(tb); wrap.appendChild(t); container.appendChild(wrap);
+}
+
+/* ================= shared calculations ================= */
+function pmMeans(rows){ return likertStats(pmItems(false), rows).filter(s => s.n); }
+function wouldPay(r){ return hasVal(r.wtp_ai) && !['notsure','not_my_call'].includes(r.wtp_ai) ? r.wtp_ai !== '0' : null; }
+function shareOf(rows, fn){ const v = rows.map(fn).filter(x => x !== null && x !== undefined); return v.length ? { yes: v.filter(Boolean).length, n: v.length } : null; }
+function topAiTask(rows){
+  const who = rows.filter(r => hasVal(r.ai_tasks));
+  const c = countsFor('ai_tasks', who, { label: k => (TASKS.find(t => t.id===k) || {}).short || lab('ai_tasks', k) }).counts.filter(x => !['other','none'].includes(x.key)).sort((a, b) => b.count - a.count);
+  return c.length ? { name: c[0].name, count: c[0].count, n: who.length } : null;
+}
+function medianBand(rows, field, order){
+  const v = rows.map(r => r[field]).filter(x => order.includes(x)).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  return v.length ? v[Math.floor((v.length - 1) / 2)] : null;
+}
+
+/* ================= Highlights ================= */
+function renderTabC(main){
+  const rows = filtered();
+  const s = section('Highlights.', 'The headline numbers for everyone in view who got past screening. Use the Survey filter to look at one profession.', 'ink');
+  main.appendChild(s);
+  const NA = 'Not enough responses in this segment yet.';
+
+  { const g = hlGroup(s, 'Who answered', null, 'ink');
+    const done = rows.filter(r => r.complete).length;
+    hlCard(g, { eyebrow:'People in view', stat: String(rows.length), meter: rows.length ? done / rows.length : null,
+      text: rows.length ? `<b>${done}</b> completed the form and <b>${rows.length - done}</b> stopped part-way. ${rows.filter(isOwner).length} owners & partners, ${rows.filter(isEmp).length} employees.` : NA });
+    const card = hlCard(g, { eyebrow:'By survey' });
+    renderBarList(card, SRC_ORDER.map(k => ({ key:k, name: srcLabel(k), count: rows.filter(r => r.source===k).length })), rows.length);
+    const vip = rows.filter(r => r.vip).length;
+    hlCard(g, { eyebrow:'Qualified for the $100 interview', stat: String(vip), meter: rows.length ? vip / rows.length : null,
+      text: rows.length ? `of ${rows.length} (US or Israel, 3–25 people). <b>${rows.filter(r => r.calendly).length}</b> clicked to book.` : NA });
+  }
+
+  { const g = hlGroup(s, 'Where it hurts', 'Higher = more frustrating', 'hurt');
+    const pm = pmMeans(rows);
+    if (pm.length){ const t = pm[0];
+      hlCard(g, { eyebrow:'Most frustrating project job', stat: t.mean.toFixed(1), meter: (t.mean - 1) / 6,
+        text: `<b>${esc(t.short)}</b> — ${pct(t.high, t.n)}% of ${t.n} rated it 5–7.${pm[1] ? ` Next: ${esc(pm[1].short)} (${pm[1].mean.toFixed(1)}).` : ''}` }); }
+    else hlCard(g, { eyebrow:'Most frustrating project job', stat:'–', text: NA });
+    const ar = likertStats(areaItems(false), rows.filter(isOwner)).filter(x => x.n);
+    if (ar.length){ const t = ar[0];
+      hlCard(g, { eyebrow:'Most frustrating business area (owners)', stat: t.mean.toFixed(1), meter: (t.mean - 1) / 6,
+        text: `<b>${esc(t.short)}</b> — ${pct(t.high, t.n)}% of ${t.n} owners & partners rated it 5–7.` }); }
+    else hlCard(g, { eyebrow:'Most frustrating business area (owners)', stat:'–', text: NA });
+    const b = countsFor('bottlenecks', rows);
+    const bt = b.counts.filter(c => c.key !== 'other').sort((x, y) => y.count - x.count)[0];
+    hlCard(g, { eyebrow:'Biggest weekly slow-down', stat: bt ? pct(bt.count, b.n) + '%' : '–', meter: bt ? bt.count / b.n : null,
+      text: bt ? `picked <b>${esc(bt.name)}</b> (of ${b.n}).` : NA });
+  }
+
+  { const g = hlGroup(s, 'Where AI helps', null, 'help');
+    const t = topAiTask(rows);
+    hlCard(g, { eyebrow:'Top task to hand to AI', stat: t ? pct(t.count, t.n) + '%' : '–', meter: t ? t.count / t.n : null,
+      text: t ? `of ${t.n} would let AI handle <b>${esc(t.name)}</b>.` : NA });
+    const auto = shareOf(rows, r => { const v = TASKS.map(x => r['ai_auto_' + x.id]).filter(hasVal); return v.length ? v.some(x => x==='tell_after' || x==='autonomous') : null; });
+    hlCard(g, { eyebrow:'Would let AI act without approval', stat: auto ? pct(auto.yes, auto.n) + '%' : '–', meter: auto ? auto.yes / auto.n : null,
+      text: auto ? `of ${auto.n} chose “Do it — tell me after” or “Fully on its own” for at least one task.` : NA });
+    const pay = shareOf(rows, wouldPay), med = medianBand(rows.filter(r => wouldPay(r)), 'wtp_ai', ORDER.wtp_ai);
+    hlCard(g, { eyebrow:'Would pay for an AI project manager', stat: pay ? pct(pay.yes, pay.n) + '%' : '–', meter: pay ? pay.yes / pay.n : null,
+      text: pay ? `of ${pay.n} who gave a number.${med ? ` Typical answer among payers: <b>${esc(lab('wtp_ai', med))}</b>.` : ''}` : NA });
+  }
+
+  /* Survey comparison: every survey side by side, with the other filters applied */
+  { const g = hlGroup(s, 'Survey comparison', 'Size, country and role filters apply; the Survey filter doesn’t', 'ink');
+    const card = hlCard(g, { eyebrow:'Each survey side by side', wide:true });
+    const base = qualified().filter(matchOthers);
+    const wrap = el('div','cmp-wrap'); const t = el('table','emails');
+    t.innerHTML = '<thead><tr><th>Survey</th><th>Answered</th><th>Completed</th><th>Top project frustration</th><th>Avg. project frustration</th><th>Top AI task</th><th>Would pay</th></tr></thead>';
+    const tb = el('tbody');
+    SRC_ORDER.forEach(k => {
+      const r = base.filter(x => x.source === k);
+      const pm = pmMeans(r), avg = pm.length ? pm.reduce((a, x) => a + x.mean * x.n, 0) / pm.reduce((a, x) => a + x.n, 0) : null;
+      const ai = topAiTask(r), pay = shareOf(r, wouldPay);
+      const tr = el('tr', r.length ? '' : 'dim');
+      tr.innerHTML = `<td><b>${esc(srcLabel(k))}</b></td><td class="num">${r.length}</td><td class="num">${r.filter(x => x.complete).length}</td>` +
+        `<td>${pm.length ? `${esc(pm[0].short)} <span class="ins-sub">${pm[0].mean.toFixed(1)}</span>` : '–'}</td><td class="num">${avg != null ? avg.toFixed(1) + ' / 7' : '–'}</td>` +
+        `<td>${ai ? `${esc(ai.name)} <span class="ins-sub">${pct(ai.count, ai.n)}%</span>` : '–'}</td><td class="num">${pay ? `${pct(pay.yes, pay.n)}% <span class="ins-sub">of ${pay.n}</span>` : '–'}</td>`;
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb); wrap.appendChild(t); card.appendChild(wrap);
+    card.appendChild(el('div','hl-text','Average project frustration is the mean of all ten project-management ratings, “Not part of our work” left out.'));
+  }
+}
+
+/* ================= Full Survey ================= */
+function grid(parent){ const g = el('div','chart-grid'); parent.appendChild(g); return g; }
+function renderTabB(main){
+  const rows = filtered();
+  const owners = rows.filter(isOwner), emps = rows.filter(isEmp);
+  const one = onlySource();
+  if (!one && rows.length) main.appendChild(el('div','notice', '<div><b>Wording.</b> Some questions name things differently in each survey (“a signed SOW”, “a new brief”, “a signed contract”). With more than one survey in view they’re shown in neutral wording; pick one survey to see its exact text.</div>'));
+
+  /* About you — place of work and size count everyone who started, screened-out people included */
+  { const s = section('About you.', 'Place of work and company size include people the form screened out, since those two questions decide who continues.');
+    main.appendChild(s); const g = grid(s);
+    const started = sessionsAll().filter(x => testVisible(x) && sourceMatch(x) && (x.screenedOut ? true : matchOthers(x)));
+    barChart(g, 'Place of work', 'workplace', started, { label: k => lab('workplace', k), who: 'who started the form',
+      after: body => { const out = started.filter(x => x.exit_reason === 'not_target').length; if (out) body.appendChild(el('div','na-note', `${out} screened out here (in-house or solo).`)); } });
+    barChart(g, 'Company size', 'team_size', started, { who: 'who started the form',
+      after: body => { const out = started.filter(x => x.exit_reason === 'solo').length; if (out) body.appendChild(el('div','na-note', `${out} screened out as a team of one.`)); } });
+    barChart(g, 'Role', 'role', rows);
+    barChart(g, 'Country', 'country', rows);
+    barChart(g, 'Years in business', 'years_operating', owners, { who: 'owners & partners' });
+    barChart(g, 'Professional title', 'emp_role', emps, { who: 'employees', after: body => { const w = emps.filter(r => hasVal(r.emp_role_other)); if (w.length){ body.appendChild(el('div','sub-head','Other titles')); renderQuotes(body, w, 'emp_role_other'); } } });
+  }
+
+  { const s = section('How projects run.'); main.appendChild(s); const g = grid(s);
+    barChart(g, 'Projects running at once', 'parallel_projects', rows);
+    barChart(g, 'Who keeps projects moving', 'project_runner', rows);
+    barChart(g, 'What “project management” means', 'pm_meaning', rows);
+    const { body, nSpan } = chartBlock(g, 'In their own words', Q.pm_meaning_text);
+    nSpan.textContent = ''; renderQuotes(body, rows, 'pm_meaning_text', { shownN: rows.filter(r => hasVal(r.pm_meaning)).length });
+  }
+
+  { const s = section('Where it hurts.', 'Business areas rated 1–7. Owners & partners rated seven areas; employees rated four, in their own wording.', 'hurt');
+    main.appendChild(s); const g = el('div','chart-grid stacked'); s.appendChild(g);
+    { const { body, nSpan } = chartBlock(g, 'Owners & partners', Q.pain_owner); nSpan.textContent = `n = ${owners.filter(r => hasVal(r.pain_work_rate)).length}`; renderLikert(body, likertStats(areaItems(false), owners), 'owners & partners'); }
+    { const { body, nSpan } = chartBlock(g, 'Employees', Q.pain_emp); nSpan.textContent = `n = ${emps.filter(r => hasVal(r.pain_work_rate)).length}`; renderLikert(body, likertStats(areaItems(true), emps), 'employees'); }
+    const g2 = grid(s);
+    barChart(g2, 'Hardest strategic decisions', 'strategic_decision_types', owners, { who: 'owners & partners who rated strategic decisions 4+',
+      after: body => { const w = owners.filter(r => hasVal(r.strategic_decision_other)); if (w.length){ body.appendChild(el('div','sub-head','Something else')); renderQuotes(body, w, 'strategic_decision_other'); } } });
+    { const { body } = chartBlock(g2, 'Anything else that hurts', Q.pain_other); renderQuotes(body, rows, 'pain_other', { shownN: rows.filter(r => hasVal(r.pain_work_rate)).length }); }
+  }
+
+  { const s = section('Running projects.', 'Ten project-management jobs rated 1–7, or “Not part of our work” (shown as n/a and left out of the mean).', 'hurt');
+    main.appendChild(s); const g = el('div','chart-grid stacked'); s.appendChild(g);
+    const { body, nSpan } = chartBlock(g, 'Project-management frustrations', Q.pm);
+    nSpan.textContent = `n = ${rows.filter(r => PMI.some(p => hasVal(r[p.key]))).length}`;
+    if (emps.length) body.appendChild(el('div','na-note','Employees saw their own wording for two rows (where work they depend on stands; a realistic workload); they share a row with owners here.'));
+    renderLikert(body, likertStats(pmItems(false), rows), 'people');
+  }
+
+  { const s = section('Deep dives.', 'Each person zoomed in on up to three of their most frustrating items (rated 4+): who handles it, how long it takes, what they use and how well it works.');
+    main.appendChild(s);
+    const dives = rows.flatMap(r => r.deepDives.map(d => Object.assign({ emp: isEmp(r) }, d)));
+    const keys = [...new Set(dives.map(d => d.key))].sort((a, b) => dives.filter(d => d.key===b).length - dives.filter(d => d.key===a).length);
+    const g = grid(s);
+    { const { body, nSpan } = chartBlock(g, 'Which items they zoomed in on', null);
+      const who = rows.filter(r => r.deepDives.length).length; nSpan.textContent = `n = ${who}`;
+      renderBarList(body, keys.map(k => ({ key:k, name: areaShort(k), count: rows.filter(r => r.deepDives.some(d => d.key===k)).length })), who);
+      body.appendChild(el('div','na-note', `${dives.length} deep dive${dives.length===1?'':'s'} from ${who} ${who===1?'person':'people'}.`)); }
+    const fitRows = keys.map(k => { const f = dives.filter(d => d.key===k && d.fit); return { key:k, name: areaShort(k), n: f.length, mean: f.length ? f.reduce((a, d) => a + d.fit, 0) / f.length : 0 }; }).filter(x => x.n).sort((a, b) => a.mean - b.mean);
+    { const { body } = chartBlock(g, 'How well today’s fix works', Q.area_fit);
+      if (!fitRows.length) body.appendChild(el('div','empty-state','No deep dives in this segment yet.'));
+      else { renderBarList(body, fitRows.map(x => ({ key:x.key, name:x.name, count: +x.mean.toFixed(1), denom: 7, valText: `${x.mean.toFixed(1)} / 7 · ${x.n}` })), 1);
+        renderInsight(body, `<b>“${esc(fitRows[0].name)}”</b> is the worst served: today’s fix scores <b>${fitRows[0].mean.toFixed(1)} / 7</b> across ${fitRows[0].n} deep dive${fitRows[0].n===1?'':'s'}.`); } }
+    const agg = (field, title, q) => { const { body, nSpan } = chartBlock(g, title, q); const c = countsFor(field, dives, { get: d => d[field === 'hours' ? 'hours' : field === 'handler' ? 'handler' : 'tool'], label: k => lab(field, k), order: ORDER[field] });
+      nSpan.textContent = `${c.n} deep dives`; renderBarList(body, c.counts, c.n); renderInsight(body, insightSentence(c.counts, c.n, 'deep dives')); };
+    agg('handler', 'Who handles it', Q.area_handler);
+    agg('hours', 'Hours per week', Q.area_hours);
+    agg('current_tool', 'What they use today', Q.area_current_tool);
+    const st = el('div','chart-grid stacked'); s.appendChild(st);
+    { const { body } = chartBlock(st, 'Item × who handles it', null);
+      renderHeatmap(body, keys.map(k => ({ label: areaShort(k), cells: Object.fromEntries(ORDER.handler.map(h => [h, dives.filter(d => d.key===k && d.handler===h).length])) })), ORDER.handler, h => lab('handler', h)); }
+    { const { body } = chartBlock(st, 'Item × what they use today', null);
+      renderHeatmap(body, keys.map(k => ({ label: areaShort(k), cells: Object.fromEntries(ORDER.current_tool.map(h => [h, dives.filter(d => d.key===k && d.tool===h).length])) })), ORDER.current_tool, h => lab('current_tool', h)); }
+  }
+
+  { const s = section('Your week.'); main.appendChild(s); const g = grid(s);
+    barChart(g, 'What slows them down', 'bottlenecks', rows, { after: body => { const w = rows.filter(r => hasVal(r.bottlenecks_other)); if (w.length){ body.appendChild(el('div','sub-head','Something else')); renderQuotes(body, w, 'bottlenecks_other'); } } });
+  }
+
+  { const s = section('AI & projects.', null, 'help'); main.appendChild(s); const g = grid(s);
+    barChart(g, 'Tasks they’d hand to AI', 'ai_tasks', rows, { label: k => { const t = TASKS.find(x => x.id===k); return t ? fx(t.label) : lab('ai_tasks', k); },
+      after: body => { const w = rows.filter(r => hasVal(r.ai_tasks_other)); if (w.length){ body.appendChild(el('div','sub-head','Other tasks')); renderQuotes(body, w, 'ai_tasks_other'); } } });
+    const st = el('div','chart-grid stacked'); s.appendChild(st);
+    const { body, nSpan } = chartBlock(st, 'How much AI may do on its own', Q.ai_auto);
+    const items = TASKS.map(t => { const v = rows.map(r => r['ai_auto_' + t.id]).filter(hasVal); return { t, v, n: v.length }; }).filter(x => x.n).sort((a, b) => b.n - a.n);
+    nSpan.textContent = `n = ${rows.filter(r => TASKS.some(t => hasVal(r['ai_auto_' + t.id]))).length}`;
+    if (!items.length) body.appendChild(el('div','empty-state','No answers in this segment yet.'));
+    else {
+      const legend = el('div','lk-legend'); AUTO.forEach(a => legend.appendChild(el('span','', `<i style="background:${a.color}"></i>${esc(a.l)}`))); body.appendChild(legend);
+      items.forEach(x => {
+        const row = el('div','lkrow'); row.appendChild(el('div','lk-label', esc(x.t.short)));
+        const bar = el('div','lk-bar');
+        AUTO.forEach(a => { const c = x.v.filter(v => v===a.id).length; if (!c) return; const seg = el('div','lk-seg'); seg.style.width = (100 * c / x.n) + '%'; seg.style.background = a.color; seg.title = `${a.l}: ${c} of ${x.n}`; bar.appendChild(seg); });
+        row.appendChild(bar);
+        const free = x.v.filter(v => v==='tell_after' || v==='autonomous').length;
+        row.appendChild(el('div','lk-mean', `${x.n} · <b>${pct(free, x.n)}%</b> without approval`));
+        body.appendChild(row);
+      });
+    }
+  }
+
+  { const s = section('Tools & spend.'); main.appendChild(s); const g = grid(s);
+    { const { body, nSpan } = chartBlock(g, 'Tools used', Q.tools_used);
+      const who = rows.filter(r => hasVal(r.tools_used)); nSpan.textContent = `n = ${who.length}`;
+      const ids = [...new Set(who.flatMap(r => r.tools_shown.concat(r.tools_used)))];
+      const counts = ids.map(id => { const shown = who.filter(r => r.tools_shown.includes(id) || ['other','none'].includes(id)); return { key:id, name: TOOL_NAMES[id] || id, count: who.filter(r => r.tools_used.includes(id)).length, denom: shown.length }; })
+        .filter(c => c.count || !['other','none'].includes(c.key)).sort((a, b) => (['other','none'].includes(a.key) - ['other','none'].includes(b.key)) || b.count / (b.denom||1) - a.count / (a.denom||1));
+      renderBarList(body, counts, who.length);
+      body.appendChild(el('div','na-note','Each survey showed its own tool list, so each bar counts only the people who were shown that tool.'));
+      const w = rows.filter(r => hasVal(r.tools_other)); if (w.length){ body.appendChild(el('div','sub-head','Other tools')); renderQuotes(body, w, 'tools_other'); } }
+    barChart(g, 'Spend on project-management software', 'spend_pm_monthly', rows, { order: ORDER.spend });
+    barChart(g, 'Spend on AI tools', 'spend_ai_monthly', rows, { order: ORDER.spend });
+    barChart(g, 'Willingness to pay for an AI project manager', 'wtp_ai', rows);
+    barChart(g, 'The pitch they saw', 'wtp_pitch_key', rows.filter(r => hasVal(r.wtp_ai)), { get: r => r.wtp_pitch_key || 'generic', noInsight: true });
+  }
+
+  { const s = section('Day to day.'); main.appendChild(s); const g = grid(s);
+    barChart(g, 'What they relate to', 'day2day', rows, { after: body => { const w = rows.filter(r => hasVal(r.day2day_other)); if (w.length){ body.appendChild(el('div','sub-head','Something else')); renderQuotes(body, w, 'day2day_other'); } } });
+    barChart(g, 'What weighs most', 'heaviest', rows);
+    { const { body } = chartBlock(g, 'What that looks like in practice', Q.heaviest_note); renderQuotes(body, rows, 'heaviest_note', { max: 8, shownN: rows.filter(r => hasVal(r.day2day)).length }); }
+  }
+
+  { const s = section('Last questions.'); main.appendChild(s); const g = grid(s);
+    { const { body } = chartBlock(g, 'Professional communities', Q.communities); renderQuotes(body, rows, 'communities', { max: 10 }); }
+    barChart(g, 'Gender', 'gender', rows);
+  }
+}
+
+/* ================= Form activity ================= */
+function renderTabD(main){
+  const s = section('Form activity.', 'How the forms are doing. Every session counts here, including people who exited at screening.', 'ink');
+  main.appendChild(s);
+  s.appendChild(el('div','notice', `<div><b>Only the Survey filter applies here.</b> People who exit at screening never answer size, country or role, so those filters would hide them and undercount traffic.</div>`));
+  const all = sessionsAll().filter(x => testVisible(x) && sourceMatch(x));
+  const exited = all.filter(x => x.screenedOut), done = all.filter(x => x.complete), partial = all.filter(x => !x.screenedOut && !x.complete);
+  const NA = 'Not enough responses yet.';
+  const act = el('div','hl-grid'); s.appendChild(act);
+  hlCard(act, { eyebrow:'Unique sessions', stat: String(all.length),
+    text: all.length ? `<b>${done.length}</b> completed, <b>${partial.length}</b> partly filled and <b>${exited.length}</b> exited at screening${state.showTests ? ' (test data included)' : ''}.` : 'Nobody has started a form yet.' });
+  const durs = done.map(x => x.durationSec).filter(Boolean).sort((a, b) => a - b);
+  hlCard(act, { eyebrow:'Completion rate', stat: all.length - exited.length ? pct(done.length, all.length - exited.length) + '%' : '–', meter: all.length - exited.length ? done.length / (all.length - exited.length) : null,
+    text: all.length - exited.length ? `of people past screening finished.${durs.length ? ` Median time: <b>${fmtDur(durs[Math.floor((durs.length-1)/2)])}</b>.` : ''}` : NA });
+  { const any = all.filter(x => x.reportEmail || x.exitEmail || x.meetingEmail).length;
+    hlCard(act, { eyebrow:'Left an email', stat: String(any), meter: all.length ? any / all.length : null,
+      text: all.length ? `<b>${all.filter(x => x.reportEmail).length}</b> for the report, <b>${all.filter(x => x.meetingEmail).length}</b> for the $100 interview, <b>${all.filter(x => x.exitEmail).length}</b> asked for a later round after exiting.` : NA }); }
+
+  /* Per survey */
+  { const card = hlCard(act, { eyebrow:'By survey', wide:true });
+    const wrap = el('div','cmp-wrap'); const t = el('table','emails');
+    t.innerHTML = '<thead><tr><th>Survey</th><th>Form</th><th>Sessions</th><th>Completed</th><th>Partly filled</th><th>Exited</th><th>$100 qualified</th><th>Clicked to book</th><th>Last activity</th></tr></thead>';
+    const tb = el('tbody');
+    SRC_ORDER.filter(k => !state.sources.length || state.sources.includes(k)).forEach(k => {
+      const r = all.filter(x => x.source===k), last = r.reduce((a, x) => Math.max(a, x.lastTs), 0);
+      const tr = el('tr', r.length ? '' : 'dim');
+      tr.innerHTML = `<td><b>${esc(srcLabel(k))}</b></td><td class="mono">${esc(SRC[k].form_id)}</td><td class="num">${r.length}</td><td class="num">${r.filter(x => x.complete).length}</td>` +
+        `<td class="num">${r.filter(x => !x.screenedOut && !x.complete).length}</td><td class="num">${r.filter(x => x.screenedOut).length}</td><td class="num">${r.filter(x => x.vip).length}</td>` +
+        `<td class="num">${r.filter(x => x.calendly).length}</td><td class="mono">${last ? esc(fmtTime(last)) : '–'}</td>`;
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb); wrap.appendChild(t); card.appendChild(wrap); }
+
+  /* Sessions over time */
+  { const card = el('div','hl-card wide'); card.appendChild(el('div','hl-eyebrow','Sessions over time'));
+    const dayKey = ts => { const d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+    const byDay = new Map();
+    all.forEach(x => { const k = dayKey(x.firstTs); if (!byDay.has(k)) byDay.set(k, { completed:0, partial:0, exited:0 }); byDay.get(k)[x.screenedOut ? 'exited' : x.complete ? 'completed' : 'partial']++; });
+    if (!byDay.size){ card.appendChild(el('div','empty-state', NA)); act.appendChild(card); }
+    else {
+      const keys = [...byDay.keys()].sort(); const days = [];
+      const cur = new Date(keys[0] + 'T00:00:00'), end = new Date(keys[keys.length-1] + 'T00:00:00');
+      while (cur <= end && days.length < 400){ days.push(dayKey(cur.getTime())); cur.setDate(cur.getDate()+1); }
+      card.appendChild(el('div','tl-legend','<span><i class="line" style="background:var(--mark)"></i>Completed</span><span><i class="line" style="background:var(--mark-muted)"></i>Partly filled</span><span><i class="dash"></i>Exited at screening</span>'));
+      act.appendChild(card);
+      const series = ['completed','partial','exited'], vals = k => byDay.get(k) || { completed:0, partial:0, exited:0 };
+      const maxV = Math.max(1, ...days.flatMap(k => series.map(t => vals(k)[t]))), step = maxV <= 5 ? 1 : Math.ceil(maxV / 5), top = Math.ceil(maxV / step) * step;
+      const W = Math.max(280, card.clientWidth - 44), H = 220, Lp = 30, R = 14, T = 12, B = 28, every = Math.ceil(days.length / 12);
+      const X = i => days.length === 1 ? (Lp + (W - Lp - R) / 2) : Lp + i * (W - Lp - R) / (days.length - 1);
+      const Y = v => T + (H - T - B) * (1 - v / top);
+      const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('class','lc'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('role','img');
+      svg.setAttribute('aria-label', 'Sessions per day: ' + days.map(k => `${k} ${vals(k).completed} completed, ${vals(k).partial} partly filled, ${vals(k).exited} exited`).join('; '));
+      const mk = (tag, attrs, text) => { const e = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([a, v]) => e.setAttribute(a, v)); if (text != null) e.textContent = text; svg.appendChild(e); return e; };
+      const dl = k => new Date(k + 'T00:00:00').toLocaleDateString(undefined, { month:'short', day:'numeric' });
+      for (let v = 0; v <= top; v += step){ mk('line', { x1: Lp, x2: W - R, y1: Y(v), y2: Y(v), class: v === 0 ? 'axis' : 'grid' }); mk('text', { x: Lp - 8, y: Y(v) + 4, 'text-anchor': 'end' }, String(v)); }
+      days.forEach((k, i) => { if (i % every === 0) mk('text', { x: X(i), y: H - 8, 'text-anchor': 'middle' }, dl(k)); });
+      series.slice().reverse().forEach(t => {
+        if (days.length > 1) mk('polyline', { class: 'ln ' + t, points: days.map((k, i) => `${X(i).toFixed(1)},${Y(vals(k)[t]).toFixed(1)}`).join(' ') });
+        days.forEach((k, i) => { const r = mk('rect', { class: 'pt ' + t, x: (X(i) - 3.5).toFixed(1), y: (Y(vals(k)[t]) - 3.5).toFixed(1), width: 7, height: 7 });
+          const tt = document.createElementNS(NS, 'title'); tt.textContent = `${dl(k)}: ${vals(k)[t]} ${t === 'partial' ? 'partly filled' : t}`; r.appendChild(tt); });
+      });
+      card.appendChild(svg);
+      card.appendChild(el('div','hl-text', `<b>${all.length}</b> session${all.length===1?'':'s'} over ${days.length} day${days.length===1?'':'s'}, counted on the day each person started.`));
+    } }
+
+  /* Where partial sessions stopped */
+  { const card = hlCard(act, { eyebrow:'Where partly-filled sessions stopped', wide:true });
+    const c = countsFor('lastScreen', partial, { get: x => x.lastScreen || 'unknown', label: k => SCREEN_LABEL[k] || (k==='unknown' ? 'Not recorded' : k), order: SCREENS.concat(['unknown']) });
+    renderBarList(card, c.counts, c.n, { emptyText: 'Nobody has stopped part-way yet.' });
+    if (c.counts.length) card.appendChild(el('div','hl-text','The screen each partly-filled session was on at its last save, in form order. Partial saves are sent after 90 seconds on a screen, or when the tab is hidden.')); }
+
+  /* Exits */
+  { const card = hlCard(act, { eyebrow:'Why people exited at screening' });
+    const c = countsFor('exit_reason', exited);
+    renderBarList(card, c.counts, c.n, { emptyText: 'Nobody has been screened out yet.' }); }
+
+  /* Emails */
+  { const card = el('div','hl-card wide'); const head = el('div','email-head'); head.appendChild(el('div','hl-eyebrow','Emails left'));
+    const list = [];
+    all.forEach(x => {
+      if (x.reportEmail) list.push(Object.assign({ id: x.id, src: x.source, why: 'The report', booked: x.calendly }, x.reportEmail));
+      if (x.meetingEmail) list.push(Object.assign({ id: x.id, src: x.source, why: '$100 interview', booked: x.calendly }, x.meetingEmail));
+      if (x.exitEmail) list.push(Object.assign({ id: x.id, src: x.source, why: 'Invite to a later round', booked: x.calendly }, x.exitEmail));
+    });
+    list.sort((a, b) => b.ts - a.ts);
+    let tbody = null;
+    if (list.length){
+      const wrapB = el('div',''); const btn = el('button','refresh-btn','Copy emails'); btn.type = 'button'; const note = el('span','copy-note','');
+      btn.addEventListener('click', () => {
+        const text = [...new Set(list.map(r => r.email))].join(', ');
+        const fallback = () => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(tbody); sel.removeAllRanges(); sel.addRange(range); note.textContent = ' Couldn’t copy automatically; the table is selected, so press Ctrl+C or ⌘C.'; };
+        try { navigator.clipboard.writeText(text).then(() => { note.textContent = ' Copied.'; }, fallback); } catch(e){ fallback(); }
+      });
+      wrapB.appendChild(btn); wrapB.appendChild(note); head.appendChild(wrapB);
+    }
+    card.appendChild(head);
+    if (!list.length) card.appendChild(el('div','empty-state','Nobody has left an email yet.'));
+    else {
+      const wrap = el('div','email-wrap'); const t = el('table','emails');
+      t.innerHTML = '<thead><tr><th>Email</th><th>Survey</th><th>Session ID</th><th>Left for</th><th>Booked meeting</th><th>Date</th></tr></thead>';
+      tbody = el('tbody');
+      list.forEach(r => { const tr = el('tr'); tr.innerHTML = `<td class="addr">${esc(r.email)}</td><td>${esc(srcLabel(r.src))}</td><td class="mono">${esc(r.id)}</td><td>${esc(r.why)}</td><td>${r.booked ? 'Clicked' : '–'}</td><td class="mono">${esc(fmtTime(r.ts))}</td>`; tbody.appendChild(tr); });
+      t.appendChild(tbody); wrap.appendChild(t); card.appendChild(wrap);
+    }
+    act.appendChild(card); }
+}
+
+/* ================= Responses ================= */
+function answerRows(s){
+  const out = [];
+  const add = (q, v) => { if (hasVal(v)) out.push([q, v]); };
+  const L1 = (f, v) => Array.isArray(v) ? v.map(x => lab(f, x, s.source)) : lab(f, v, s.source);
+  ['workplace','team_size','role','country','years_operating','emp_role'].forEach(f => add(Q[f], s[f] && L1(f, s[f])));
+  add('Other title', s.emp_role_other);
+  ['parallel_projects','project_runner','pm_meaning'].forEach(f => add(Q[f], s[f] && L1(f, s[f])));
+  add(Q.pm_meaning_text, s.pm_meaning_text);
+  const ratings = (items) => items.filter(it => hasVal(s[it.field])).map(it => `${it.name}: ${s[it.field] === 'na' ? 'not part of our work' : s[it.field] + ' / 7'}`);
+  add(isEmp(s) ? Q.pain_emp : Q.pain_owner, ratings(areaItems(isEmp(s))));
+  add(Q.pain_other, s.pain_other);
+  add(Q.strategic_decision_types, s.strategic_decision_types && L1('strategic_decision_types', s.strategic_decision_types));
+  add('Other strategic decision', s.strategic_decision_other);
+  add(Q.pm, ratings(PMI.map(p => ({ field: p.key, name: fx((isEmp(s) && p.emp) || p.label, s.source) }))));
+  s.deepDives.forEach(d => add(`Deep dive ${d.n}: ${areaName(d.key, s.source, isEmp(s))}`, [
+    d.handler && 'Handled by: ' + lab('handler', d.handler), d.hours && 'Hours per week: ' + lab('hours', d.hours),
+    d.tool && 'Uses today: ' + lab('current_tool', d.tool), d.fit && `How well it works: ${d.fit} / 7`].filter(Boolean)));
+  add(Q.bottlenecks, s.bottlenecks && L1('bottlenecks', s.bottlenecks)); add('Other slow-down', s.bottlenecks_other);
+  add(Q.ai_tasks, s.ai_tasks && L1('ai_tasks', s.ai_tasks)); add('Other AI tasks', s.ai_tasks_other);
+  add(Q.ai_auto, TASKS.filter(t => hasVal(s['ai_auto_' + t.id])).map(t => `${t.short}: ${(AUTO.find(a => a.id === s['ai_auto_' + t.id]) || { l: s['ai_auto_' + t.id] }).l}`));
+  add(Q.tools_used, s.tools_used && L1('tools_used', s.tools_used)); add('Other tools', s.tools_other);
+  add(Q.spend_pm_monthly, s.spend_pm_monthly && lab('spend', s.spend_pm_monthly)); add(Q.spend_ai_monthly, s.spend_ai_monthly && lab('spend', s.spend_ai_monthly));
+  add(Q.wtp_ai, s.wtp_ai && lab('wtp_ai', s.wtp_ai)); add(Q.wtp_pitch_key, hasVal(s.wtp_ai) ? lab('wtp_pitch_key', s.wtp_pitch_key || 'generic') : null);
+  add(Q.day2day, s.day2day && L1('day2day', s.day2day)); add('Something else', s.day2day_other);
+  add(Q.heaviest, s.heaviest && lab('heaviest', s.heaviest, s.source)); add(Q.heaviest_note, s.heaviest_note);
+  add(Q.communities, s.communities); add(Q.gender, s.gender && lab('gender', s.gender));
+  if (s.exit_reason) add('Exited at screening', lab('exit_reason', s.exit_reason));
+  return out;
+}
+function openAnswers(key){
+  const s = sessionsAll().find(x => x.source + '|' + x.id === key); if (!s) return;
+  const back = el('div','drawer-back'); const d = el('div','drawer'); back.appendChild(d);
+  const top = el('div','drawer-top');
+  top.appendChild(el('div','', `<div class="label">${esc(srcLabel(s.source))} survey</div><div class="drawer-title">${esc(s.id)}</div>` +
+    `<div class="drawer-meta">${s.complete ? 'Completed' : s.screenedOut ? 'Exited at screening' : 'Partly filled'} · started ${esc(fmtTime(s.firstTs))} · ${esc(fmtDur(s.durationSec))}${s.lastScreen ? ' · last screen: ' + esc(SCREEN_LABEL[s.lastScreen] || s.lastScreen) : ''}${s.isTest ? ' · test' : ''}</div>`));
+  const x = el('button','reset-btn','Close'); x.type = 'button'; top.appendChild(x); d.appendChild(top);
+  const dl = el('dl','answers');
+  const rows = answerRows(s);
+  rows.forEach(([q, v]) => {
+    dl.appendChild(el('dt','', esc(q)));
+    dl.appendChild(el('dd','', Array.isArray(v) ? `<ul class="ans-list">${v.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : esc(v)));
+  });
+  if (!rows.length) dl.appendChild(el('dd','empty-state','No answers saved yet.'));
+  d.appendChild(dl);
+  const close = () => { back.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  x.addEventListener('click', close); back.addEventListener('click', e => { if (e.target === back) close(); }); document.addEventListener('keydown', onKey);
+  document.body.appendChild(back);
+}
+function renderTabF(main){
+  const rows = filtered().slice().sort((a, b) => b.lastTs - a.lastTs);
+  const s = section('Responses.', 'One row per person who got past screening, newest first. Open a row to read every answer in form order.');
+  main.appendChild(s);
+  if (!rows.length){ s.appendChild(el('div','empty-state','No responses in this segment yet.')); return; }
+  const wrap = el('div','email-wrap'); const t = el('table','emails');
+  t.innerHTML = '<thead><tr><th>Survey</th><th>Status</th><th>Role</th><th>Size</th><th>Country</th><th>Started</th><th>Last screen</th><th>Time</th><th></th></tr></thead>';
+  const tb = el('tbody');
+  rows.forEach(x => {
+    const st = x.complete ? ['', 'Completed'] : ['partial', 'Partly filled'];
+    const tr = el('tr');
+    tr.innerHTML = `<td><span class="src-tag">${esc(srcLabel(x.source))}</span>${x.isTest ? ' <span class="ins-sub">test</span>' : ''}</td><td><span class="status-dot ${st[0]}"></span>${st[1]}</td>` +
+      `<td>${esc(x.role ? (isEmp(x) ? 'Employee' : lab('role', x.role)) : '–')}</td><td>${esc(x.team_size ? lab('team_size', x.team_size) : '–')}</td><td>${esc(x.country || '–')}</td>` +
+      `<td class="mono">${esc(fmtTime(x.firstTs))}</td><td>${esc(x.lastScreen ? (SCREEN_LABEL[x.lastScreen] || x.lastScreen) : '–')}</td><td class="mono">${esc(fmtDur(x.durationSec))}</td>`;
+    const td = el('td'); const a = el('a','view-link','View answers'); a.href = '#'; a.addEventListener('click', e => { e.preventDefault(); openAnswers(x.source + '|' + x.id); });
+    td.appendChild(a); tr.appendChild(td); tb.appendChild(tr);
+  });
+  t.appendChild(tb); wrap.appendChild(t); s.appendChild(wrap);
+}
+
+/* ================= shell ================= */
+function setHeader(){
+  document.getElementById('nextLine').textContent = `The next snapshot is prepared ${REFRESH_LABEL}.`;
+  document.getElementById('asofLabel').innerHTML = DATA ? `<span class="sq"></span>Data as of ${esc(fmtTime(DATA.fetchedAt))} · from Formspree` : '<span class="sq"></span>No snapshot loaded';
+  const tests = sessionsAll().filter(s => s.isTest).length;
+  document.getElementById('testToggleWrap').hidden = !tests;
+  document.getElementById('fTests').checked = state.showTests;
+  const q = qualified();
+  document.getElementById('pageSubtitle').textContent =
+    'How small agencies, consulting firms and architecture practices run projects: what project management means to them, where it hurts, and how far they’d trust an AI project manager. ' +
+    (DATA ? `${q.length} ${q.length===1?'person':'people'} got past screening across the three surveys (${SRC_ORDER.map(k => `${srcLabel(k)} ${q.filter(s => s.source===k).length}`).join(', ')}).` +
+      (tests ? ` ${tests} test session${tests===1?' is':'s are'} ${state.showTests ? 'included' : 'excluded'}.` : '') : '');
+}
+function render(){
+  const main = document.getElementById('main'); main.innerHTML = '';
+  setHeader();
+  document.querySelectorAll('.tab-btn').forEach(b => { b.classList.toggle('active', b.dataset.tab===state.tab); b.setAttribute('aria-selected', b.dataset.tab===state.tab); });
+  if (!DATA){
+    const c = el('div','conn-state'); c.appendChild(el('h2','','No snapshot in this version'));
+    c.appendChild(el('p','','This version of the page was published without data. Run scripts/build_r2_dashboard.py to refresh it.'));
+    main.appendChild(c); return;
+  }
+  fillFilters();
+  const v = filtered().length, a = qualified().length;
+  document.getElementById('matchCount').innerHTML = filtersActive() ? `<b>${v}</b> of ${a} in view` : `<b>${v}</b> in view`;
+  if (state.showTests && sessionsAll().some(s => s.isTest)) main.appendChild(el('div','notice', '<div><b>Test rows are included.</b> Sessions marked as internal tests are shown.</div>'));
+  if (state.tab === 'b') renderTabB(main);
+  else if (state.tab === 'd') renderTabD(main);
+  else if (state.tab === 'f') renderTabF(main);
+  else renderTabC(main);
+  main.querySelectorAll('.chart-grid:not(.stacked)').forEach(packGrid);
+}
+const CHART_MIN = 310, CHART_GAP = 18;
+function packGrid(g){
+  const items = Array.from(g.children);
+  const cols = Math.max(1, Math.min(items.length, Math.floor((g.clientWidth + CHART_GAP) / (CHART_MIN + CHART_GAP))));
+  if (cols < 2 || items.length < 2) return;
+  const colEls = Array.from({ length: cols }, () => el('div','chart-col'));
+  g.classList.add('packed'); colEls.forEach(c => g.appendChild(c));
+  items.forEach(item => colEls.reduce((a, b) => (b.offsetHeight < a.offsetHeight ? b : a)).appendChild(item));
+}
+let resizeTimer = null, lastWidth = window.innerWidth;
+window.addEventListener('resize', () => { if (window.innerWidth === lastWidth) return; lastWidth = window.innerWidth; clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (DATA) render(); }, 150); });
+
+document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+  const sticky = document.querySelector('.controlbar-sticky'); const stuck = sticky && sticky.getBoundingClientRect().top <= 1;
+  state.tab = btn.dataset.tab; try { localStorage.setItem('r2_tab', state.tab); } catch(e){}
+  render();
+  if (stuck){ document.getElementById('main').scrollIntoView({ block: 'start' }); window.scrollBy(0, -sticky.offsetHeight); }
+}));
+document.querySelectorAll('details.ms').forEach(d => {
+  const m = MS[d.dataset.ms], panel = d.querySelector('.ms-panel');
+  panel.addEventListener('change', e => {
+    const v = e.target.value;
+    state[m.key] = e.target.checked ? (m.order || []).filter(x => x === v || state[m.key].includes(x)) : state[m.key].filter(x => x !== v);
+    render();
+  });
+  panel.addEventListener('click', e => { if (e.target.closest('[data-clear]')){ state[m.key] = []; d.open = false; render(); } });
+});
+document.addEventListener('click', e => { document.querySelectorAll('details.ms[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; }); });
+document.getElementById('fTests').addEventListener('change', e => { state.showTests = e.target.checked; render(); });
+document.getElementById('resetBtn').addEventListener('click', () => { state.sources = []; state.sizes = []; state.countries = []; state.roles = []; render(); });
+
+(function boot(){
+  if (SNAPSHOT && Array.isArray(SNAPSHOT.submissions)){
+    const t = Date.parse(SNAPSHOT.asOf);
+    const merged = mergeSessions(SNAPSHOT.submissions.map(rowFrom));
+    DATA = { sessions: merged.sessions, noSession: merged.noSession, fetchedAt: isNaN(t) ? Date.now() : t };
+  }
+  render();
+})();
+</script>
