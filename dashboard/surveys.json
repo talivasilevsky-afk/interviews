@@ -1,0 +1,60 @@
+{
+  "_comment": "One entry per Formspree survey. scripts/build_formspree_dashboards.py reads the key from the env var named in key_env. labels / questions are optional: any field or answer without one is shown as its form value, humanized. launch_at (ISO time) marks earlier sessions as tests; null means no session is treated as a test unless listed in test_session_ids. kinds (optional) forces a field to \"single\", \"multi\", \"scale\", \"number\" or \"text\" when guessing from the answers gets it wrong.",
+  "surveys": [
+    {
+      "slug": "marketing",
+      "form_id": "xqppojkd",
+      "key_env": "FORMSPREE_KEY_MARKETING",
+      "eyebrow": "Practice Pulse ’26 · Marketing",
+      "title": "Marketing survey",
+      "subtitle": "Responses to the Marketing survey, read from Formspree.",
+      "launch_at": null,
+      "test_session_ids": [],
+      "filters": [
+        "team_size",
+        "country",
+        "role"
+      ],
+      "questions": {},
+      "labels": {},
+      "kinds": {}
+    },
+    {
+      "slug": "consultants",
+      "form_id": "xyeeavyb",
+      "key_env": "FORMSPREE_KEY_CONSULTANTS",
+      "eyebrow": "Practice Pulse ’26 · Consultants (יועצים)",
+      "title": "Consultants survey",
+      "subtitle": "Responses to the Consultants (יועצים) survey, read from Formspree.",
+      "launch_at": null,
+      "test_session_ids": [],
+      "filters": [
+        "team_size",
+        "country",
+        "role",
+        "workplace"
+      ],
+      "questions": {},
+      "labels": {},
+      "kinds": {}
+    },
+    {
+      "slug": "architecture",
+      "form_id": "moeezbqb",
+      "key_env": "FORMSPREE_KEY_ARCHITECTURE",
+      "eyebrow": "Practice Pulse ’26 · Architecture (אדריכלות)",
+      "title": "Architecture survey",
+      "subtitle": "Responses to the Architecture (אדריכלות) survey, read from Formspree.",
+      "launch_at": null,
+      "test_session_ids": [],
+      "filters": [
+        "team_size",
+        "country",
+        "role"
+      ],
+      "questions": {},
+      "labels": {},
+      "kinds": {}
+    }
+  ]
+}

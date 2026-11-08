@@ -1,0 +1,581 @@
+<title>/*__TITLE__*/Survey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@1,6..72,400&display=swap">
+<!-- Styles are copied from dashboard/template.html at build time, so both dashboards share one look. -->
+/*__STYLE__*/
+<style>
+  [hidden] { display: none !important; }
+  .resp-table td .view-link { font-weight: 500; }
+  .status-dot { display: inline-block; width: 7px; height: 7px; margin-right: 7px; vertical-align: 1px; background: var(--mark); }
+  .status-dot.partial { background: var(--mark-muted); }
+  .status-dot.exited { background: transparent; box-shadow: inset 0 0 0 1px var(--mark-muted); }
+  .num-summary { font-size: 0.8rem; color: var(--ink-soft); margin-top: 10px; font-variant-numeric: tabular-nums; }
+  .num-summary b { color: var(--ink); font-weight: 600; }
+  .field-key { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.7rem; color: var(--ink-faint); }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="top-inner">
+      <div class="top-row1">
+        <div>
+          <div class="label" id="eyebrow"></div>
+          <div class="title-anchor"><span class="corner" aria-hidden="true"></span><h1 id="title"></h1></div>
+          <p class="second-voice" id="nextLine"></p>
+        </div>
+        <div class="asof-wrap">
+          <span class="asof" id="asofLabel"><span class="sq"></span>Loading snapshot…</span>
+        </div>
+      </div>
+      <p class="subtitle" id="pageSubtitle"></p>
+    </div>
+  </header>
+
+  <div class="controlbar-sticky">
+    <div class="tabs" id="tabs" role="tablist">
+      <button class="tab-btn" data-tab="o" type="button">Overview</button>
+      <button class="tab-btn" data-tab="q" type="button">Questions</button>
+      <button class="tab-btn" data-tab="r" type="button">Responses</button>
+      <button class="tab-btn" data-tab="d" type="button">Form activity</button>
+    </div>
+    <div class="filterbar" id="filterbar">
+      <label class="test-toggle" id="testToggleWrap" for="fTests" hidden><input type="checkbox" id="fTests"> Show test rows</label>
+      <label class="test-toggle" for="fPartial"><input type="checkbox" id="fPartial" checked> Include partly filled</label>
+      <button class="reset-btn" id="resetBtn" type="button">Reset filters</button>
+      <span class="match-count" id="matchCount"></span>
+    </div>
+  </div>
+
+  <main id="main"></main>
+
+  <footer class="page-foot">Built for internal ThinkUp research use · not for external distribution</footer>
+</div>
+
+<script>
+/* ================= filled in by scripts/build_formspree_dashboards.py ================= */
+const CONFIG = /*__CONFIG__*/{};
+const SNAPSHOT = /*__SNAPSHOT__*/null;   // { asOf, fields, submissions }
+const REFRESH_LABEL = /*__REFRESH_LABEL__*/'when the build script is run again';
+const EMAIL_TEST_IDS = /*__EMAIL_TEST_IDS__*/[];
+
+const LAUNCH_AT = CONFIG.launch_at ? Date.parse(CONFIG.launch_at) : null;
+const TEST_SESSION_IDS = new Set([...(CONFIG.test_session_ids || []), ...EMAIL_TEST_IDS]);
+const QTEXT = CONFIG.questions || {};
+/* Answer wording shared with the Stacked Marketing dashboard; dashboard/surveys.json can add to or override it per survey. */
+const COMMON_LABELS = {
+  team_size: { '1':'Just me','2':'2 people','3-5':'3 – 5 people','6-10':'6 – 10 people','11-16':'11 – 16 people','17-24':'17 – 24 people','25-50':'25 – 50 people','51-100':'51 – 100 people' },
+  role: { owner:'Owner or co-owner', partner:'Managing partner', employee:'Full- or part-time employee' },
+  years_operating: { '<1':'Less than a year','1-2':'1 – 2 years','3-5':'3 – 5 years','6-10':'6 – 10 years','10+':'More than 10 years' },
+  gender: { male:'Male', female:'Female', nonbinary:'Non-binary', na:'Prefer not to answer' },
+  wtp_ai: { '0':'Nothing — I wouldn’t pay for it','<50':'Under $50 / mo','50-100':'$50 – $100 / mo','101-250':'$101 – $250 / mo','251-500':'$251 – $500 / mo','500+':'More than $500 / mo', notsure:'Not sure' },
+};
+const LABELS = Object.assign({}, COMMON_LABELS);
+Object.entries(CONFIG.labels || {}).forEach(([f, m]) => { LABELS[f] = Object.assign({}, LABELS[f] || {}, m); });
+/* Fields whose answers are numbers but are choices, not ratings (e.g. team size "2"). surveys.json "kinds" can set any field's kind. */
+const CHOICE_FIELDS = /^(team_size|years_operating|parallel_projects|spend_|wtp_|area\d_hours)/;
+const KINDS = CONFIG.kinds || {};
+
+/* Bookkeeping fields: used for sessions and activity, never charted as questions. */
+const META_FIELDS = new Set(['_date','_partial','_replyto','_subject','session_id','screen','survey_round','survey_version','duration_sec',
+  'completed','completed_at','submission_date','submission_created_time','vip_qualified','calendly_clicked','clicked_at']);
+const isMeta = f => META_FIELDS.has(f) || /_shown$/.test(f) || /email/i.test(f);
+/* Write-in fields ("x_other" next to a question "x") are shown under that question. Set in boot(). */
+let WRITE_INS = new Map();   // write-in field -> the question it belongs to
+const isOther = f => WRITE_INS.has(f);
+
+/* Section groups, by field-name prefix, in this order. Anything else goes under "Other questions". */
+const GROUPS = [
+  { title: 'About the respondent', test: f => ['industry','workplace','team_size','role','emp_role','country','years_operating','gender','communities','project_runner','parallel_projects'].includes(f) },
+  { title: 'Frustration ratings', test: f => /^pain_/.test(f) },
+  { title: 'Day to day', test: f => /^(day2day|heaviest|bottlenecks)/.test(f) },
+  { title: 'Deep dives on chosen areas', test: f => /^area\d_/.test(f) },
+  { title: 'Project management', test: f => /^pm_/.test(f) },
+  { title: 'Decisions', test: f => /^strategic_decision/.test(f) },
+  { title: 'AI', test: f => /^ai_/.test(f) },
+  { title: 'Tools & spend', test: f => /^(tools_|spend_)/.test(f) },
+  { title: 'Willingness to pay', test: f => /^wtp_/.test(f) },
+];
+
+/* ================= helpers ================= */
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function hasVal(v){ if (v===undefined||v===null||v===false) return false; if (Array.isArray(v)) return v.length>0; return String(v).trim()!==''; }
+function humanize(s){ s = String(s).replace(/_/g,' ').trim(); return s ? s[0].toUpperCase() + s.slice(1) : s; }
+function lab(field, v){ const m = LABELS[field]; return (m && m[v]) || humanize(v); }
+function qText(f){ return QTEXT[f] || humanize(f); }
+function pct(a, b){ return b ? Math.round(100*a/b) : 0; }
+function el(tag, cls, html){ const e = document.createElement(tag); if (cls) e.className = cls; if (html!==undefined) e.innerHTML = html; return e; }
+function fmtTime(ms){
+  try { return new Date(ms).toLocaleString(undefined, { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }); }
+  catch(e){ return new Date(ms).toISOString(); }
+}
+function fmtDur(sec){ if (!sec) return '–'; const m = Math.round(sec/60); return m < 1 ? `${sec}s` : `${m} min`; }
+
+/* ================= field types, inferred from the answers ================= */
+const SLUG = /^[\p{L}\p{N}_<>+\-.&/' ]{1,40}$/u;
+let FIELD_INFO = {};   // field -> { kind: 'multi'|'single'|'scale'|'number'|'text', order? }
+function inferFields(fields, rows){
+  const info = {};
+  fields.forEach(f => {
+    if (isMeta(f)) return;
+    if (KINDS[f]){ info[f] = { kind: KINDS[f] }; return; }
+    const vals = rows.map(r => r[f]).filter(hasVal).map(v => String(v).trim());
+    if (!vals.length){ info[f] = { kind: 'empty' }; return; }
+    const nums = vals.map(Number);
+    if (nums.every(n => Number.isFinite(n)) && !CHOICE_FIELDS.test(f)){
+      info[f] = nums.every(n => Number.isInteger(n) && n >= 0 && n <= 10) ? { kind: 'scale' } : { kind: 'number' };
+      return;
+    }
+    if (/(_other|_note|_text)$/.test(f)){ info[f] = { kind: 'text' }; return; }
+    if (vals.some(v => v.includes(',')) && vals.every(v => v.split(',').every(t => SLUG.test(t.trim())))){ info[f] = { kind: 'multi' }; return; }
+    const distinct = new Set(vals);
+    if (vals.every(v => SLUG.test(v)) && (distinct.size <= 15 || distinct.size < vals.length / 2)){ info[f] = { kind: 'single' }; return; }
+    info[f] = { kind: 'text' };
+  });
+  return info;
+}
+function valuesOf(s, f){
+  const v = s[f];
+  if (!hasVal(v)) return [];
+  const k = FIELD_INFO[f] && FIELD_INFO[f].kind;
+  if (k === 'multi') return String(v).split(',').map(x => x.trim()).filter(Boolean);
+  return [String(v).trim()];
+}
+
+/* ================= sessions ================= */
+/* Formspree stores one row per save. Rows sharing a session_id are one person; the latest non-empty answer wins. */
+function mergeSessions(subs){
+  const groups = new Map();
+  subs.forEach((r, i) => {
+    const t = Date.parse(r._date || '');
+    const row = Object.assign({}, r, { _ts: isNaN(t) ? 0 : t });
+    const sid = hasVal(r.session_id) ? String(r.session_id).trim() : `row-${i + 1}`;
+    if (!groups.has(sid)) groups.set(sid, []);
+    groups.get(sid).push(row);
+  });
+  const sessions = [];
+  groups.forEach((rs, sid) => {
+    rs.sort((a, b) => a._ts - b._ts);
+    const s = { id: sid, rowCount: rs.length, firstTs: rs[0]._ts, lastTs: rs[rs.length-1]._ts };
+    rs.forEach(r => Object.keys(r).forEach(f => { if (!f.startsWith('_') && hasVal(r[f])) s[f] = r[f]; }));
+    const withScreen = rs.filter(r => hasVal(r.screen));
+    s.lastScreen = withScreen.length ? String(withScreen[withScreen.length-1].screen) : null;
+    s.durationSec = Math.max(0, ...rs.map(r => Number(r.duration_sec) || 0));
+    s.screenedOut = hasVal(s.exit_reason);
+    s.complete = !s.screenedOut && rs.some(r => r._partial !== true && r._partial !== 'true');
+    s.isTest = (LAUNCH_AT !== null && s.firstTs < LAUNCH_AT) || TEST_SESSION_IDS.has(sid);
+    s.emails = [...new Set(rs.flatMap(r => Object.entries(r).filter(([k, v]) => /email/i.test(k) && typeof v === 'string' && v.includes('@')).map(([, v]) => v.trim())))];
+    sessions.push(s);
+  });
+  return sessions;
+}
+
+/* ================= state ================= */
+const FILTERS = (CONFIG.filters || []).slice();
+const state = { tab: 'o', showTests: false, includePartial: true, picks: Object.fromEntries(FILTERS.map(f => [f, []])) };
+let DATA = null;
+const TAB_KEY = 'fsd_tab_' + (CONFIG.slug || '');
+try { const t = localStorage.getItem(TAB_KEY); if (['o','q','r','d'].includes(t)) state.tab = t; } catch(e){}
+if (['o','q','r','d'].includes((location.hash||'').slice(1))) state.tab = location.hash.slice(1);
+
+function sessionsAll(){ return DATA ? DATA.sessions : []; }
+function testVisible(s){ return state.showTests || !s.isTest; }
+function answered(){ return sessionsAll().filter(s => testVisible(s) && !s.screenedOut && (state.includePartial || s.complete)); }
+function filtersActive(){ return FILTERS.some(f => state.picks[f].length); }
+function inView(){ return answered().filter(s => FILTERS.every(f => !state.picks[f].length || valuesOf(s, f).some(v => state.picks[f].includes(v)))); }
+
+/* ================= chart pieces (same look as the marketing dashboard) ================= */
+function renderBarList(container, counts, n, opts){
+  opts = opts || {};
+  if (!n || !counts.length){ container.appendChild(el('div','empty-state', opts.emptyText || 'No answers yet.')); return; }
+  const max = Math.max(...counts.map(c => c.count), 1);
+  const list = el('div','barlist');
+  counts.forEach(c => {
+    const row = el('div','barrow' + (c.muted ? ' muted' : ''));
+    row.innerHTML = `<div class="bl-label">${esc(c.name)}</div><div class="bl-track"><div class="bl-fill" style="width:${(100*c.count/max).toFixed(1)}%"></div></div><div class="bl-val">${c.count} · ${pct(c.count, n)}%</div>`;
+    list.appendChild(row);
+  });
+  container.appendChild(list);
+}
+function chartBlock(grid, title, question, nText){
+  const b = el('div','chart-block');
+  const tr = el('div','chart-title-row');
+  tr.appendChild(el('div','chart-title', esc(title)));
+  if (nText) tr.appendChild(el('div','chart-n', nText));
+  b.appendChild(tr);
+  if (question) b.appendChild(el('p','chart-q', esc(question)));
+  const body = el('div','chart-body');
+  b.appendChild(body);
+  grid.appendChild(b);
+  return body;
+}
+function bandSection(title, note, tone){
+  const s = el('section','band' + (tone ? ' toned tone-' + tone : ''));
+  const h = el('div','section-head');
+  if (tone) h.appendChild(el('span','tone-sq'));
+  h.appendChild(el('h2','', esc(title)));
+  s.appendChild(h);
+  if (note) s.appendChild(el('p','section-note', note));
+  return s;
+}
+function hlCard(grid, o){
+  const c = el('div','hl-card' + (o.wide ? ' wide' : ''));
+  c.appendChild(el('div','hl-eyebrow', esc(o.eyebrow)));
+  if (o.stat !== undefined) c.appendChild(el('div','hl-stat', esc(o.stat)));
+  if (o.meter !== undefined && o.meter !== null){
+    const m = el('div','hl-meter'); const w = Math.max(0, Math.min(1, o.meter)) * 100;
+    m.innerHTML = `<span class="fill" style="width:${w}%"></span><span class="pt" style="left:${w}%"></span>`;
+    c.appendChild(m);
+  }
+  if (o.text) c.appendChild(el('div','hl-text', o.text));
+  grid.appendChild(c);
+  return c;
+}
+function countsFor(rows, f){
+  const map = new Map();
+  rows.forEach(s => valuesOf(s, f).forEach(v => map.set(v, (map.get(v) || 0) + 1)));
+  const out = [...map.entries()].map(([k, c]) => ({ key: k, name: lab(f, k), count: c, muted: ['none','notsure','other','na'].includes(k) }));
+  const order = LABELS[f] ? Object.keys(LABELS[f]) : null;
+  if (order) out.sort((a, b) => { const ia = order.indexOf(a.key), ib = order.indexOf(b.key); return (ia<0?99:ia) - (ib<0?99:ib) || b.count - a.count; });
+  else out.sort((a, b) => (a.muted - b.muted) || b.count - a.count || a.name.localeCompare(b.name));
+  return out;
+}
+
+/* ================= tabs ================= */
+function fieldsInGroups(){
+  const fields = Object.keys(FIELD_INFO).filter(f => FIELD_INFO[f].kind !== 'empty' && !isOther(f));
+  const used = new Set();
+  const out = GROUPS.map(g => ({ title: g.title, fields: fields.filter(f => { if (used.has(f) || !g.test(f)) return false; used.add(f); return true; }) }));
+  out.push({ title: 'Other questions', fields: fields.filter(f => !used.has(f)) });
+  return out.filter(g => g.fields.length);
+}
+
+function renderField(grid, f, rows){
+  const info = FIELD_INFO[f];
+  const who = rows.filter(s => valuesOf(s, f).length);
+  const n = who.length;
+  const body = chartBlock(grid, humanize(f), QTEXT[f] || null, `${n} answered`);
+  if (info.kind === 'scale' || info.kind === 'number'){
+    const nums = who.map(s => Number(s[f]));
+    if (info.kind === 'scale'){
+      const counts = [...new Set(nums)].sort((a, b) => a - b).map(v => ({ key: v, name: lab(f, String(v)), count: nums.filter(x => x === v).length }));
+      renderBarList(body, counts, n);
+    }
+    if (n){
+      const sorted = nums.slice().sort((a, b) => a - b), mean = nums.reduce((a, b) => a + b, 0) / n, med = sorted[Math.floor((n-1)/2)];
+      body.appendChild(el('div','num-summary', `Average <b>${mean.toFixed(1)}</b> · median <b>${med}</b> · range ${sorted[0]}–${sorted[n-1]}`));
+    } else body.appendChild(el('div','empty-state','No answers yet.'));
+  } else if (info.kind === 'text'){
+    if (!n){ body.appendChild(el('div','empty-state','No answers yet.')); }
+    else {
+      const q = el('div','quotes');
+      who.slice().sort((a, b) => b.lastTs - a.lastTs).forEach(s => q.appendChild(el('div','quote', `${esc(s[f])}<div class="quote-meta">${esc(fmtTime(s.lastTs))}</div>`)));
+      body.appendChild(q);
+    }
+  } else {
+    renderBarList(body, countsFor(rows, f), n);
+    if (info.kind === 'multi') body.appendChild(el('div','num-summary','More than one answer allowed, so shares add up to more than 100%.'));
+  }
+  /* Write-ins for "other" */
+  const ofs = [...WRITE_INS].filter(([, p]) => p === f).map(([w]) => w);
+  const writeIns = rows.flatMap(s => ofs.filter(of => hasVal(s[of])).map(of => s[of]));
+  if (writeIns.length){
+    body.appendChild(el('div','ins-label', `Write-ins (${writeIns.length})`));
+    const q = el('div','quotes');
+    writeIns.forEach(t => q.appendChild(el('div','quote', esc(t))));
+    body.appendChild(q);
+  }
+}
+
+function renderTabQ(main){
+  const rows = inView();
+  const groups = fieldsInGroups();
+  if (!groups.length){
+    const s = bandSection('Questions.', 'No question has been answered yet. Every question the form sends will appear here once someone answers it.');
+    main.appendChild(s);
+    return;
+  }
+  groups.forEach(g => {
+    const s = bandSection(g.title + '.', null);
+    main.appendChild(s);
+    const grid = el('div','chart-grid');
+    s.appendChild(grid);
+    g.fields.forEach(f => renderField(grid, f, rows));
+  });
+  const empty = Object.keys(FIELD_INFO).filter(f => FIELD_INFO[f].kind === 'empty' && !isOther(f));
+  if (empty.length){
+    const s = bandSection('Not answered yet.', `The form sends these fields, but nobody in view has answered them: ${empty.map(f => `<span class="field-key">${esc(f)}</span>`).join(', ')}.`);
+    main.appendChild(s);
+  }
+}
+
+function renderTabO(main){
+  const all = sessionsAll().filter(testVisible);
+  const done = all.filter(s => s.complete), partial = all.filter(s => !s.complete && !s.screenedOut), exited = all.filter(s => s.screenedOut);
+  const s = bandSection('Overview.', `Every session that reached the form${state.showTests ? ', test runs included' : ''}. Filters apply to Questions and Responses.`, 'ink');
+  main.appendChild(s);
+  const g = el('div','hl-grid'); s.appendChild(g);
+  hlCard(g, { eyebrow: 'Sessions', stat: String(all.length),
+    text: all.length ? `<b>${done.length}</b> completed, <b>${partial.length}</b> partly filled${exited.length ? ` and <b>${exited.length}</b> exited at screening` : ''}.` : 'Nobody has opened the form yet.' });
+  hlCard(g, { eyebrow: 'Completion rate', stat: all.length ? pct(done.length, all.length) + '%' : '–', meter: all.length ? done.length / all.length : null,
+    text: all.length ? `of sessions reached the end of the form.` : 'Not enough responses yet.' });
+  const durs = done.map(x => x.durationSec).filter(Boolean).sort((a, b) => a - b);
+  hlCard(g, { eyebrow: 'Typical time to complete', stat: durs.length ? fmtDur(durs[Math.floor((durs.length-1)/2)]) : '–',
+    text: durs.length ? `median across ${durs.length} completed session${durs.length===1?'':'s'}.` : 'Shown once someone completes the form.' });
+  const latest = all.reduce((a, x) => Math.max(a, x.lastTs), 0);
+  hlCard(g, { eyebrow: 'Latest activity', stat: latest ? new Date(latest).toLocaleDateString(undefined, { month:'short', day:'numeric' }) : '–',
+    text: latest ? `last save at ${esc(fmtTime(latest))}.` : 'No submissions yet.' });
+
+  /* A first look at the profile questions */
+  const prof = ['industry','workplace','team_size','role','country'].filter(f => FIELD_INFO[f] && FIELD_INFO[f].kind !== 'empty');
+  if (prof.length){
+    const p = bandSection('Who answered.', 'Profile questions for everyone in view.');
+    main.appendChild(p);
+    const grid = el('div','chart-grid'); p.appendChild(grid);
+    const rows = inView();
+    prof.forEach(f => renderField(grid, f, rows));
+  }
+}
+
+function openAnswers(id){
+  const s = sessionsAll().find(x => x.id === id);
+  if (!s) return;
+  const back = el('div','drawer-back');
+  const d = el('div','drawer'); back.appendChild(d);
+  const top = el('div','drawer-top');
+  top.appendChild(el('div','', `<div class="label">Answers</div><div class="drawer-title">${esc(s.id)}</div><div class="drawer-meta">${s.complete ? 'Completed' : s.screenedOut ? 'Exited at screening' : 'Partly filled'} · started ${esc(fmtTime(s.firstTs))} · ${s.rowCount} save${s.rowCount===1?'':'s'} · ${esc(fmtDur(s.durationSec))}${s.lastScreen ? ` · last screen <span class="mono">${esc(s.lastScreen)}</span>` : ''}</div>`));
+  const x = el('button','reset-btn','Close'); x.type = 'button'; x.addEventListener('click', () => back.remove());
+  top.appendChild(x); d.appendChild(top);
+  const dl = el('dl','answers');
+  (DATA.fields || []).filter(f => !META_FIELDS.has(f) && !/_shown$/.test(f) && hasVal(s[f])).forEach(f => {
+    const vals = FIELD_INFO[f] && FIELD_INFO[f].kind === 'multi' ? valuesOf(s, f).map(v => lab(f, v)) : [FIELD_INFO[f] && FIELD_INFO[f].kind === 'single' ? lab(f, s[f]) : String(s[f])];
+    dl.appendChild(el('dt','', `${esc(qText(f))} <span class="field-key">${esc(f)}</span>`));
+    dl.appendChild(el('dd','', vals.length > 1 ? `<ul class="ans-list">${vals.map(v => `<li>${esc(v)}</li>`).join('')}</ul>` : esc(vals[0])));
+  });
+  if (!dl.children.length) dl.appendChild(el('dd','empty-state','No answers saved yet.'));
+  d.appendChild(dl);
+  back.addEventListener('click', e => { if (e.target === back) back.remove(); });
+  document.addEventListener('keydown', function k(e){ if (e.key === 'Escape'){ back.remove(); document.removeEventListener('keydown', k); } });
+  document.body.appendChild(back);
+}
+
+function renderTabR(main){
+  const rows = inView().slice().sort((a, b) => b.lastTs - a.lastTs);
+  const s = bandSection('Responses.', 'One row per person, newest first. Open a row to see every answer they gave.');
+  main.appendChild(s);
+  if (!rows.length){ s.appendChild(el('div','empty-state','No responses in view.')); return; }
+  const wrap = el('div','email-wrap');
+  const t = el('table','emails resp-table');
+  t.innerHTML = '<thead><tr><th>Session ID</th><th>Status</th><th>Started</th><th>Last screen</th><th>Time</th><th>Answers</th><th></th></tr></thead>';
+  const tb = el('tbody');
+  rows.forEach(x => {
+    const nAns = Object.keys(FIELD_INFO).filter(f => hasVal(x[f])).length;
+    const st = x.complete ? ['', 'Completed'] : x.screenedOut ? ['exited', 'Exited'] : ['partial', 'Partly filled'];
+    const tr = el('tr');
+    tr.innerHTML = `<td class="mono">${esc(x.id)}${x.isTest ? ' · test' : ''}</td><td><span class="status-dot ${st[0]}"></span>${st[1]}</td><td class="mono">${esc(fmtTime(x.firstTs))}</td><td class="mono">${esc(x.lastScreen || '–')}</td><td class="mono">${esc(fmtDur(x.durationSec))}</td><td class="mono">${nAns}</td>`;
+    const td = el('td'); const a = el('a','view-link','View'); a.href = '#'; a.addEventListener('click', e => { e.preventDefault(); openAnswers(x.id); });
+    td.appendChild(a); tr.appendChild(td); tb.appendChild(tr);
+  });
+  t.appendChild(tb); wrap.appendChild(t); s.appendChild(wrap);
+}
+
+function renderTabD(main){
+  const s = bandSection('Form activity.', 'How the form itself is doing. These count every session, whatever the filters.', 'ink');
+  main.appendChild(s);
+  const act = el('div','hl-grid'); s.appendChild(act);
+  const all = sessionsAll().filter(testVisible);
+  const NA = 'Not enough responses yet.';
+
+  /* Submissions over time */
+  { const card = el('div','hl-card wide');
+    card.appendChild(el('div','hl-eyebrow','Sessions over time'));
+    const dayKey = ts => { const d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+    const byDay = new Map();
+    all.forEach(x => { const k = dayKey(x.firstTs); if (!byDay.has(k)) byDay.set(k, { completed:0, partial:0, exited:0 }); byDay.get(k)[x.screenedOut ? 'exited' : x.complete ? 'completed' : 'partial']++; });
+    if (!byDay.size){ card.appendChild(el('div','empty-state', NA)); act.appendChild(card); }
+    else {
+      const keys = [...byDay.keys()].sort();
+      const days = []; const cur = new Date(keys[0] + 'T00:00:00'); const end = new Date(keys[keys.length-1] + 'T00:00:00');
+      while (cur <= end && days.length < 400){ days.push(dayKey(cur.getTime())); cur.setDate(cur.getDate()+1); }
+      card.appendChild(el('div','tl-legend','<span><i class="line" style="background:var(--mark)"></i>Completed</span><span><i class="line" style="background:var(--mark-muted)"></i>Partly filled</span><span><i class="dash"></i>Exited at screening</span>'));
+      act.appendChild(card);
+      const every = Math.ceil(days.length / 12);
+      const series = ['completed','partial','exited'];
+      const vals = k => byDay.get(k) || { completed:0, partial:0, exited:0 };
+      const maxV = Math.max(1, ...days.flatMap(k => series.map(t => vals(k)[t])));
+      const step = maxV <= 5 ? 1 : Math.ceil(maxV / 5);
+      const top = Math.ceil(maxV / step) * step;
+      const W = Math.max(280, card.clientWidth - 44), H = 220, L = 30, R = 14, T = 12, B = 28;
+      const X = i => days.length === 1 ? (L + (W - L - R) / 2) : L + i * (W - L - R) / (days.length - 1);
+      const Y = v => T + (H - T - B) * (1 - v / top);
+      const NS = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('class','lc'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+      svg.setAttribute('role','img'); svg.setAttribute('aria-label', 'Sessions per day: ' + days.map(k => `${k} ${vals(k).completed} completed, ${vals(k).partial} partly filled, ${vals(k).exited} exited`).join('; '));
+      const mk = (tag, attrs, text) => { const e = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([a2, v]) => e.setAttribute(a2, v)); if (text != null) e.textContent = text; svg.appendChild(e); return e; };
+      for (let v = 0; v <= top; v += step){
+        mk('line', { x1: L, x2: W - R, y1: Y(v), y2: Y(v), class: v === 0 ? 'axis' : 'grid' });
+        mk('text', { x: L - 8, y: Y(v) + 4, 'text-anchor': 'end' }, String(v));
+      }
+      const dayLbl = k => new Date(k + 'T00:00:00').toLocaleDateString(undefined, { month:'short', day:'numeric' });
+      days.forEach((k, i) => { if (i % every === 0) mk('text', { x: X(i), y: H - 8, 'text-anchor': 'middle' }, dayLbl(k)); });
+      series.slice().reverse().forEach(t => {
+        if (days.length > 1) mk('polyline', { class: 'ln ' + t, points: days.map((k, i) => `${X(i).toFixed(1)},${Y(vals(k)[t]).toFixed(1)}`).join(' ') });
+        days.forEach((k, i) => {
+          const r = mk('rect', { class: 'pt ' + t, x: (X(i) - 3.5).toFixed(1), y: (Y(vals(k)[t]) - 3.5).toFixed(1), width: 7, height: 7 });
+          const tt = document.createElementNS(NS, 'title');
+          tt.textContent = `${dayLbl(k)}: ${vals(k)[t]} ${t === 'partial' ? 'partly filled' : t === 'exited' ? 'exited' : 'completed'}`;
+          r.appendChild(tt);
+        });
+      });
+      card.appendChild(svg);
+      card.appendChild(el('div','hl-text', `<b>${all.length}</b> session${all.length===1?'':'s'} over ${days.length} day${days.length===1?'':'s'}, counted on the day each person started.`));
+    }
+  }
+
+  /* Where partial sessions stopped */
+  { const card = el('div','hl-card wide');
+    card.appendChild(el('div','hl-eyebrow','Where partly-filled sessions stopped'));
+    const partial = all.filter(x => !x.complete && !x.screenedOut);
+    const map = new Map();
+    partial.forEach(x => { const k = x.lastScreen || 'Not recorded'; map.set(k, (map.get(k)||0) + 1); });
+    const counts = [...map.entries()].map(([k, c]) => ({ key: k, name: k, count: c })).sort((a, b) => b.count - a.count);
+    renderBarList(card, counts, partial.length, { emptyText: 'Nobody has stopped part-way yet.' });
+    if (counts.length) card.appendChild(el('div','hl-text','The screen each partly-filled session was on at its last save, most common first.'));
+    act.appendChild(card); }
+
+  /* Emails, if the form collects any */
+  { const list = all.flatMap(x => x.emails.map(e => ({ email: e, id: x.id, ts: x.lastTs }))).sort((a, b) => b.ts - a.ts);
+    if (list.length){
+      const card = el('div','hl-card wide');
+      card.appendChild(el('div','hl-eyebrow','Emails left'));
+      const wrap = el('div','email-wrap'); const t = el('table','emails');
+      t.innerHTML = '<thead><tr><th>Email</th><th>Session ID</th><th>Date</th></tr></thead>';
+      const tb = el('tbody');
+      list.forEach(r => { const tr = el('tr'); tr.innerHTML = `<td class="addr">${esc(r.email)}</td><td class="mono">${esc(r.id)}</td><td class="mono">${esc(fmtTime(r.ts))}</td>`; tb.appendChild(tr); });
+      t.appendChild(tb); wrap.appendChild(t); card.appendChild(wrap); act.appendChild(card);
+    } }
+}
+
+/* ================= filters ================= */
+function buildFilters(){
+  const bar = document.getElementById('filterbar');
+  const anchor = document.getElementById('testToggleWrap');
+  FILTERS.forEach(f => {
+    const id = 'ms_' + f;
+    const lblEl = el('span','fl', esc(humanize(f))); lblEl.id = id + '_lbl';
+    const d = el('details','ms'); d.dataset.field = f;
+    d.innerHTML = `<summary class="filter-select" aria-labelledby="${id}_lbl"></summary><div class="ms-panel" role="group" aria-labelledby="${id}_lbl"></div>`;
+    bar.insertBefore(lblEl, anchor); bar.insertBefore(d, anchor);
+    const panel = d.querySelector('.ms-panel');
+    panel.addEventListener('change', e => {
+      const v = e.target.value;
+      state.picks[f] = e.target.checked ? [...state.picks[f], v] : state.picks[f].filter(x => x !== v);
+      render();
+    });
+    panel.addEventListener('click', e => { if (e.target.closest('[data-clear]')){ state.picks[f] = []; d.open = false; render(); } });
+  });
+  document.addEventListener('click', e => { document.querySelectorAll('details.ms[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; }); });
+}
+function fillFilters(){
+  const pool = answered();
+  document.querySelectorAll('details.ms').forEach(d => {
+    const f = d.dataset.field;
+    const counts = countsFor(pool, f);
+    state.picks[f].forEach(v => { if (!counts.some(c => c.key === v)) counts.push({ key: v, name: lab(f, v), count: 0 }); });
+    const picked = state.picks[f];
+    d.querySelector('summary').textContent = !picked.length ? 'All' : picked.length === 1 ? lab(f, picked[0]) : `${picked.length} selected`;
+    const panel = d.querySelector('.ms-panel');
+    panel.innerHTML = counts.length
+      ? counts.map(c => `<label class="ms-opt"><input type="checkbox" value="${esc(c.key)}"${picked.includes(c.key) ? ' checked' : ''}> ${esc(c.name)}<span class="c">${c.count}</span></label>`).join('') + (picked.length ? '<button class="ms-clear" type="button" data-clear>Clear</button>' : '')
+      : '<div class="ms-opt">No answers yet</div>';
+    const hide = !counts.length;
+    d.hidden = hide; d.previousElementSibling.hidden = hide;
+  });
+}
+
+/* ================= shell ================= */
+function setHeader(){
+  document.getElementById('eyebrow').textContent = CONFIG.eyebrow || '';
+  document.getElementById('title').textContent = (CONFIG.title || 'Survey') + '.';
+  document.getElementById('nextLine').textContent = `The next snapshot is prepared ${REFRESH_LABEL}.`;
+  document.getElementById('asofLabel').innerHTML = DATA ? `<span class="sq"></span>Data as of ${esc(fmtTime(DATA.fetchedAt))} · Formspree form ${esc(CONFIG.form_id || '')}` : '<span class="sq"></span>No snapshot loaded';
+  const tests = sessionsAll().filter(s => s.isTest).length;
+  document.getElementById('testToggleWrap').hidden = !tests;
+  const n = answered().length;
+  document.getElementById('pageSubtitle').textContent = (CONFIG.subtitle || '') + (DATA ? ` ${n} ${n===1?'person has':'people have'} answered${state.includePartial ? ', partly filled forms included' : ''}.` + (tests ? ` ${tests} test session${tests===1?' is':'s are'} ${state.showTests ? 'included' : 'excluded'}.` : '') : '');
+}
+
+function render(){
+  const main = document.getElementById('main');
+  main.innerHTML = '';
+  setHeader();
+  document.querySelectorAll('.tab-btn').forEach(b => { b.classList.toggle('active', b.dataset.tab===state.tab); b.setAttribute('aria-selected', b.dataset.tab===state.tab); });
+  if (!DATA){
+    const c = el('div','conn-state');
+    c.appendChild(el('h2','','No snapshot in this version'));
+    c.appendChild(el('p','','This version of the page was published without data. Run scripts/build_formspree_dashboards.py to refresh it.'));
+    main.appendChild(c);
+    return;
+  }
+  fillFilters();
+  const v = inView().length, a = answered().length;
+  document.getElementById('matchCount').innerHTML = filtersActive() ? `<b>${v}</b> of ${a} in view` : `<b>${v}</b> in view`;
+  if (!sessionsAll().length){
+    main.appendChild(el('div','notice', `<div><b>No submissions yet.</b> The Formspree key works and the form is reachable, but nobody has submitted it as of ${esc(fmtTime(DATA.fetchedAt))}. Charts appear here as answers arrive.</div>`));
+  }
+  if (state.tab === 'q') renderTabQ(main);
+  else if (state.tab === 'r') renderTabR(main);
+  else if (state.tab === 'd') renderTabD(main);
+  else renderTabO(main);
+  main.querySelectorAll('.chart-grid:not(.stacked)').forEach(packGrid);
+}
+
+const CHART_MIN = 310, CHART_GAP = 18;
+function packGrid(grid){
+  const items = Array.from(grid.children);
+  const cols = Math.max(1, Math.min(items.length, Math.floor((grid.clientWidth + CHART_GAP) / (CHART_MIN + CHART_GAP))));
+  if (cols < 2 || items.length < 2) return;
+  const colEls = Array.from({ length: cols }, () => el('div','chart-col'));
+  grid.classList.add('packed');
+  colEls.forEach(c => grid.appendChild(c));
+  items.forEach(item => { colEls.reduce((a, b) => (b.offsetHeight < a.offsetHeight ? b : a)).appendChild(item); });
+}
+let resizeTimer = null, lastWidth = window.innerWidth;
+window.addEventListener('resize', () => {
+  if (window.innerWidth === lastWidth) return;
+  lastWidth = window.innerWidth;
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { if (DATA) render(); }, 150);
+});
+
+function boot(){
+  buildFilters();
+  if (SNAPSHOT && Array.isArray(SNAPSHOT.submissions)){
+    const t = Date.parse(SNAPSHOT.asOf);
+    const subs = SNAPSHOT.submissions;
+    const fields = (SNAPSHOT.fields && SNAPSHOT.fields.length) ? SNAPSHOT.fields : [...new Set(subs.flatMap(Object.keys))];
+    /* "x_other" belongs to question "x", or else to the first "x_…" question (tools_other -> tools_used). */
+    WRITE_INS = new Map();
+    fields.filter(f => /_other$/.test(f)).forEach(f => {
+      const base = f.replace(/_other$/, '');
+      const parent = fields.includes(base) ? base : fields.find(g => g !== f && g.startsWith(base + '_') && !isMeta(g) && !/(_other|_note|_text)$/.test(g));
+      if (parent) WRITE_INS.set(f, parent);
+    });
+    const sessions = mergeSessions(subs);
+    FIELD_INFO = inferFields(fields, sessions);
+    DATA = { fields, sessions, fetchedAt: isNaN(t) ? Date.now() : t };
+  }
+  render();
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+  state.tab = btn.dataset.tab;
+  try { localStorage.setItem(TAB_KEY, state.tab); } catch(e){}
+  render();
+}));
+document.getElementById('fTests').addEventListener('change', e => { state.showTests = e.target.checked; render(); });
+document.getElementById('fPartial').addEventListener('change', e => { state.includePartial = e.target.checked; render(); });
+document.getElementById('resetBtn').addEventListener('click', () => { FILTERS.forEach(f => state.picks[f] = []); render(); });
+boot();
+</script>
